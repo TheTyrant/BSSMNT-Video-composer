@@ -34,10 +34,20 @@ class DJVisualizer {
     this.gridSize = 20;
     this.snowflakes = [];
     
-    // Custom uploaded media state (image/gif/video)
-    this.customMedia = null;
-    this.customMediaType = null; // 'image' | 'video'
-    this.customMediaURL = null;
+    // Media Layers: background + 3 beat-reactive layers (bass/mid/high).
+    // Background has no enabled/justify/stack — it's a fixed base layer, always
+    // drawn first and full-bleed. Bass/mid/high are independently toggleable,
+    // auto-fit within the canvas, and positioned via justify + stack order.
+    this.layers = {
+      background: { media: null, type: null, url: null },
+      bass:  { media: null, type: null, url: null, enabled: true,  justify: 'center', stack: 'middle', isSmall: false },
+      mid:   { media: null, type: null, url: null, enabled: false, justify: 'center', stack: 'top',    isSmall: false },
+      high:  { media: null, type: null, url: null, enabled: false, justify: 'center', stack: 'bottom', isSmall: false }
+    };
+    // A layer's fitted width under this fraction of canvas width counts as "small" --
+    // used to auto-suggest left/right justify instead of letting small layers pile
+    // up on top of each other in the center (e.g. two side-by-side character layers).
+    this.smallLayerThreshold = 0.35;
 
     // Polygon visualization state
     this.polygonPoints = [];
@@ -73,26 +83,49 @@ class DJVisualizer {
       if (this.currentMode === 'snake') {
         this.initializeSnake();
       }
-      // Pause/resume uploaded video when leaving/entering custom mode
-      if (this.customMediaType === 'video' && this.customMedia) {
-        if (this.currentMode === 'custom') {
-          this.customMedia.loop();
-        } else if (previousMode === 'custom') {
-          this.customMedia.pause();
-        }
+      // Note: layer videos loop continuously once loaded regardless of the
+      // active mode (not paused when leaving 'layers' mode). Fine for a rough
+      // demo; revisit if this becomes a real performance/battery concern.
+    });
+
+    // Media Layers: wire up upload inputs + (for reactive layers) enabled toggle,
+    // justify select, and stack-order select.
+    ['background', 'bass', 'mid', 'high'].forEach(layerName => {
+      const fileInput = document.getElementById(`layerUpload-${layerName}`);
+      if (fileInput) {
+        fileInput.addEventListener('change', (e) => {
+          const file = e.target.files[0];
+          if (file) this.loadLayerMedia(layerName, file);
+        });
+      }
+
+      if (layerName === 'background') return;
+
+      const enabledCheckbox = document.getElementById(`layerEnabled-${layerName}`);
+      if (enabledCheckbox) {
+        this.layers[layerName].enabled = enabledCheckbox.checked;
+        enabledCheckbox.addEventListener('change', (e) => {
+          this.layers[layerName].enabled = e.target.checked;
+        });
+      }
+
+      const justifySelect = document.getElementById(`layerJustify-${layerName}`);
+      if (justifySelect) {
+        justifySelect.value = this.layers[layerName].justify;
+        justifySelect.addEventListener('change', (e) => {
+          this.layers[layerName].justify = e.target.value;
+        });
+      }
+
+      const stackSelect = document.getElementById(`layerStack-${layerName}`);
+      if (stackSelect) {
+        stackSelect.value = this.layers[layerName].stack;
+        stackSelect.addEventListener('change', (e) => {
+          this.assignStackPosition(layerName, e.target.value);
+        });
       }
     });
 
-    // Custom media upload (image/gif/video)
-    this.customMediaInput = document.getElementById('customMediaUpload');
-    this.customMediaStatus = document.getElementById('customMediaStatus');
-    if (this.customMediaInput) {
-      this.customMediaInput.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (file) this.loadCustomMedia(file);
-      });
-    }
-    
     this.p5Instance = new p5((p) => {
       p.setup = () => {
         const container = document.querySelector('.visualizer-container');
@@ -161,55 +194,124 @@ class DJVisualizer {
     }
   }
 
-  loadCustomMedia(file) {
+  loadLayerMedia(layerName, file) {
     if (!this.p5Instance) return;
-
-    this.clearCustomMedia();
+    const layer = this.layers[layerName];
+    this.clearLayerMedia(layerName);
 
     const url = URL.createObjectURL(file);
-    this.customMediaURL = url;
+    layer.url = url;
+    const statusEl = document.getElementById(`layerStatus-${layerName}`);
 
     if (file.type.startsWith('video/')) {
-      this.customMediaType = 'video';
+      layer.type = 'video';
       const video = this.p5Instance.createVideo([url], () => {
         video.volume(0);
         video.hide();
-        if (this.currentMode === 'custom') video.loop();
-        this.customMedia = video;
-        if (this.customMediaStatus) this.customMediaStatus.textContent = `Loaded: ${file.name}`;
+        video.loop();
+        layer.media = video;
+        this.evaluateLayerSize(layerName);
+        if (statusEl) statusEl.textContent = `Loaded: ${file.name}`;
       });
     } else if (file.type.startsWith('image/')) {
-      this.customMediaType = 'image';
+      layer.type = 'image';
       this.p5Instance.loadImage(
         url,
         (img) => {
-          this.customMedia = img;
-          if (this.customMediaStatus) this.customMediaStatus.textContent = `Loaded: ${file.name}`;
+          layer.media = img;
+          this.evaluateLayerSize(layerName);
+          if (statusEl) statusEl.textContent = `Loaded: ${file.name}`;
         },
         () => {
-          if (this.customMediaStatus) this.customMediaStatus.textContent = `Failed to load: ${file.name}`;
+          if (statusEl) statusEl.textContent = `Failed to load: ${file.name}`;
           URL.revokeObjectURL(url);
-          this.customMediaURL = null;
+          layer.url = null;
         }
       );
     } else {
-      if (this.customMediaStatus) this.customMediaStatus.textContent = 'Unsupported file type';
+      if (statusEl) statusEl.textContent = 'Unsupported file type';
       URL.revokeObjectURL(url);
-      this.customMediaURL = null;
+      layer.url = null;
     }
   }
 
-  clearCustomMedia() {
-    if (this.customMediaType === 'video' && this.customMedia) {
-      this.customMedia.stop();
-      this.customMedia.remove();
+  clearLayerMedia(layerName) {
+    const layer = this.layers[layerName];
+    if (layer.type === 'video' && layer.media) {
+      layer.media.stop();
+      layer.media.remove();
     }
-    if (this.customMediaURL) {
-      URL.revokeObjectURL(this.customMediaURL);
-      this.customMediaURL = null;
+    if (layer.url) {
+      URL.revokeObjectURL(layer.url);
+      layer.url = null;
     }
-    this.customMedia = null;
-    this.customMediaType = null;
+    layer.media = null;
+    layer.type = null;
+    layer.isSmall = false;
+  }
+
+  // Size detector: flags a reactive layer "small" once loaded, based on its
+  // auto-fit width relative to the canvas. Small + enabled layers get an
+  // auto-suggested justify so they don't default into an overlapping pile
+  // (this only runs at load time -- it's a starting suggestion, not a lock;
+  // the justify dropdown always stays user-editable afterward).
+  evaluateLayerSize(layerName) {
+    const layer = this.layers[layerName];
+    if (!layer.media || !this.w) return;
+
+    const mediaW = layer.media.width || 1;
+    const mediaH = layer.media.height || 1;
+    const fitScale = Math.min(this.w / mediaW, this.h / mediaH) * 0.8;
+    const fittedWidth = mediaW * fitScale;
+
+    layer.isSmall = (fittedWidth / this.w) < this.smallLayerThreshold;
+
+    if (layerName !== 'background') {
+      this.autoAssignJustify();
+    }
+  }
+
+  autoAssignJustify() {
+    const order = ['bass', 'mid', 'high'];
+    const smallEnabled = order.filter(name => {
+      const l = this.layers[name];
+      return l.enabled && l.isSmall && l.media;
+    });
+
+    if (smallEnabled.length === 2) {
+      // Two small reactive layers -- side by side, e.g. the original
+      // drummer + singer pairing, instead of stacked on top of each other.
+      this.setJustify(smallEnabled[0], 'left');
+      this.setJustify(smallEnabled[1], 'right');
+    } else if (smallEnabled.length >= 3) {
+      const spread = ['left', 'center', 'right'];
+      smallEnabled.forEach((name, i) => this.setJustify(name, spread[i]));
+    }
+    // 0 or 1 small layers: leave justify as-is, no adjustment needed.
+  }
+
+  setJustify(layerName, value) {
+    this.layers[layerName].justify = value;
+    const select = document.getElementById(`layerJustify-${layerName}`);
+    if (select) select.value = value;
+  }
+
+  // Strict 3-way stack assignment: bass/mid/high always occupy top/middle/bottom
+  // with no ties. Picking a position already held by another layer bumps that
+  // layer into the position being vacated.
+  assignStackPosition(layerName, newPosition) {
+    const order = ['bass', 'mid', 'high'];
+    const conflictingLayer = order.find(
+      name => name !== layerName && this.layers[name].stack === newPosition
+    );
+
+    if (conflictingLayer) {
+      this.layers[conflictingLayer].stack = this.layers[layerName].stack;
+      const conflictSelect = document.getElementById(`layerStack-${conflictingLayer}`);
+      if (conflictSelect) conflictSelect.value = this.layers[conflictingLayer].stack;
+    }
+
+    this.layers[layerName].stack = newPosition;
   }
 
   initSpectrumVisualizer() {
@@ -302,6 +404,12 @@ class DJVisualizer {
         p.background(0);
         this.polygonCollageStarted = true;
       }
+    } else if (this.currentMode === 'layers') {
+      // Full clear every frame -- the background layer (once loaded) redraws
+      // full-bleed on top of this anyway, but we don't want the motion-trail
+      // alpha clear ghosting behind layers as the bass rattle jitters them.
+      p.background(0);
+      this.polygonCollageStarted = false;
     } else {
       p.background(0, 0, 0, 30);
       this.polygonCollageStarted = false;
@@ -330,8 +438,8 @@ class DJVisualizer {
       case 'polygons':
         this.drawAudioPolygons(p);
         break;
-      case 'custom':
-        this.drawCustomMedia(p);
+      case 'layers':
+        this.drawMediaLayers(p);
         break;
       default:
         this.drawFloatingParticles3D(p);
@@ -768,53 +876,34 @@ class DJVisualizer {
     }
   }
 
-  drawCustomMedia(p) {
-    if (!this.customMedia) {
+  drawMediaLayers(p) {
+    const hasAnyMedia = this.layers.background.media || this.layers.bass.media ||
+      this.layers.mid.media || this.layers.high.media;
+
+    if (!hasAnyMedia) {
       p.push();
       p.fill(255, 120);
       p.textAlign(p.CENTER, p.CENTER);
       p.textSize(16);
-      p.text('Upload an image, GIF, or video to begin', 0, 0);
+      p.text('Upload images for Background, Bass, Mid, and High to begin', 0, 0);
       p.pop();
       return;
     }
 
-    const bass = this.audioData.bass || 0;
-    const mid = this.audioData.mid || 0;
-    const high = this.audioData.high || 0;
+    // Background is drawn first, full-bleed (cover-fit, not contain-fit,
+    // so it fills the frame edge to edge with no letterboxing), static.
+    this.drawSingleLayer(p, 'background', { reactive: false });
 
-    // Fit media into the canvas while preserving aspect ratio
-    const mediaW = this.customMedia.width || 1;
-    const mediaH = this.customMedia.height || 1;
-    const fitScale = Math.min(this.w / mediaW, this.h / mediaH) * 0.8;
-    const baseW = mediaW * fitScale;
-    const baseH = mediaH * fitScale;
+    // Bass/mid/high draw in bottom -> middle -> top order so "top" ends up
+    // frontmost. Only enabled layers with media loaded are drawn.
+    const stackOrder = { bottom: 0, middle: 1, top: 2 };
+    const reactiveLayers = ['bass', 'mid', 'high']
+      .filter(name => this.layers[name].enabled && this.layers[name].media)
+      .sort((a, b) => stackOrder[this.layers[a].stack] - stackOrder[this.layers[b].stack]);
 
-    p.push();
-    // Bass: pulse scale, with a kick on the beat
-    const pulse = 1 + bass * 0.6 + this.beatPulse * 0.15;
-    p.scale(pulse);
-    // Mid: gentle wobble rotation
-    p.rotateZ(mid * 0.4 * Math.sin(this.time * 2));
+    reactiveLayers.forEach(name => this.drawSingleLayer(p, name, { reactive: true }));
 
-    // High: cheap chromatic-aberration glitch via offset color-tinted copies
-    if (high > 0.05) {
-      const offset = high * 20;
-      p.push();
-      p.tint(...this.colors.bass, 120);
-      p.image(this.customMedia, -baseW / 2 - offset, -baseH / 2, baseW, baseH);
-      p.pop();
-      p.push();
-      p.tint(...this.colors.high, 120);
-      p.image(this.customMedia, -baseW / 2 + offset, -baseH / 2, baseW, baseH);
-      p.pop();
-    }
-
-    p.tint(255, 255);
-    p.image(this.customMedia, -baseW / 2, -baseH / 2, baseW, baseH);
-    p.pop();
-
-    // BPM beat flash overlay
+    // BPM beat flash overlay across the whole composite
     if (this.beatFlash > 0.05) {
       p.push();
       p.noStroke();
@@ -822,6 +911,52 @@ class DJVisualizer {
       p.rect(-this.w / 2, -this.h / 2, this.w, this.h);
       p.pop();
     }
+  }
+
+  drawSingleLayer(p, layerName, { reactive }) {
+    const layer = this.layers[layerName];
+    if (!layer.media) return;
+
+    const mediaW = layer.media.width || 1;
+    const mediaH = layer.media.height || 1;
+
+    let baseW, baseH;
+    if (reactive) {
+      // Contain-fit with margin: shrink to fit fully within the canvas,
+      // leaving room to be positioned via justify.
+      const fitScale = Math.min(this.w / mediaW, this.h / mediaH) * 0.8;
+      baseW = mediaW * fitScale;
+      baseH = mediaH * fitScale;
+    } else {
+      // Background: cover-fit, fills the full frame (may crop the image),
+      // since it's meant to be a full backdrop, not a positioned element.
+      const coverScale = Math.max(this.w / mediaW, this.h / mediaH);
+      baseW = mediaW * coverScale;
+      baseH = mediaH * coverScale;
+    }
+
+    // Justify sets horizontal anchor; vertical stays centered for now.
+    let x = 0;
+    if (reactive) {
+      if (layer.justify === 'left') x = -this.w / 2 + baseW / 2;
+      else if (layer.justify === 'right') x = this.w / 2 - baseW / 2;
+    }
+
+    let offsetX = 0, offsetY = 0;
+
+    // Bass rattle: small, fast x/y jitter scaled to bass energy. On by
+    // default per spec. No scale or rotation involved -- just shakes in place.
+    if (reactive && layerName === 'bass') {
+      const bass = this.audioData.bass || 0;
+      const rattleAmplitude = 18; // px, tune to taste
+      offsetX = (p.noise(this.time * 40) - 0.5) * 2 * rattleAmplitude * bass;
+      offsetY = (p.noise(this.time * 40 + 500) - 0.5) * 2 * rattleAmplitude * bass;
+    }
+
+    p.push();
+    p.translate(x + offsetX, offsetY);
+    p.image(layer.media, -baseW / 2, -baseH / 2, baseW, baseH);
+    p.pop();
   }
 
   drawSnakeGame(p) {
@@ -1552,7 +1687,7 @@ class DJVisualizer {
   }
 
   destroy() {
-    this.clearCustomMedia();
+    Object.keys(this.layers).forEach(layerName => this.clearLayerMedia(layerName));
     if (this.p5Instance) {
       this.p5Instance.remove();
     }

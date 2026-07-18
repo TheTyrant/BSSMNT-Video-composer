@@ -117,6 +117,56 @@ body {
   text-align: right;
 }
 
+.layer-upload-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.layer-upload-group:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.layer-label {
+  font-size: 0.85em;
+  color: #ccc;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.layer-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.layer-toggle input[type="checkbox"] {
+  cursor: pointer;
+}
+
+.layer-file-input {
+  width: 100%;
+}
+
+.layer-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.layer-controls select {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-size: 0.8em;
+}
+
 .status-info {
   display: flex;
   flex-direction: column;

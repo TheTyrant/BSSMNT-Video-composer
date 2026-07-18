@@ -46,19 +46,81 @@
               <option value="tunnel">Tunnel Vision</option>
               <option value="galaxy">Galaxy</option>
               <option value="polygons">Polygon Collage</option>
-              <option value="custom">Custom Upload</option>
+              <option value="layers">Media Layers</option>
             </select>
           </div>
         </div>
 
         <div class="control-section" id="customMediaSection">
-          <h3>Custom Media</h3>
-          <div class="control-group">
-            <label for="customMediaUpload">Image / GIF / Video:</label>
-            <input type="file" id="customMediaUpload" accept="image/*,video/*">
+          <h3>Media Layers</h3>
+
+          <div class="layer-upload-group">
+            <label class="layer-label">Background</label>
+            <input type="file" class="layer-file-input" id="layerUpload-background" accept="image/*,video/*">
+            <span class="custom-media-status" id="layerStatus-background">No file selected</span>
           </div>
-          <div class="control-group">
-            <span id="customMediaStatus" class="custom-media-status">No file selected</span>
+
+          <div class="layer-upload-group">
+            <label class="layer-label layer-toggle">
+              <input type="checkbox" id="layerEnabled-bass" checked>
+              Bass
+            </label>
+            <input type="file" class="layer-file-input" id="layerUpload-bass" accept="image/*,video/*">
+            <span class="custom-media-status" id="layerStatus-bass">No file selected</span>
+            <div class="layer-controls">
+              <select id="layerJustify-bass">
+                <option value="left">Left</option>
+                <option value="center" selected>Center</option>
+                <option value="right">Right</option>
+              </select>
+              <select id="layerStack-bass">
+                <option value="top">Top</option>
+                <option value="middle" selected>Middle</option>
+                <option value="bottom">Bottom</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="layer-upload-group">
+            <label class="layer-label layer-toggle">
+              <input type="checkbox" id="layerEnabled-mid">
+              Mid
+            </label>
+            <input type="file" class="layer-file-input" id="layerUpload-mid" accept="image/*,video/*">
+            <span class="custom-media-status" id="layerStatus-mid">No file selected</span>
+            <div class="layer-controls">
+              <select id="layerJustify-mid">
+                <option value="left">Left</option>
+                <option value="center" selected>Center</option>
+                <option value="right">Right</option>
+              </select>
+              <select id="layerStack-mid">
+                <option value="top" selected>Top</option>
+                <option value="middle">Middle</option>
+                <option value="bottom">Bottom</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="layer-upload-group">
+            <label class="layer-label layer-toggle">
+              <input type="checkbox" id="layerEnabled-high">
+              High
+            </label>
+            <input type="file" class="layer-file-input" id="layerUpload-high" accept="image/*,video/*">
+            <span class="custom-media-status" id="layerStatus-high">No file selected</span>
+            <div class="layer-controls">
+              <select id="layerJustify-high">
+                <option value="left">Left</option>
+                <option value="center" selected>Center</option>
+                <option value="right">Right</option>
+              </select>
+              <select id="layerStack-high">
+                <option value="top">Top</option>
+                <option value="middle">Middle</option>
+                <option value="bottom" selected>Bottom</option>
+              </select>
+            </div>
           </div>
         </div>
 
