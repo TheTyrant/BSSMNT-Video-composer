@@ -22,6 +22,7 @@
   --high:      #2F5BD3;
   --live:      #E5322D;
 
+  --font-logo: "Boldonse", "Inter Tight", "Segoe UI", sans-serif;
   --font-ui:   "Inter Tight", "Segoe UI", system-ui, -apple-system, sans-serif;
   --font-mono: "JetBrains Mono", "Cascadia Mono", ui-monospace, Consolas, monospace;
 
@@ -50,7 +51,7 @@ body {
 kbd {
   font-family: var(--font-mono);
   font-size: 10px;
-  border: 1px solid var(--ink);
+  border: .5px solid var(--ink);
   padding: 0 4px;
   background: var(--paper);
 }
@@ -72,7 +73,7 @@ kbd {
   gap: 24px;
   padding: 0 12px 0 0;
   background: var(--surface);
-  border-bottom: 2px solid var(--ink);
+  border-bottom: 1px solid var(--ink);
 }
 
 .brand {
@@ -82,16 +83,22 @@ kbd {
   width: var(--sidebar-w);
   border-right: 1px solid var(--ink);
 }
+/* Logo: BSS over MNT, stacked tight. Boldonse has tall line metrics, so
+   each word gets its own line box with line-height pulled well under 1. */
 .brand-mark {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  justify-content: center;
   padding: 0 12px;
   background: var(--ink);
   color: var(--paper);
-  font-weight: 800;
-  font-size: 18px;
-  letter-spacing: -0.02em;
+  font-family: var(--font-logo);
+  font-weight: 400;
+  font-size: 12px;
+  line-height: 0.95;
+  letter-spacing: 0.02em;
 }
+.brand-mark > span { display: block; }
 .brand-name {
   display: flex;
   align-items: center;
