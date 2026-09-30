@@ -97,6 +97,21 @@ class DJVisualizer {
           const file = e.target.files[0];
           if (file) this.loadLayerMedia(layerName, file);
         });
+
+        const dropZone = fileInput.closest('.layer-upload-group');
+        if (dropZone) {
+          dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+          });
+          dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+          dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            const file = e.dataTransfer.files[0];
+            if (file) this.loadLayerMedia(layerName, file);
+          });
+        }
       }
 
       if (layerName === 'background') return;
@@ -106,6 +121,9 @@ class DJVisualizer {
         this.layers[layerName].enabled = enabledCheckbox.checked;
         enabledCheckbox.addEventListener('change', (e) => {
           this.layers[layerName].enabled = e.target.checked;
+          // Toggling a layer changes which layers are "small + enabled",
+          // so re-run the side-by-side suggestion, not just at load time.
+          this.autoAssignJustify();
         });
       }
 
@@ -137,17 +155,29 @@ class DJVisualizer {
         
         this.initializeParticles();
         this.initializeSnake();
+
+        // The viewport also resizes when the bottom timeline panel is
+        // dragged, which doesn't fire a window resize.
+        if (window.ResizeObserver) {
+          new ResizeObserver(() => p.windowResized()).observe(container);
+        }
       };
 
       p.windowResized = () => {
         const container = document.querySelector('.visualizer-container');
-        this.w = container.clientWidth;
-        this.h = container.clientHeight;
+        const w = container.clientWidth;
+        const h = container.clientHeight;
+        if (!w || !h || (w === this.w && h === this.h)) return;
+        this.w = w;
+        this.h = h;
         p.resizeCanvas(this.w, this.h);
       };
 
       p.draw = () => {
-        if (this.isRunning) {
+        // Media Layers and the clip editor render even when audio isn't
+        // running, so uploads are visible immediately -- other modes still
+        // gate on isRunning since they're purely audio-reactive.
+        if (this.isRunning || this.currentMode === 'layers' || this.currentMode === 'clips') {
           this.draw(p);
         } else {
           // Show static state when not running
@@ -196,8 +226,23 @@ class DJVisualizer {
 
   loadLayerMedia(layerName, file) {
     if (!this.p5Instance) return;
+
+    // Jump to Media Layers mode so the upload is visible right away, instead
+    // of silently loading behind whatever visualization happens to be active.
+    // (Clip editor mode can overlay layers, so it's left alone.)
+    if (this.visualModeSelect && this.visualModeSelect.value !== 'layers' && this.visualModeSelect.value !== 'clips') {
+      this.visualModeSelect.value = 'layers';
+      this.visualModeSelect.dispatchEvent(new Event('change'));
+    }
+
     const layer = this.layers[layerName];
     this.clearLayerMedia(layerName);
+
+    // Kept so the pop-out output window (app/output.js) can independently
+    // load its own copy of this media in its own p5/WebGL renderer -- p5.Image
+    // and p5.MediaElement objects are tied to the renderer that created them,
+    // so sharing this.media directly across windows breaks p5's texture pipeline.
+    layer.file = file;
 
     const url = URL.createObjectURL(file);
     layer.url = url;
@@ -247,6 +292,7 @@ class DJVisualizer {
     }
     layer.media = null;
     layer.type = null;
+    layer.file = null;
     layer.isSmall = false;
   }
 
@@ -404,7 +450,7 @@ class DJVisualizer {
         p.background(0);
         this.polygonCollageStarted = true;
       }
-    } else if (this.currentMode === 'layers') {
+    } else if (this.currentMode === 'layers' || this.currentMode === 'clips') {
       // Full clear every frame -- the background layer (once loaded) redraws
       // full-bleed on top of this anyway, but we don't want the motion-trail
       // alpha clear ghosting behind layers as the bass rattle jitters them.
@@ -440,6 +486,9 @@ class DJVisualizer {
         break;
       case 'layers':
         this.drawMediaLayers(p);
+        break;
+      case 'clips':
+        if (this.clipEngine) this.clipEngine.draw(p);
         break;
       default:
         this.drawFloatingParticles3D(p);
@@ -876,6 +925,17 @@ class DJVisualizer {
     }
   }
 
+  // Bass/mid/high draw in bottom -> middle -> top order so "top" ends up
+  // frontmost. Only enabled layers with media loaded are drawn. Also used by
+  // the clip auto-editor to overlay layers on top of clips.
+  drawReactiveLayers(p) {
+    const stackOrder = { bottom: 0, middle: 1, top: 2 };
+    ['bass', 'mid', 'high']
+      .filter(name => this.layers[name].enabled && this.layers[name].media)
+      .sort((a, b) => stackOrder[this.layers[a].stack] - stackOrder[this.layers[b].stack])
+      .forEach(name => this.drawSingleLayer(p, name, { reactive: true }));
+  }
+
   drawMediaLayers(p) {
     const hasAnyMedia = this.layers.background.media || this.layers.bass.media ||
       this.layers.mid.media || this.layers.high.media;
@@ -894,14 +954,7 @@ class DJVisualizer {
     // so it fills the frame edge to edge with no letterboxing), static.
     this.drawSingleLayer(p, 'background', { reactive: false });
 
-    // Bass/mid/high draw in bottom -> middle -> top order so "top" ends up
-    // frontmost. Only enabled layers with media loaded are drawn.
-    const stackOrder = { bottom: 0, middle: 1, top: 2 };
-    const reactiveLayers = ['bass', 'mid', 'high']
-      .filter(name => this.layers[name].enabled && this.layers[name].media)
-      .sort((a, b) => stackOrder[this.layers[a].stack] - stackOrder[this.layers[b].stack]);
-
-    reactiveLayers.forEach(name => this.drawSingleLayer(p, name, { reactive: true }));
+    this.drawReactiveLayers(p);
 
     // BPM beat flash overlay across the whole composite
     if (this.beatFlash > 0.05) {

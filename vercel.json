@@ -1,11 +1,10 @@
 {
   "version": 2,
   "builds": [
-    { "src": "index.html", "use": "@vercel/static" },
-    { "src": "styles/styles.css", "use": "@vercel/static" },
-    { "src": "app/app.js", "use": "@vercel/static" },
-    { "src": "app/audioProcessor.js", "use": "@vercel/static" },
-    { "src": "app/visualizer.js", "use": "@vercel/static" }
+    { "src": "*.html", "use": "@vercel/static" },
+    { "src": "styles/*.css", "use": "@vercel/static" },
+    { "src": "app/*.js", "use": "@vercel/static" },
+    { "src": "test-assets/*.html", "use": "@vercel/static" }
   ],
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }

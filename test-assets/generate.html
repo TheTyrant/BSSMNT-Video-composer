@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Test Asset Generator</title>
+  <style>
+    body { font-family: "Segoe UI", system-ui, sans-serif; background: #EDEAE4; color: #1A1A1A; margin: 0; padding: 24px; }
+    h1 { font-size: 20px; text-transform: uppercase; margin: 0 0 4px; }
+    p { max-width: 640px; line-height: 1.5; }
+    button { font: 11px/1 "Cascadia Mono", Consolas, monospace; text-transform: uppercase; letter-spacing: .06em;
+             height: 30px; padding: 0 14px; border: 1px solid #1A1A1A; background: #1A1A1A; color: #fff; cursor: pointer; margin-right: 6px; }
+    #log { font: 12px "Cascadia Mono", Consolas, monospace; white-space: pre-wrap; margin-top: 16px; }
+    a { color: #1A1A1A; }
+  </style>
+</head>
+<body>
+  <h1>DJ Visualizer — test assets</h1>
+  <p>Generates a small, license-free test set for the Clip Auto-Editor: six labelled video clips (WebM) and a 32-bar,
+     120&nbsp;BPM test track (WAV) whose sections lean bass → mid → high so band-driven selection and transitions can be
+     seen firing. Nothing is uploaded anywhere; files are made in this tab.</p>
+  <button id="clips">Generate 6 clips</button>
+  <button id="track">Generate test track</button>
+  <div id="log"></div>
+
+<script>
+const CLIPS = [
+  { name: 'A-red-circles',   bg: '#2b0606', fg: '#ff4d4d', shape: 'circle' },
+  { name: 'B-green-bars',    bg: '#03220f', fg: '#3dff8a', shape: 'bars' },
+  { name: 'C-blue-grid',     bg: '#050b2b', fg: '#5a8bff', shape: 'grid' },
+  { name: 'D-white-orbit',   bg: '#111111', fg: '#f4f1ea', shape: 'orbit' },
+  { name: 'E-amber-stripes', bg: '#2a1a02', fg: '#ffb020', shape: 'stripes' },
+  { name: 'F-violet-rings',  bg: '#1a0526', fg: '#c77dff', shape: 'rings' },
+];
+
+function log(msg) { document.getElementById('log').textContent += msg + '\n'; }
+
+function drawFrame(ctx, spec, t, W, H) {
+  ctx.fillStyle = spec.bg; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = spec.fg; ctx.strokeStyle = spec.fg; ctx.lineWidth = 6;
+  const cx = W / 2, cy = H / 2;
+  switch (spec.shape) {
+    case 'circle':
+      for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.arc(cx + Math.sin(t * 2 + i) * 180, cy + Math.cos(t * 1.3 + i) * 80, 30 + i * 8, 0, 7); ctx.fill(); }
+      break;
+    case 'bars':
+      for (let i = 0; i < 16; i++) { const h = (Math.sin(t * 4 + i * 0.6) * 0.5 + 0.5) * H * 0.7; ctx.fillRect(20 + i * 38, H - h, 26, h); }
+      break;
+    case 'grid':
+      for (let x = 0; x < W; x += 40) for (let y = 0; y < H; y += 40) {
+        const s = (Math.sin(t * 3 + x * 0.02 + y * 0.03) * 0.5 + 0.5) * 30; ctx.fillRect(x + 20 - s / 2, y + 20 - s / 2, s, s);
+      }
+      break;
+    case 'orbit':
+      for (let i = 0; i < 12; i++) { const a = t * 1.5 + i * 0.52; ctx.beginPath(); ctx.arc(cx + Math.cos(a) * (60 + i * 12), cy + Math.sin(a) * (40 + i * 8), 8, 0, 7); ctx.fill(); }
+      break;
+    case 'stripes':
+      ctx.save(); ctx.translate(cx, cy); ctx.rotate(t * 0.4);
+      for (let i = -12; i < 12; i++) ctx.fillRect(i * 50 + (t * 80) % 50, -400, 22, 800);
+      ctx.restore();
+      break;
+    case 'rings':
+      for (let i = 0; i < 8; i++) { ctx.beginPath(); ctx.arc(cx, cy, ((t * 60 + i * 40) % 320), 0, 7); ctx.stroke(); }
+      break;
+  }
+  // Big label + running clock so in-points are visible on screen
+  ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(0, 0, W, 70);
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 44px Consolas, monospace';
+  ctx.fillText(spec.name.split('-')[0], 20, 52);
+  ctx.font = '28px Consolas, monospace';
+  ctx.fillText(`t=${t.toFixed(1)}s`, W - 190, 48);
+}
+
+async function makeClip(spec, seconds = 6, W = 640, H = 360) {
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const ctx = c.getContext('2d');
+  const stream = c.captureStream(30);
+  const mime = MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm';
+  const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 900_000 });
+  const chunks = [];
+  rec.ondataavailable = e => e.data.size && chunks.push(e.data);
+  const done = new Promise(r => rec.onstop = r);
+  rec.start(250);
+  const t0 = performance.now();
+  await new Promise(resolve => {
+    const tick = () => {
+      const t = (performance.now() - t0) / 1000;
+      drawFrame(ctx, spec, t, W, H);
+      if (t < seconds) requestAnimationFrame(tick); else resolve();
+    };
+    tick();
+  });
+  rec.stop();
+  await done;
+  return new File(chunks, `${spec.name}.webm`, { type: 'video/webm' });
+}
+
+async function makeClips() {
+  const files = [];
+  for (const spec of CLIPS) { log(`recording ${spec.name}…`); files.push(await makeClip(spec)); }
+  return files;
+}
+
+// 120 BPM, 32 bars. Bars 1-8 bass-heavy (kick only + sub), 9-16 mid (stabs),
+// 17-24 high (hats/noise), 25-32 everything. Kick on every beat throughout
+// so BPM detection locks.
+async function makeTrack() {
+  const bpm = 120, bars = 32, sr = 44100;
+  const beat = 60 / bpm, len = bars * 4 * beat;
+  const ctx = new OfflineAudioContext(1, Math.ceil(len * sr), sr);
+  const out = ctx.createGain(); out.gain.value = 0.8; out.connect(ctx.destination);
+  const noiseBuf = ctx.createBuffer(1, sr, sr);
+  const nd = noiseBuf.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+
+  const kick = (t, amp = 1) => {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(45, t + 0.15);
+    g.gain.setValueAtTime(amp, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+    o.connect(g).connect(out); o.start(t); o.stop(t + 0.4);
+  };
+  const stab = (t, f) => {
+    [1, 1.25, 1.5].forEach(m => {
+      const o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'sawtooth';
+      o.frequency.value = f * m; g.gain.setValueAtTime(0.18, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+      o.connect(g).connect(out); o.start(t); o.stop(t + 0.32);
+    });
+  };
+  const hat = (t, amp = 0.5) => {
+    const s = ctx.createBufferSource(); s.buffer = noiseBuf;
+    const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 12000;
+    const g = ctx.createGain(); g.gain.setValueAtTime(amp, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+    s.connect(hp).connect(g).connect(out); s.start(t); s.stop(t + 0.1);
+  };
+
+  for (let b = 0; b < bars * 4; b++) {
+    const t = b * beat, bar = Math.floor(b / 4);
+    const section = Math.floor(bar / 8); // 0 bass, 1 mid, 2 high, 3 all
+    kick(t, 1);
+    if (section === 1 || section === 3) { stab(t + beat * 0.5, 330); if (b % 2) stab(t + beat * 0.75, 392); }
+    if (section === 2 || section === 3) { for (let k = 0; k < 4; k++) hat(t + k * beat / 4, k % 2 ? 0.8 : 1); }
+  }
+  const rendered = await ctx.startRendering();
+  return new File([wav(rendered)], 'test-track-120bpm.wav', { type: 'audio/wav' });
+}
+
+function wav(buf) {
+  const data = buf.getChannelData(0), sr = buf.sampleRate;
+  const ab = new ArrayBuffer(44 + data.length * 2), v = new DataView(ab);
+  const w = (o, s) => [...s].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+  w(0, 'RIFF'); v.setUint32(4, 36 + data.length * 2, true); w(8, 'WAVE'); w(12, 'fmt ');
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+  w(36, 'data'); v.setUint32(40, data.length * 2, true);
+  for (let i = 0; i < data.length; i++) v.setInt16(44 + i * 2, Math.max(-1, Math.min(1, data[i])) * 0x7fff, true);
+  return ab;
+}
+
+function download(file) {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = file.name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+
+document.getElementById('clips').onclick = async () => { (await makeClips()).forEach(download); log('clips done'); };
+document.getElementById('track').onclick = async () => { download(await makeTrack()); log('track done'); };
+
+// Exposed for automated tests
+window.TestAssets = { makeClips, makeTrack, makeClip, CLIPS };
+</script>
+</body>
+</html>

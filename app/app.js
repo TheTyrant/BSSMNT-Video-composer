@@ -11,7 +11,20 @@ class DJVisualizerApp {
     this.fpsCounter = null;
     this.lastFrameTime = 0;
     this.frameCount = 0;
-    
+
+    // Audio source (mic vs. uploaded track file)
+    this.audioSourceMode = 'mic'; // 'mic' | 'file'
+    this.trackSource = new TrackSource(this.audioProcessor);
+
+    // Clip auto-editor + bottom timeline panel
+    this.clipEngine = new ClipEngine(this.visualizer);
+    this.visualizer.clipEngine = this.clipEngine;
+    this.clipEngine.clock = () => this.masterTime();
+    this.clipEngine.isAdvancing = () => this.visualizer.currentMode === 'clips' && this.timelineRolling();
+    this.timeline = new TimelinePanel(this);
+    this.sessionStart = null;   // live-mode session clock (performance.now at start)
+    this.sessionElapsed = 0;
+
     // Gain controls
     this.bassGain = 1.0;
     this.midGain = 1.0;
@@ -28,19 +41,48 @@ class DJVisualizerApp {
     this.beatIndicator = document.getElementById('beatIndicator');
     this.fpsCounter = document.getElementById('fpsCounter');
 
+    // Audio source toggle + file playback + timeline DOM elements
+    this.micSourceControls = document.getElementById('micSourceControls');
+    this.fileSourceControls = document.getElementById('fileSourceControls');
+    this.audioFileInput = document.getElementById('audioFileUpload');
+    this.audioFileStatus = document.getElementById('audioFileStatus');
+    this.audioDropZone = document.getElementById('audioDropZone');
+    this.popOutBtn = document.getElementById('popOutOutput');
+
     // Set up event listeners
     this.startBtn.addEventListener('click', () => this.toggleAudio());
     this.fullscreenBtn.addEventListener('click', () => this.toggleFullscreen());
     this.audioInputSelect.addEventListener('change', () => this.onDeviceSelectionChange());
-    
+
+    // Audio source mode toggle (Microphone <-> Audio File)
+    document.getElementById('audioSourceMic').addEventListener('change', (e) => {
+      if (e.target.checked) this.setAudioSourceMode('mic');
+    });
+    document.getElementById('audioSourceFile').addEventListener('change', (e) => {
+      if (e.target.checked) this.setAudioSourceMode('file');
+    });
+
+    this.audioFileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) this.loadAudioFile(file);
+    });
+    this.wireDropZone(this.audioDropZone, (file) => this.loadAudioFile(file));
+
+    document.getElementById('helpBtn').addEventListener('click', () => this.toggleHelp());
+
+    this.popOutBtn.addEventListener('click', () => {
+      window.open('output.html', 'djVisualizerOutput', 'width=1280,height=720');
+    });
+
     // Set up gain controls
     this.setupGainControls();
     
     // Set up keyboard shortcuts for live performance
     document.addEventListener('keydown', (e) => {
-      // Prevent shortcuts when typing in inputs
-      if (e.target.tagName === 'INPUT') return;
-      
+      // Prevent shortcuts when typing in inputs (or when Space would also
+      // activate a focused button/select)
+      if (['INPUT', 'SELECT', 'BUTTON'].includes(e.target.tagName)) return;
+
       switch(e.code) {
         case 'Space':
           e.preventDefault();
@@ -98,7 +140,19 @@ class DJVisualizerApp {
       console.log(`Received BPM data: ${data.bpm}`);
       this.updateBPM(data.bpm);
       this.updateFPS();
+
+      // Clip auto-editor consumes the same adjusted data + the visualizer's
+      // beat clock updated just above.
+      this.clipEngine.update(adjustedData);
+      this.timeline.onAudioFrame(adjustedData);
     };
+
+    this.visualModeSelect = document.getElementById('visualMode');
+    this.visualModeSelect.addEventListener('change', () => {
+      this.clipEngine.setActive(this.visualModeSelect.value === 'clips' && this.timelineRolling());
+    });
+
+    this.timeline.init();
 
     // Check permissions and populate audio devices
     await this.checkAudioPermissions();
@@ -232,9 +286,126 @@ class DJVisualizerApp {
   }
 
   async toggleAudio() {
+    // In file mode, the source is already connected as soon as it's loaded
+    // (see loadAudioFile) -- Start/Stop here just plays/pauses the track,
+    // it doesn't re-request a source the way mic mode does.
+    if (this.audioSourceMode === 'file') {
+      if (!this.trackSource.isLoaded) {
+        this.audioFileInput.click();
+        return;
+      }
+      if (!this.trackSource.isPlaying) {
+        await this.trackSource.play();
+        this.isRunning = true;
+        this.visualizer.start();
+        this.clipEngine.setActive(this.visualizer.currentMode === 'clips');
+        this.setStartButton('Pause', true);
+      } else {
+        this.trackSource.pause();
+        this.clipEngine.setActive(false);
+        this.setStartButton('Play', false);
+      }
+      return;
+    }
+
     if (!this.isRunning) {
       await this.startAudio();
     } else {
+      this.stopAudio();
+    }
+  }
+
+  setStartButton(label, live) {
+    this.startBtn.textContent = label;
+    this.startBtn.classList.toggle('is-live', live);
+  }
+
+  setAudioSourceMode(mode) {
+    if (this.isRunning || this.trackSource.isLoaded) {
+      this.stopAudio();
+    }
+    this.audioSourceMode = mode;
+    this.micSourceControls.classList.toggle('hidden', mode !== 'mic');
+    this.fileSourceControls.classList.toggle('hidden', mode !== 'file');
+    this.setStartButton(mode === 'file' ? 'Play' : 'Start Audio', false);
+    this.audioFileStatus.textContent = 'No file selected';
+    this.resetSession();
+  }
+
+  wireDropZone(zoneEl, onFile) {
+    if (!zoneEl) return;
+    zoneEl.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      zoneEl.classList.add('drag-over');
+    });
+    zoneEl.addEventListener('dragleave', () => zoneEl.classList.remove('drag-over'));
+    zoneEl.addEventListener('drop', (e) => {
+      e.preventDefault();
+      zoneEl.classList.remove('drag-over');
+      const file = e.dataTransfer.files[0];
+      if (file) onFile(file);
+    });
+  }
+
+  async loadAudioFile(file) {
+    this.audioFileStatus.textContent = `Loading: ${file.name}...`;
+    try {
+      await this.trackSource.load(file);
+      this.audioFileStatus.textContent = `Loaded: ${file.name}`;
+      this.resetSession();
+      this.timeline.loadTrackWaveform(file);
+
+      this.isRunning = true;
+      this.visualizer.start();
+      this.setStartButton('Pause', true);
+      this.deviceStatusSpan.textContent = `Playing: ${file.name}`;
+
+      await this.trackSource.play();
+    } catch (error) {
+      console.error('Failed to load audio file:', error);
+      this.audioFileStatus.textContent = `Failed to load: ${file.name}`;
+      alert('Failed to load audio file: ' + error.message);
+    }
+  }
+
+  // ---- master timeline --------------------------------------------------
+  // Track mode: bounded by the loaded file, time = playback position.
+  // Live mode: unbounded, time = seconds since the session started.
+
+  isTrackMode() {
+    return this.audioSourceMode === 'file' && this.trackSource.isLoaded;
+  }
+
+  masterTime() {
+    if (this.isTrackMode()) return this.trackSource.currentTime;
+    if (this.sessionStart == null) return this.sessionElapsed || 0;
+    return (performance.now() - this.sessionStart) / 1000;
+  }
+
+  timelineRolling() {
+    return this.isTrackMode() ? this.trackSource.isPlaying : this.isRunning;
+  }
+
+  resetSession() {
+    this.sessionStart = null;
+    this.sessionElapsed = 0;
+    this.clipEngine.reset();
+    this.timeline.resetSession();
+  }
+
+  seekMaster(seconds) {
+    if (!this.isTrackMode()) return;
+    this.trackSource.seek(seconds);
+    this.clipEngine.seekTo(this.trackSource.currentTime);
+  }
+
+  transportStop() {
+    if (this.isTrackMode()) {
+      this.trackSource.pause();
+      this.clipEngine.setActive(false);
+      this.setStartButton('Play', false);
+      this.seekMaster(0);
+    } else if (this.isRunning) {
       this.stopAudio();
     }
   }
@@ -250,9 +421,13 @@ class DJVisualizerApp {
       await this.audioProcessor.startAudio(this.selectedDeviceId);
       this.visualizer.start();
       this.isRunning = true;
-      this.startBtn.textContent = 'Stop';
-      this.startBtn.style.backgroundColor = '#ff4444';
+      this.setStartButton('Stop', true);
       this.startBtn.disabled = false;
+
+      // Live session clock: a fresh, unbounded timeline per start.
+      this.resetSession();
+      this.sessionStart = performance.now();
+      this.clipEngine.setActive(this.visualizer.currentMode === 'clips');
       
       // Update status to show active device
       const currentDevice = this.selectedDeviceId ? 
@@ -263,10 +438,9 @@ class DJVisualizerApp {
       console.log('DJ Visualizer started with device:', currentDevice);
     } catch (error) {
       console.error('Failed to start audio:', error);
-      this.startBtn.textContent = 'Start';
-      this.startBtn.style.backgroundColor = '';
+      this.setStartButton('Start', false);
       this.startBtn.disabled = false;
-      
+
       // Provide specific error messages based on error type
       let errorMessage = 'Failed to start audio: ';
       let statusMessage = 'Audio failed';
@@ -294,13 +468,22 @@ class DJVisualizerApp {
   }
 
   stopAudio() {
-    this.audioProcessor.stop();
+    // Track mode owns an <audio> element the processor doesn't know about;
+    // unload() tears that down and then calls audioProcessor.stop().
+    if (this.trackSource.isLoaded) this.trackSource.unload();
+    else this.audioProcessor.stop();
     this.visualizer.stop();
-    
+    this.clipEngine.setActive(false);
+
+    // Freeze the live session clock so the timeline holds its recording.
+    if (this.sessionStart != null) {
+      this.sessionElapsed = (performance.now() - this.sessionStart) / 1000;
+      this.sessionStart = null;
+    }
+
     this.isRunning = false;
-    this.startBtn.textContent = 'Start';
-    this.startBtn.style.backgroundColor = '';
-    
+    this.setStartButton('Start', false);
+
     // Update status to show ready state
     const selectedDevice = this.selectedDeviceId ? 
       this.audioInputSelect.selectedOptions[0]?.textContent.replace('🎧 ', '') : 
@@ -422,7 +605,7 @@ class DJVisualizerApp {
 
   updateBPM(bpm) {
     if (this.bpmCounter) {
-      this.bpmCounter.textContent = `BPM: ${bpm || '--'}`;
+      this.bpmCounter.textContent = `${bpm || '--'}`;
       console.log(`UI BPM Display: ${bpm || '--'}`);
     }
     
@@ -467,8 +650,11 @@ class DJVisualizerApp {
   }
 }
 
-// Initialize the app when the page loads
-let djApp;
+// Initialize the app when the page loads.
+// Declared with `var` (not `let`) so it becomes a `window` property --
+// the pop-out output window (see output.js) reaches into this instance
+// via `window.opener.djApp`, which only works for var/function bindings.
+var djApp;
 
 document.addEventListener('DOMContentLoaded', async () => {
   djApp = new DJVisualizerApp();
