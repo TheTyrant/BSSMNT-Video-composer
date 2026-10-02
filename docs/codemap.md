@@ -23,6 +23,7 @@ app/
   voiceTrack.js            ⬜ v2.1 — voice-over record/import, volume, normalize (own audio chain)
   timelinePanel.js         Bottom editor UI: master timeline, clip lane, bin, properties, HUD
   sidebar.js               Modular tab sidebar: rail built from .side-panel sections, collapse to rail
+  assetPanel.js            03 Assets: image/video bin, asset list, selected-asset properties + status
   app.js                   App controller: wiring, audio source modes, master clock, shortcuts
   output.js                Pop-out window renderer (mirrors control window state)
 test-assets/
@@ -35,7 +36,7 @@ netlify.toml · vercel.json Static deploy configs (vercel uses globs: *.html, ap
 **No build step.** Plain `<script>` tags, global classes, loaded in this order (order matters — later files reference earlier globals):
 
 ```
-p5 (CDN) → audioProcessor → visualizer → trackSource → musicalTime → transitions → clipEngine → timelinePanel → sidebar → app
+p5 (CDN) → audioProcessor → visualizer → trackSource → musicalTime → transitions → clipEngine → timelinePanel → sidebar → assetPanel → app
 ```
 
 External runtime dependencies: p5.js 1.9.0 (cdnjs), p5.asciify (unpkg, currently unused), Google Fonts (Boldonse, Inter Tight, JetBrains Mono — falls back to system fonts offline).
@@ -192,6 +193,16 @@ Tabs: **01 Audio** (source, device, start/fullscreen, Visualization) · **02 EQ*
 
 **Status overlay** (step 3b): `#statusOverlay` in `.visualizer-container`, top-right, holds `deviceStatus` / `bpmCounter` / `beatIndicator` / `fpsCounter` (IDs unchanged). `#viewportHud` (top-left, clip on air) uses the same `.status-item` rows.
 
+### 3.7c `app/assetPanel.js` — `class AssetPanel` — ✅ *(v2.1 step 4)*
+The 03 Assets tab. Drop zone + `#assetUpload` chooser (`image/*,video/*`, multiple) → `engine.addFiles()`; the first new asset is selected.
+
+| Function | Role |
+|---|---|
+| `render()` → `renderList()` / `renderProps(asset)` | Re-rendered on engine `clips` / `select` events |
+| `renderProps(a)` | Fields per item: **Use as** (Auto-edit clip checkbox `#propAsClip`; Media Layer `#propLayer`: none/background/bass/mid/high), layer controls for bass/mid/high, **Clip** fields when used as a clip (`#propBand`, `#propPace`, `#propImportance`), **Status**, **Remove** |
+| `layerControls(slot)` | `layerEnabled/Justify/Stack-<slot>` (old IDs kept) bound to `visualizer.layers[slot]`, `autoAssignJustify()`, `assignStackPosition()` |
+| `fillStatus(a)` / `refreshStatus()` | Per-asset status rows (type, length, size, decode, on air, role), refreshed 4×/s |
+
 ### 3.8 `app/app.js` — `class DJVisualizerApp` — ✅
 | Area | Functions |
 |---|---|
@@ -213,7 +224,7 @@ Tokens in `:root`: `--surface #EDEAE4 · --panel #E3DFD7 · --steel #D7DADC · -
 ### 3.11 Invariants
 1. `audioProcessor.js` is never modified.
 2. No code outside `musicalTime.js` hard-codes beats-per-bar.
-3. Element IDs used by `app.js` / `visualizer.js` are stable (see `index.html`).
+3. Element IDs used by `app.js` / `visualizer.js` are stable (see `index.html`). *Exception (v2.1, D-44):* the fixed `layerUpload-*` / `layerStatus-*` inputs are gone; `layerEnabled/Justify/Stack-<slot>` exist only while that slot's asset is selected (the visualizer already null-checks them).
 4. Timeline row heights in JS and CSS match.
 5. New transitions go through `ClipTransitions.register()`, never inline in the engine.
 6. *(v2.1)* Music fades and mutes happen **after** the analyser (`musicGain`), never before it, so analysis always sees the full-level track.
@@ -262,9 +273,9 @@ Spec: [brief-v2.1.md](brief-v2.1.md). Decisions: D-31–D-46; open questions Q9�
 | 2b ✅ | `trackSource.js` | `load()` creates `this.musicGain` between analyser and destination; `setMusicLevel(v, rampSec?)`. `unload()` drops it |
 | 3a ✅ | `index.html`, `styles.css`, new `app/sidebar.js` | Tab rail + slide-out panels; sections registered as modules `{num, label, el}`; `open(tab)`, `toggleCollapsed()`; localStorage in try/catch. Order: 01 Audio (+ Visualization) · 02 EQ · 03 Assets · 04 Output |
 | 3b ✅ | `index.html`, `styles.css` | `.status-overlay` (top-right of `.visualizer-container`, semi-transparent) holding `deviceStatus` / `bpmCounter` / `beatIndicator` / `fpsCounter` (same IDs); `#viewportHud` restyled to match |
-| 4a | `index.html`, `timelinePanel.js` (or `app/assetPanel.js`) | 03 Assets: drop zone + `<input accept="image/*,video/*" multiple>`, asset list with thumbs, `select(id)` (shared selection with the Action Editor) |
-| 4b | same | `renderProps(asset)`: fields shown per D-44 (kind, Use as, layer fields, band, Pace, Importance, Story Position, status, Remove) |
-| 4c | `visualizer.js` | Layer upload inputs removed; `init()` no longer binds `layerUpload-*`; layer controls bound from the properties panel. Check `output.js` still mirrors layers |
+| 4a ✅ | `index.html`, `app/assetPanel.js` | 03 Assets: drop zone + `<input accept="image/*,video/*" multiple>`, asset list with thumbs, `select(id)` (shared selection with the Action Editor) |
+| 4b ✅ | same | `renderProps(asset)`: fields shown per D-44 (kind, Use as, layer fields, band, Pace, Importance, Story Position, status, Remove) |
+| 4c ✅ | `index.html`, `assetPanel.js` | Layer upload slots removed from the HTML. `visualizer.js` needed **no change**: its `init()` already skips missing `layerUpload-*` / `layerEnabled-*` elements. Layer controls bound from the properties panel. Pop-out verified (it reads `visualizer.layers[slot].file`, which `loadLayerMedia` still sets) |
 | 5a | `timelinePanel.js`, `index.html` | Bottom "Bin" → **Action Editor**: `renderStack()` (ordered by importance), card click → `select(id)`, file drop still adds assets |
 | 5b | `timelinePanel.js` | Drag-reorder (pointer events, keyboard alt+↑/↓ for accessibility) → `engine.moveClip(id, i)` |
 | 5c | `clipEngine.js` | `choose()` → `regularPool()` (ready, `asClip`, not story in Story Mode). Sequential = stack order; random/band = `weightedPick(pool)` with weight `N − importance + 1` (Q15) |

@@ -170,6 +170,10 @@ class DJVisualizerApp {
 
     this.timeline.init();
 
+    // 03 Assets: asset bin + selected-asset properties (v2.1, D-44)
+    this.assetPanel = new AssetPanel(this);
+    this.assetPanel.init();
+
     // Check permissions and populate audio devices
     await this.checkAudioPermissions();
     await this.populateAudioDevices();

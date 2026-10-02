@@ -300,7 +300,7 @@ Everything in this section is **Proposed**. Each entry becomes *Accepted* (or is
 - **Why:** Status is something you read while watching the picture, so it belongs on the picture. Asset status belongs with the asset.
 - **Consequences:** The overlay is in the control window only; the pop-out stays canvas-only. FPS now reads as a bare number, since its row is labelled (same as BPM, D-20).
 
-### D-44 · 03 Assets = the real asset bin, with per-item properties *(Omar, 2026-10-02)*
+### D-44 · 03 Assets = the real asset bin, with per-item properties *(Accepted — built in step 4)*
 - **Decision:** 03 Assets has a single drop zone + chooser for **images and video**, and a list of every asset with thumbnails. **Selecting** an asset shows its properties where the Bass/Mid/High upload slots used to be. The fields change with the item:
   - **Use as:** Auto-edit clip (default) and/or **Media Layer** slot (Background · Bass · Mid · High). Layer fields: enabled, justify, stack (bass/mid/high only), same behaviour and conflict-swap as today.
   - **Clip fields** (when used as a clip): Band tag, Pace (D-31), Importance (D-32).
@@ -311,6 +311,12 @@ Everything in this section is **Proposed**. Each entry becomes *Accepted* (or is
   - `DJVisualizer.layers` and `loadLayerMedia()` / `clearLayerMedia()` stay the engine. The asset bin calls them, so layer rendering, rattle and auto-justify are unchanged. The fixed `layerUpload-*` inputs go away, which is a deliberate exception to invariant 3. The `layerEnabled/Justify/Stack-*` controls move into the properties panel (keep the IDs if practical).
   - `output.js` loads its own copies of layer media, so check how it finds the files and keep the pop-out working.
   - Video assets are created once and shared, not decoded twice for clip and layer use, if the p5 media object allows it. Otherwise this is documented.
+- **As built:**
+  - **A video used as both clip and layer is decoded twice.** `loadLayerMedia(slot, file)` creates its own p5 media from the file, and sharing would mean changing that function. The brief says to keep it as the layer engine unchanged, so the cost (one extra decoder for that asset) was accepted. Images are cheap to load twice.
+  - Assigning a layer slot uses `loadLayerMedia` as-is, so it still switches the view to Media Layers mode (except from Clip Auto-Editor mode, D-05), the same as uploading into a slot did before.
+  - `visualizer.js` needed no edit: its `init()` already null-checks the removed inputs.
+  - The first asset of a new upload is selected automatically, so its options show at once.
+- **Verified (real files):** chooser + drag/drop; per-kind fields; Background / Bass / Mid layers render as before in the control window and the pop-out; enable + stack-swap through the panel; Remove releases the slot.
 
 ### D-45 · The bottom Bin becomes the Action Editor *(Omar, 2026-10-02)*
 - **Decision:** The bottom "Bin" row becomes the **Action Editor** (Blender's Action Editor analogue). It shows the auto-edit sequence: every asset used as a clip, as an **ordered stack** of cards. Selecting a card selects that asset everywhere and shows the same properties (D-44). **Dragging a card to a new position sets its Importance to that position** (D-32). Story blocks (Story Mode on) appear as fixed Hook / Result / CTA markers at the ends, not in the stack. Adding media happens in 03 Assets; dropping files onto the Action Editor still works as a shortcut.
@@ -334,7 +340,7 @@ Everything in this section is **Proposed**. Each entry becomes *Accepted* (or is
 | **Q13** | Where does a voice track start? | **Recorded:** at the playhead when Record was pressed. **Imported:** at 0:00, with a start-offset nudge | 6b–6c |
 | **Q14** | A recorded take is lost on reload (nothing persists). Add a "Download take" button? | **Yes**, one button | 6c |
 | **Q15** | Is stack position 1 the *most* important (picked most often)? And should Random stay uniform until the user reorders? | **Yes, 1 = top = most weight** (`N − pos + 1`). Weighting is on from the start, since the stack is visible | 5c |
-| **Q16** | Can one asset be both an auto-edit clip and a Media Layer at once? | **Yes.** "Use as" is two independent switches | 4c |
+| **Q16** | Can one asset be both an auto-edit clip and a Media Layer at once? | **Yes.** "Use as" is two independent switches. ***Accepted** (built in step 4)* | 4c |
 
 ### Not changing in v2.1 (boundary check)
 - No export or render (Q3 stays "live playback only"). "Voice-only result" means voice-only **playback** until Phase 3 export, which will mix voice and the music bus.

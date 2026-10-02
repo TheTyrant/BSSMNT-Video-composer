@@ -126,84 +126,16 @@
           </section>
 
           <section class="control-section side-panel" id="customMediaSection" data-tab="assets" data-num="03" data-label="Assets">
-            <h3><span class="sec-num">03</span>Media Layers</h3>
-
-            <div class="layer-upload-group dropzone">
-              <div class="layer-head">
-                <label class="layer-label">Background</label>
-              </div>
-              <input type="file" class="layer-file-input" id="layerUpload-background" accept="image/*,video/*">
-              <span class="custom-media-status" id="layerStatus-background">No file selected</span>
-            </div>
-
-            <div class="layer-upload-group dropzone band-bass">
-              <div class="layer-head">
-                <label class="layer-label layer-toggle">
-                  <input type="checkbox" id="layerEnabled-bass" checked>
-                  <span class="chip"></span>Bass
-                </label>
-              </div>
-              <input type="file" class="layer-file-input" id="layerUpload-bass" accept="image/*,video/*">
-              <span class="custom-media-status" id="layerStatus-bass">No file selected</span>
-              <div class="layer-controls">
-                <select id="layerJustify-bass" aria-label="Bass justify">
-                  <option value="left">Left</option>
-                  <option value="center" selected>Center</option>
-                  <option value="right">Right</option>
-                </select>
-                <select id="layerStack-bass" aria-label="Bass stack">
-                  <option value="top">Top</option>
-                  <option value="middle" selected>Middle</option>
-                  <option value="bottom">Bottom</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="layer-upload-group dropzone band-mid">
-              <div class="layer-head">
-                <label class="layer-label layer-toggle">
-                  <input type="checkbox" id="layerEnabled-mid">
-                  <span class="chip"></span>Mid
-                </label>
-              </div>
-              <input type="file" class="layer-file-input" id="layerUpload-mid" accept="image/*,video/*">
-              <span class="custom-media-status" id="layerStatus-mid">No file selected</span>
-              <div class="layer-controls">
-                <select id="layerJustify-mid" aria-label="Mid justify">
-                  <option value="left">Left</option>
-                  <option value="center" selected>Center</option>
-                  <option value="right">Right</option>
-                </select>
-                <select id="layerStack-mid" aria-label="Mid stack">
-                  <option value="top" selected>Top</option>
-                  <option value="middle">Middle</option>
-                  <option value="bottom">Bottom</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="layer-upload-group dropzone band-high">
-              <div class="layer-head">
-                <label class="layer-label layer-toggle">
-                  <input type="checkbox" id="layerEnabled-high">
-                  <span class="chip"></span>High
-                </label>
-              </div>
-              <input type="file" class="layer-file-input" id="layerUpload-high" accept="image/*,video/*">
-              <span class="custom-media-status" id="layerStatus-high">No file selected</span>
-              <div class="layer-controls">
-                <select id="layerJustify-high" aria-label="High justify">
-                  <option value="left">Left</option>
-                  <option value="center" selected>Center</option>
-                  <option value="right">Right</option>
-                </select>
-                <select id="layerStack-high" aria-label="High stack">
-                  <option value="top">Top</option>
-                  <option value="middle">Middle</option>
-                  <option value="bottom" selected>Bottom</option>
-                </select>
-              </div>
-            </div>
+            <h3><span class="sec-num">03</span>Assets</h3>
+            <!-- One bin for images and video (D-44). Selecting an asset shows
+                 its options below, where the Bass/Mid/High slots used to be. -->
+            <label class="asset-drop dropzone" id="assetDrop" title="Drop images or video here, or click to choose">
+              <input type="file" id="assetUpload" accept="image/*,video/*" multiple>
+              <span class="bin-add-plus">+</span>
+              <span>Drop images or video<br>or choose files</span>
+            </label>
+            <div class="asset-list" id="assetList" role="listbox" aria-label="Assets"></div>
+            <div class="asset-props" id="assetProps"></div>
           </section>
 
           <section class="control-section side-panel" id="panel-output" data-tab="output" data-num="04" data-label="Output">
@@ -386,6 +318,7 @@
     <script src="app/clipEngine.js"></script>
     <script src="app/timelinePanel.js"></script>
     <script src="app/sidebar.js"></script>
+    <script src="app/assetPanel.js"></script>
     <script src="app/app.js"></script>
   </body>
 </html>
