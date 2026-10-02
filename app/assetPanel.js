@@ -183,6 +183,7 @@ class AssetPanel {
         note.textContent = 'Plays its full length once, with its own sound.';
         sg.appendChild(note);
       }
+      if (isStory) sg.appendChild(this.fadeControls(a));
       P.appendChild(sg);
     }
 
@@ -223,6 +224,48 @@ class AssetPanel {
     rm.textContent = 'Remove asset';
     rm.addEventListener('click', () => this.engine.removeAsset(a.id));
     P.appendChild(rm);
+  }
+
+  // Auto Fade Music around a locked clip (D-59). Ticking it reveals the
+  // fade shapes (icons) and the fade length.
+  static FADES = {
+    linear: { label: 'Linear', path: 'M1 3 L9 13 L15 13 L23 3' },
+    smooth: { label: 'Smooth', path: 'M1 3 C6 3 5 13 9 13 L15 13 C19 13 18 3 23 3' },
+    snap: { label: 'Snap (holds, then drops fast)', path: 'M1 3 L7 3 L9 13 L15 13 L17 3 L23 3' },
+    duck: { label: 'Duck (dips, never silent)', path: 'M1 3 L8 9 L16 9 L23 3' },
+  };
+
+  fadeControls(a) {
+    const f = a.fade || { on: false, curve: 'smooth', bars: 1 };
+    const wrap = document.createElement('div');
+    wrap.className = 'fade-controls';
+    const box = this.check('Auto fade music', f.on, (on) => { this.engine.setClipFade(a.id, { on }); this.app.applyMusicLevel(); });
+    box.id = 'propFade';
+    box.title = 'Fade the music out into this clip and back in after it';
+    wrap.appendChild(box.parentElement);
+    if (!f.on) return wrap;
+    const shapes = document.createElement('div');
+    shapes.className = 'fade-shapes';
+    shapes.setAttribute('role', 'radiogroup');
+    shapes.setAttribute('aria-label', 'Fade shape');
+    Object.entries(AssetPanel.FADES).forEach(([k, v]) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'fade-shape' + (f.curve === k ? ' on' : '');
+      b.dataset.v = k;
+      b.title = v.label;
+      b.setAttribute('role', 'radio');
+      b.setAttribute('aria-checked', String(f.curve === k));
+      b.setAttribute('aria-label', v.label);
+      b.innerHTML = `<svg viewBox="0 0 24 16" width="36" height="24" aria-hidden="true"><path d="${v.path}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+      b.addEventListener('click', () => this.engine.setClipFade(a.id, { curve: k }));
+      shapes.appendChild(b);
+    });
+    wrap.appendChild(shapes);
+    const len = this.select([['0.5', '½ bar'], ['1', '1 bar'], ['2', '2 bars']], String(f.bars),
+      (v) => this.engine.setClipFade(a.id, { bars: parseFloat(v) }), 'propFadeLength', 'How long the music takes to fade out and back in');
+    wrap.appendChild(this.row('Fade length', len));
+    return wrap;
   }
 
   // Enabled / justify / stack for a bass/mid/high layer, bound to the

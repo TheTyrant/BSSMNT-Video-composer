@@ -57,6 +57,27 @@
     });
   }
 
+  // Text overlay (D-60): the control window's TextOverlay draws into a
+  // canvas here, so titles and credits show on the projector too.
+  let textCanvas = null;
+  function drawText() {
+    const app = window.opener && window.opener.djApp;
+    if (!app || !app.text) return;
+    if (!textCanvas) {
+      textCanvas = document.createElement('canvas');
+      textCanvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:5';
+      document.body.appendChild(textCanvas);
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = 'https://fonts.googleapis.com/css2?family=Boldonse&family=Inter+Tight:wght@400;500;600;800&family=JetBrains+Mono:wght@400;700&display=swap';
+      document.head.appendChild(link);
+    }
+    const dpr = window.devicePixelRatio || 1;
+    const W = Math.round(window.innerWidth * dpr), H = Math.round(window.innerHeight * dpr);
+    if (textCanvas.width !== W || textCanvas.height !== H) { textCanvas.width = W; textCanvas.height = H; }
+    app.text.render(textCanvas.getContext('2d'), W, H, app.masterTime());
+  }
+
   waitForSource((sourceViz) => {
     const waitingEl = document.getElementById('waiting');
     if (waitingEl) waitingEl.style.display = 'none';
@@ -99,6 +120,7 @@
         if (waitingEl) waitingEl.style.display = 'none';
 
         syncLocalMedia(sourceViz);
+        drawText();
 
         // A fresh proxy each frame: reads (audioData, colors, time,
         // beatFlash/beatPulse) fall through to the live control-window

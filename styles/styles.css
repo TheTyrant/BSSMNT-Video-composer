@@ -621,6 +621,30 @@ input[type="range"]::-moz-range-thumb {
 .project-missing[hidden] { display: none; }
 .missing-list { margin: 0; padding-left: 16px; font-family: var(--font-mono); font-size: 10px; max-height: 120px; overflow-y: auto; }
 
+/* Text (04 Text, D-60) */
+.text-overlay { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 3; pointer-events: none; }
+.status-overlay, .viewport-hud, .viewport-hint { z-index: 4; }
+.text-add { margin-top: 0; }
+.text-add .btn { padding: 0 6px; }
+#textList { margin-top: 10px; }
+.text-row { grid-template-columns: 30px 1fr auto; }
+.text-kind { font-family: var(--font-mono); font-size: 10px; font-weight: 700; text-align: center; border: 1px solid currentColor; padding: 2px 0; }
+#textProps textarea { width: 100%; resize: vertical; font: 12px/1.4 var(--font-ui); padding: 6px 8px; border: 1px solid var(--ink); background: var(--paper); color: var(--ink); }
+#textProps input[type="color"] { width: 100%; height: 26px; padding: 0 2px; border: 1px solid var(--ink); background: var(--paper); }
+#textProps input[type="number"] { height: 26px; }
+.prop-row-3 { grid-template-columns: 72px 1fr auto; }
+.prop-row-3 .btn { height: 26px; padding: 0 8px; }
+.ch-text { height: 40px; border-bottom: 1px solid var(--ink); }
+
+/* Auto fade per locked clip (D-59) */
+.fade-controls { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.fade-shapes { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--ink); }
+.fade-shape { display: flex; align-items: center; justify-content: center; height: 34px; border: none; border-right: 1px solid var(--ink); background: var(--paper); color: var(--ink); cursor: pointer; padding: 0; }
+.fade-shape:last-child { border-right: none; }
+.fade-shape:hover { background: var(--steel); }
+.fade-shape.on { background: var(--ink); color: var(--paper); }
+.fade-shape:focus-visible { outline: 2px solid var(--high); outline-offset: -2px; }
+
 /* Story Mode (step 7) */
 select.is-dead { opacity: 0.4; cursor: not-allowed; background: var(--steel); }
 select option:disabled { color: var(--ink-3); }

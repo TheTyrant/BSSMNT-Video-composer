@@ -30,6 +30,8 @@ app/
   sessionRecord.js         Per-frame analysis log on a 60 fps grid (for the offline renderer), serialisable
   mediaLibrary.js          Linked-media fingerprints, remembered file handles (IndexedDB), reconnect by folder / files
   projectFile.js           .mnt project files: save / open / restore / reconnect (ZIP via fflate)
+  textOverlay.js           Text model (titles, credits, text) + one render() for viewport, pop-out and renderer (D-60)
+  textPanel.js             04 Text tab: add / edit / lock / style text items
   eqPanel.js               02 Assets EQ: Sensitivity / Dynamic tabs, Use radios, EQ graph
   assetPanel.js            03 Assets: image/video bin, asset list, selected-asset properties + status
   app.js                   App controller: wiring, audio source modes, master clock, shortcuts
@@ -238,6 +240,15 @@ The 03 Assets tab. Drop zone + `#assetUpload` chooser (`image/*,video/*`, multip
 | `renderProps(a)` | Fields per item: **Use as** (Auto-edit clip checkbox `#propAsClip`; Media Layer `#propLayer`: none/background/bass/mid/high), layer controls for bass/mid/high, **Clip** fields when used as a clip (`#propBand`, `#propPace`, `#propImportance`), **Status**, **Remove** |
 | `layerControls(slot)` | `layerEnabled/Justify/Stack-<slot>` (old IDs kept) bound to `visualizer.layers[slot]`, `autoAssignJustify()`, `assignStackPosition()` |
 | `fillStatus(a)` / `refreshStatus()` | Per-asset status rows (type, length, size, decode, on air, role), refreshed 4×/s |
+
+### 3.7d `app/textOverlay.js` — `class TextOverlay` — ✅ *(D-60)*
+- Model: `items[]` ({kind title|credits|text, content, anchor start|time|end, start, duration, style, anim}), `add(kind)`, `update(id, patch)`, `remove`, `select`, `fire(id)` (live Show now), `windowOf(item)` → [start, end) on the master timeline, `on(fn)` ('change' | 'select' | 'tick').
+- Drawing: `render(ctx, W, H, t, previewId)` draws every item visible at `t` (sizes are fractions of H); `attach(container)` puts a 2D canvas over the viewport, hidden while nothing is on screen.
+- `toJSON()` / `fromJSON()` for `.mnt` (`project.text`). Text lane drawing and drag live in `timelinePanel.drawText()`; the pop-out draws via `opener.djApp.text.render()`.
+
+### 3.7e `app/textPanel.js` — `class TextPanel` — ✅ *(D-60)*
+- 04 Text tab: add buttons, item list, properties (words, Lock & timing, Look, delete). Reuses AssetPanel's `group` / `select` helpers.
+- Per-locked-clip Auto Fade (D-59) lives in `assetPanel.fadeControls()`, `clipEngine.setClipFade()` and `app.storyFadeLevel()`.
 
 ### 3.8 `app/app.js` — `class DJVisualizerApp` — ✅
 | Area | Functions |

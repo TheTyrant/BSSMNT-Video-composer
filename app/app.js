@@ -31,6 +31,7 @@ class DJVisualizerApp {
 
     // Session record (per-frame analysis log) and .mnt project file (D-56, D-57)
     this.record = new SessionRecord();
+    this.text = new TextOverlay(this);   // titles, credits, text (D-60)
     this.project = new ProjectFile(this);
     this.eqMode = 'sensitivity';
     this.musicMuted = false;
@@ -55,7 +56,7 @@ class DJVisualizerApp {
     // Modular tab sidebar (v2.1, D-42)
     // Left tabs (stack up to 2 panels) and the right Auto-Editor sidebar.
     // Both start closed and only span the viewport row (D-48).
-    [['panel-audio', 'Ctrl+1'], ['customMediaSection', 'Ctrl+2'], ['panel-output', 'Ctrl+3'], ['panel-autoedit', 'Shift+A']]
+    [['panel-audio', 'Ctrl+1'], ['customMediaSection', 'Ctrl+2'], ['panel-output', 'Ctrl+3'], ['panel-text', 'Ctrl+4'], ['panel-autoedit', 'Shift+A']]
       .forEach(([id, key]) => { const el = document.getElementById(id); if (el) el.dataset.key = key; });
     this.sidebar = new Sidebar('sidebar', 'tabPanels', 'tabRail', { maxOpen: 1 });
     this.sidebar.init();
@@ -139,7 +140,7 @@ class DJVisualizerApp {
       // Panels (D-52): Ctrl+1/2/3 = Audio / Assets / Output. Alt+1/2/3 does
       // the same, because many browsers keep Ctrl+digit for switching tabs.
       const digit = e.code.replace('Numpad', 'Digit');
-      const panelKeys = { Digit1: 'audio', Digit2: 'assets', Digit3: 'output' };
+      const panelKeys = { Digit1: 'audio', Digit2: 'assets', Digit3: 'output', Digit4: 'text' };
       if ((e.ctrlKey || e.metaKey || e.altKey) && panelKeys[digit]) {
         e.preventDefault();
         this.sidebar.toggle(panelKeys[digit]);
@@ -210,8 +211,10 @@ class DJVisualizerApp {
       this.timeline.onAudioFrame(adjustedData);
 
       // Auto Fade Music follows the master time every frame while it's on.
-      const st = this.clipEngine.settings;
-      if (st.storyMode && st.storyFade) this.applyMusicLevel();
+      // Auto Fade Music follows the master time while any locked clip uses it.
+      const fading = this.clipEngine.assets.some(a => a.story !== 'none' && a.fade && a.fade.on);
+      if (fading || this._wasFading) this.applyMusicLevel();
+      this._wasFading = fading;
     };
 
     this.visualModeSelect = document.getElementById('visualMode');
@@ -254,6 +257,12 @@ class DJVisualizerApp {
     MediaLibrary.usePicker(document.getElementById('assetUpload'), MEDIA, (files) => this.assetPanel.addAndSelect(files));
     MediaLibrary.usePicker(document.getElementById('clipUpload'), MEDIA, (files) => this.addDroppedFiles(files));
     MediaLibrary.usePicker(this.audioFileInput, { 'audio/*': ['.mp3', '.wav', '.m4a', '.aac', '.ogg', '.flac'] }, (files) => this.loadAudioFile(files[0]));
+
+    // Text (04 Text tab + overlay on the viewport)
+    this.text.attach(document.querySelector('.visualizer-container'));
+    this.textPanel = new TextPanel(this);
+    this.textPanel.init();
+    this.text.on((type) => { if (type === 'change') this.project.markDirty(); });
 
     // EQ section of 02 Assets: Sensitivity / Dynamic tabs + Use radios
     this.eqPanel = new EqPanel(this);
@@ -426,18 +435,25 @@ class DJVisualizerApp {
   // into each story block, stays down during it and fades back in over
   // 1 bar after it (2 s before BPM is known). Evaluated from the master
   // time, so seek, pause and stop need no extra bookkeeping.
+  // Per locked clip (D-59): each clip with Auto fade on sets its own shape
+  // and length (in bars; 2 s per bar before BPM is known).
   storyFadeLevel(t) {
-    const st = this.clipEngine.settings;
-    if (!(st.storyMode && st.storyFade && this.isTrackMode())) return 1;
+    if (!this.isTrackMode()) return 1;
     const bpm = this.visualizer.audioData.bpm || 0;
-    const fade = bpm > 0 ? MusicalTime.beatsToMs(MusicalTime.toBeats(1, 'bar'), bpm) / 1000 : 2;
+    const bar = bpm > 0 ? MusicalTime.beatsToMs(MusicalTime.toBeats(1, 'bar'), bpm) / 1000 : 2;
+    const shape = { linear: (x) => x, smooth: (x) => x * x * (3 - 2 * x), snap: (x) => Math.pow(x, 0.25), duck: (x) => x };
     let level = 1;
     for (const b of this.clipEngine.storyBlocks()) {
-      let l = 1;
-      if (t >= b.start && t < b.end) l = 0;
-      else if (t < b.start && t >= b.start - fade) l = (b.start - t) / fade;
-      else if (t >= b.end && t < b.end + fade) l = (t - b.end) / fade;
-      level = Math.min(level, l);
+      const f = b.clip.fade;
+      if (!f || !f.on) continue;
+      const fade = bar * (f.bars || 1);
+      const floor = f.curve === 'duck' ? 0.3 : 0;
+      const ease = shape[f.curve] || shape.smooth;
+      let x = 1;                                      // 1 = full music, 0 = fully faded
+      if (t >= b.start && t < b.end) x = 0;
+      else if (t < b.start && t >= b.start - fade) x = (b.start - t) / fade;
+      else if (t >= b.end && t < b.end + fade) x = (t - b.end) / fade;
+      level = Math.min(level, floor + (1 - floor) * ease(x));
     }
     return level;
   }

@@ -9,7 +9,7 @@ class TimelinePanel {
   constructor(app) {
     this.app = app;
     this.engine = app.clipEngine;
-    this.ROWS = { ruler: 28, master: 72, clips: 64, voice: 40 };   // match styles.css (.ch-*)
+    this.ROWS = { ruler: 28, master: 72, clips: 64, voice: 40, text: 40 };   // match styles.css (.ch-*)
     this.LIVE_WINDOW = 30;                                // seconds visible in live mode
     this.view = { start: 0, span: 30, fit: true };
     this.energy = [];     // { t, b, m, h } per analysis frame
@@ -38,6 +38,13 @@ class TimelinePanel {
     this.initBin();
     this.initCanvasInteraction();
     this.initSplitter();
+
+    // Text lane appears once there is any text (D-60).
+    this.app.text.on(() => {
+      const has = this.app.text.items.length > 0;
+      const ch = document.getElementById('chText');
+      if (ch && ch.hidden === has) { ch.hidden = !has; this.resizeCanvas(); }
+    });
 
     // Voice lane appears only while a voice track exists (D-41).
     this.app.voice.on(() => {
@@ -200,7 +207,7 @@ class TimelinePanel {
       this.syncProps();
     });
     const fade = $('propStoryFade');
-    fade.addEventListener('change', () => {
+    if (fade) fade.addEventListener('change', () => {
       s.storyFade = fade.checked;
       this.app.applyMusicLevel();
     });
@@ -243,9 +250,11 @@ class TimelinePanel {
     $('propInPoint').value = s.inPoint;
     $('propOverlay').checked = s.overlayLayers;
     if ($('propStoryMode')) mark('propStoryMode', s.storyMode ? 'on' : 'off');
-    $('propStoryFade').checked = s.storyFade;
-    $('propStoryFade').disabled = !s.storyMode || !this.app.isTrackMode();
-    $('propStoryFadeRow').hidden = false;
+    if ($('propStoryFade')) {
+      $('propStoryFade').checked = s.storyFade;
+      $('propStoryFade').disabled = !s.storyMode || !this.app.isTrackMode();
+      $('propStoryFadeRow').hidden = false;
+    }
     $('propStoryHint').textContent = this.storyHint();
     $('propBandMap').hidden = s.transitionMode !== 'band';
     document.querySelectorAll('[data-show-timing]').forEach(el => {
@@ -506,15 +515,41 @@ class TimelinePanel {
       return this.view.start + ((e.clientX - r.left) / r.width) * this.view.span;
     };
     c.addEventListener('pointerdown', (e) => {
+      const r = c.getBoundingClientRect();
+      const hit = (this.textHits || []).find(b => e.clientX - r.left >= b.x0 && e.clientX - r.left <= b.x1 && e.clientY - r.top >= b.y0 && e.clientY - r.top <= b.y1);
+      if (hit) {
+        e.stopImmediatePropagation();
+        this.app.text.select(hit.id);
+        if (this.app.sidebar) this.app.sidebar.open('text');
+        this.textDrag = { id: hit.id, x: e.clientX, start: hit.start, moved: false };
+        c.setPointerCapture(e.pointerId);
+        return;
+      }
       if (!this.app.isTrackMode()) return;
       dragging = true;
       c.setPointerCapture(e.pointerId);
       this.app.trackSource.seek(timeAt(e));
     });
     c.addEventListener('pointermove', (e) => {
+      if (this.textDrag) {
+        const d = this.textDrag;
+        const dt = ((e.clientX - d.x) / c.clientWidth) * this.view.span;
+        if (Math.abs(e.clientX - d.x) > 3) d.moved = true;
+        if (d.moved) {
+          const it = this.app.text.get(d.id);
+          if (it) { it.anchor = 'time'; it.firedAt = null; it.firedWall = null; it.start = Math.max(0, Math.round((d.start + dt) * 10) / 10); }
+        }
+        return;
+      }
       if (dragging) this.app.trackSource.seek(timeAt(e));
     });
     c.addEventListener('pointerup', (e) => {
+      if (this.textDrag) {
+        const moved = this.textDrag.moved;
+        this.textDrag = null;
+        if (moved) this.app.text.emit('change');
+        return;
+      }
       if (!dragging) return;
       dragging = false;
       this.app.seekMaster(timeAt(e));
@@ -570,7 +605,7 @@ class TimelinePanel {
   resizeCanvas() {
     const dpr = window.devicePixelRatio || 1;
     const w = this.canvas.clientWidth;
-    const h = this.ROWS.ruler + this.ROWS.master + this.ROWS.clips + (this.app.voice.isLoaded ? this.ROWS.voice : 0);
+    const h = this.ROWS.ruler + this.ROWS.master + this.ROWS.clips + (this.app.voice.isLoaded ? this.ROWS.voice : 0) + (this.app.text.items.length ? this.ROWS.text : 0);
     this.canvas.style.height = `${h}px`;
     this.canvas.width = Math.max(1, Math.round(w * dpr));
     this.canvas.height = Math.round(h * dpr);
@@ -653,7 +688,7 @@ class TimelinePanel {
     // Story panel bits that depend on the source mode (track vs live).
     const fadeBox = document.getElementById('propStoryFade');
     const fadeOff = !this.engine.settings.storyMode || !track;
-    if (fadeBox.disabled !== fadeOff) fadeBox.disabled = fadeOff;
+    if (fadeBox && fadeBox.disabled !== fadeOff) fadeBox.disabled = fadeOff;
     const hint = this.storyHint();
     const hintEl = document.getElementById('propStoryHint');
     if (hintEl.textContent !== hint) hintEl.textContent = hint;
@@ -763,6 +798,7 @@ class TimelinePanel {
     this.drawMaster(ctx, C, x, W, yMaster, R.master, now);
     this.drawClips(ctx, C, x, W, yClips, R.clips, now);
     if (this.app.voice.isLoaded) this.drawVoice(ctx, C, x, W, yClips + R.clips, R.voice);
+    if (this.app.text.items.length) this.drawText(ctx, C, x, W, this.textLaneY(), R.text);
 
     // Row rules
     ctx.fillStyle = C.ink;
@@ -958,6 +994,42 @@ class TimelinePanel {
     ctx.strokeStyle = C.ink;
     ctx.strokeRect(Math.round(x0) + 0.5, top + 0.5, Math.max(1, Math.round(w) - 1), bh - 1);
     ctx.font = '600 10px "Inter Tight", sans-serif';
+  }
+
+  textLaneY() {
+    const R = this.ROWS;
+    return R.ruler + R.master + R.clips + (this.app.voice.isLoaded ? R.voice : 0);
+  }
+
+  // Text lane (D-60): each title / credits / text block on the master timeline.
+  drawText(ctx, C, x, W, y, h) {
+    ctx.fillStyle = C.surface;
+    ctx.fillRect(0, y, W, h);
+    ctx.fillStyle = 'rgba(26,26,26,0.16)';
+    ctx.fillRect(0, y, W, 1);
+    this.textHits = [];
+    for (const it of this.app.text.items) {
+      const win = this.app.text.windowOf(it);
+      if (!win) continue;
+      const x0 = x(win[0]), x1 = x(win[1]);
+      if (x1 < 0 || x0 > W) continue;
+      const sel = it.id === this.app.text.selectedId;
+      ctx.fillStyle = sel ? C.ink : C.paper;
+      ctx.fillRect(x0, y + 5, Math.max(2, x1 - x0), h - 10);
+      ctx.strokeStyle = C.ink;
+      ctx.strokeRect(Math.round(x0) + 0.5, y + 5.5, Math.max(1, Math.round(x1 - x0) - 1), h - 11);
+      if (x1 - x0 > 24) {
+        ctx.save();
+        ctx.beginPath(); ctx.rect(x0, y, x1 - x0 - 3, h); ctx.clip();
+        ctx.fillStyle = sel ? C.paper : C.ink;
+        ctx.font = '700 9px "JetBrains Mono", monospace';
+        const kind = it.kind === 'title' ? 'T' : it.kind === 'credits' ? 'CR' : 'Aa';
+        const label = (String(it.content).split('\n').find(l => l.trim()) || '').replace(/^#\s*/, '');
+        ctx.fillText(`${kind}  ${label}`, x0 + 6, y + h / 2 + 3);
+        ctx.restore();
+      }
+      this.textHits.push({ id: it.id, x0, x1, y0: y, y1: y + h, start: win[0] });
+    }
   }
 
   // Voice lane: the take's waveform at its offset on the master timeline.

@@ -296,6 +296,22 @@ The brief's four questions were not answered before the build. Rather than guess
 - **Clip Auto-Editor starts on a track (Omar):** choosing Clip Auto-Editor (mode menu, header MODE or the 0 key) switches SRC to **Track file** and, if no track is loaded, opens **01 Audio** and the **track file dialog**. Not during a project restore.
 - **Verified:** menu and 0 key both switch SRC and open the dialog (stubbed in the test); no dialog when a track is already loaded; position options grey out as they are taken and the control goes dead at three; clearing one brings it back; positions work with no mode switch; full regression and project tests pass.
 
+
+### D-59 · Auto Fade Music per locked clip, with shape presets *(Accepted — built; replaces the global Auto Fade switch)*
+- **What (Omar):** every clip with a position lock (Hook / Result / CTA) has its own **Auto fade music** checkbox in **02 Assets › Asset timing › Position lock**. Ticking it reveals the extra controls: **four fade shapes shown as icons** (tooltip + screen-reader label only, no text on the buttons) and a **fade length** of ½, 1 or 2 bars.
+- **Shapes:** *Linear* (straight ramp) · *Smooth* (S-curve) · *Snap* (music holds, then drops fast just before the clip) · *Duck* (dips to 30 % instead of silence). Music is fully down (or ducked) for the whole clip and comes back after it over the same length.
+- **Global switch retired:** "Auto Fade Music to positioned clips" in the Auto-Editor panel is commented out. Projects saved with it on open with a Linear 1-bar fade on every locked clip.
+- **Unchanged:** only the music bus fades (analysis keeps running, D-36); voice is never faded; track mode only (live mode has no known positions ahead of time).
+
+### D-60 · Text: titles, credits and general text *(Accepted — built; first piece of the overlay system, the rest is roadmap only)*
+- **Where:** new tab **04 Text** (Ctrl/Alt+4). Add **Title**, **Credits** or **Text**; each item has words, a lock and a look. The items sit on a **Text lane** in the timeline (shown once any text exists); click selects and opens 04 Text, drag retimes it.
+- **Lock (timing):** *Start* (from the beginning) · *At time* (exact time; dragging on the lane sets this) · *End* (the last N seconds of the track). Defaults: Title = Start, 5 s; Credits = End, 15 s, rolling; Text = At time at the playhead, 4 s. In live mode there is no end, so items can be played with **Show now** (runs on the wall clock, so it works with the live clock stopped).
+- **Look:** font (Display/Boldonse, Sans, Mono, Serif), size S/M/L/XL as a fraction of frame height (looks the same at any output size), colour, align, position (top / centre / lower third / bottom), backing (none / shadow / plate), animation (fade, rise, none; credits: roll, fade, none). Title: line 1 is the title, further lines are the subtitle. Credits: one line each, "# " makes a heading.
+- **Drawn:** one `TextOverlay.render()` used by the viewport (a 2D canvas over the visual, hidden while nothing is on screen because an empty layer still costs compositing time), the pop-out output window, and later the offline renderer. Text draws over every visual mode. While 04 Text is open the selected item previews on screen even outside its time.
+- **Saved** in `.mnt` projects (`project.text`).
+- **Not built (by request):** the rest of the overlay system (visual modes over video) — roadmap only.
+- **Verified:** title drawn inside its time and not outside; credits roll upward over the last 15 s; lane drag retimes (lock becomes At time); panel edits; save → reopen; pop-out shows the title; live Show now; fade icons revealed by the checkbox; fade levels per shape; existing regression, project and position suites.
+
 ## I. Known carry-overs (pre-existing on `main`, not changed)
 - Placeholder text drawn with `p.text()` in WebGL mode doesn't render, because no font is loaded (affects the Media Layers "Upload images…" prompt). v2 uses a DOM overlay for its own hints.
 - `visualizer.js` has duplicate `drawAudioWaves` / `drawMandala` / `drawTunnel` definitions (the later ones win), plus unused snake-game code.

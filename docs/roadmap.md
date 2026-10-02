@@ -99,6 +99,8 @@ Supersedes parts of the v2.1 layout (the v2.1 table below describes it as it was
 - **EQ inside 02 Assets:** Sensitivity / Dynamic tabs with Use = Sensitivity, Dynamic or Blend; Dynamic is an analysis-only EQ (D-51).
 - **Shortcuts** (D-52), **drag-and-drop** anywhere sensible (D-53), **timeline drops reach the bin + rotated phone video fix** (D-54).
 - **Position lock replaces the Story Mode switch:** Hook / Result / CTA always available per asset, limited to three; Clip Auto-Editor starts on a track (D-58).
+- **Auto Fade Music per locked clip** with four shape presets shown as icons and a fade length (D-59).
+- **04 Text:** titles, credits (rolling) and general text over every mode, with a Text lane on the timeline, live Show now, pop-out and project save (D-60).
 
 ---
 
@@ -115,11 +117,26 @@ Supersedes parts of the v2.1 layout (the v2.1 table below describes it as it was
 | 5 | **Fast pass:** the same frozen analysis run over a track or recorded set at high speed, filling the record without real-time playback |
 | 6 | **Firefox / Safari fallbacks:** OPFS output + download, WebAssembly audio encoding where needed |
 
+**Text in exports:** the renderer draws text with the same `TextOverlay.render()` (D-60), so titles and credits come out as seen.
+
 **Exit criteria:**
 - [ ] An export matches the live session's cuts, in-points, transitions and audio-reactive motion.
 - [ ] Muted tracks are absent from the exported audio; unmuted voice and story sound are present and in sync.
 - [ ] A 3-minute 1080p export finishes faster than real time on the target machine; a 2-hour project exports without running out of memory.
 - [ ] Every visual mode exports.
+
+---
+
+## Overlay system ⬜ *(roadmap only; text is the first piece, D-60)*
+
+**Goal:** the visual modes (Spectrum Bars, Mandala, Particles, …) drawn **on top of video** instead of replacing it, as overlays with their own blend, opacity, position and size, alongside text.
+
+| Step | What |
+|---|---|
+| 1 ✅ | Text overlay: titles, credits, general text (D-60) |
+| 2 | Overlay model: a list of overlay items (text or visual mode), each with a lock (start / time / end), blend mode, opacity, area |
+| 3 | Visual modes render into their own layer over the clip / layer output (transparent background per mode) |
+| 4 | Overlay lane(s) on the timeline; pop-out and renderer draw the same stack |
 
 ---
 

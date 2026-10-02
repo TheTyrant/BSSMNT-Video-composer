@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Boldonse&family=Inter+Tight:wght@400;500;600;800&family=JetBrains+Mono:wght@400;500;700&display=swap">
 
     <!-- External Styles -->
-    <link rel="stylesheet" href="styles/styles.css?v=2.3.1">
+    <link rel="stylesheet" href="styles/styles.css?v=2.4.0">
 
     <!-- External Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
@@ -253,6 +253,18 @@
             <button id="popOutOutput" class="btn btn-block" type="button">Pop Out Output Window</button>
             <p class="hint">Drag the pop-out to your projector and fullscreen it there. Canvas only &mdash; no controls.</p>
           </section>
+
+          <!-- 04 Text (D-60): titles, credits and general text over every mode -->
+          <section class="control-section side-panel" id="panel-text" data-tab="text" data-num="04" data-label="Text">
+            <h3><span class="sec-num">04</span>Text</h3>
+            <div class="btn-row text-add">
+              <button id="textAddTitle" class="btn" type="button" title="Add a title">+ Title</button>
+              <button id="textAddCredits" class="btn" type="button" title="Add rolling credits">+ Credits</button>
+              <button id="textAddText" class="btn" type="button" title="Add text at the playhead">+ Text</button>
+            </div>
+            <div class="asset-list" id="textList" role="listbox" aria-label="Text items"></div>
+            <div class="asset-props" id="textProps"></div>
+          </section>
         </div>
       </aside>
 
@@ -358,10 +370,12 @@
                     <button type="button" data-v="on">Story</button>
                   </div>
                   -->
+                  <!-- D-59: Auto Fade Music is set per locked clip in 02 Assets › Asset timing.
                   <label class="prop-check" id="propStoryFadeRow">
                     <input type="checkbox" id="propStoryFade">
                     <span>Auto Fade Music to positioned clips</span>
                   </label>
+                  -->
                   <p class="hint" id="propStoryHint"></p>
                 </div>
           </section>
@@ -400,6 +414,7 @@
                 <div class="ch ch-master"><div class="ch-row"><span class="ch-name">Master</span><button class="ch-mute" id="muteMaster" type="button" aria-pressed="false" title="Mute the music (left out of exports)">M</button></div><span class="ch-sub" id="chMasterSub">Live input</span></div>
                 <div class="ch ch-clips"><span class="ch-name">Clips</span><span class="ch-sub">Auto-edit</span></div>
                 <div class="ch ch-voice" id="chVoice" hidden><div class="ch-row"><span class="ch-name">Voice</span><button class="ch-mute" id="muteVoice" type="button" aria-pressed="false" title="Mute the voice (left out of exports)">M</button></div><span class="ch-sub" id="chVoiceSub">—</span></div>
+                <div class="ch ch-text" id="chText" hidden><span class="ch-name">Text</span><span class="ch-sub">Titles</span></div>
               </div>
               <div class="lanes" id="timelineLanes">
                 <canvas id="timelineCanvas"></canvas>
@@ -422,14 +437,14 @@
     <!-- Help Overlay -->
     <div id="helpOverlay" class="help-overlay" style="display: none;">
       <div class="help-content">
-        <h3>DJ Visualizer Controls</h3>
+        <h3>Video Composer Controls</h3>
         <div class="help-section">
           <h4>Keyboard Shortcuts</h4>
           <p><kbd>Space</kbd> - Start/Stop Audio (play/pause in track mode)</p>
           <p><kbd>F</kbd> - Toggle Fullscreen</p>
           <p><kbd>1</kbd>&ndash;<kbd>9</kbd> - Visualization modes, in menu order &middot; <kbd>0</kbd> - Clip Auto-Editor</p>
           <p><kbd>Ctrl</kbd>+<kbd>1</kbd> / <kbd>2</kbd> / <kbd>3</kbd> - Audio / Assets / Output panel (<kbd>Alt</kbd> works too)</p>
-          <p><kbd>Shift</kbd>+<kbd>A</kbd> - Auto-Editor (edit controls)</p>
+          <p><kbd>Shift</kbd>+<kbd>A</kbd> - Auto-Editor (edit controls) &middot; <kbd>Ctrl</kbd>+<kbd>4</kbd> - Text</p>
           <p><kbd>R</kbd> - Reset All Gains to 1.0</p>
           <p><kbd>?</kbd> - Show/Hide This Help</p>
         </div>
@@ -451,23 +466,25 @@
     </div>
 
     <!-- Application Modules -->
-    <script src="app/audioProcessor.js?v=2.3.1"></script>
-    <script src="app/videoOrientation.js?v=2.3.1"></script>
-    <script src="app/visualizer.js?v=2.3.1"></script>
-    <script src="app/trackSource.js?v=2.3.1"></script>
-    <script src="app/analysisEq.js?v=2.3.1"></script>
-    <script src="app/voiceTrack.js?v=2.3.1"></script>
-    <script src="app/musicalTime.js?v=2.3.1"></script>
-    <script src="app/transitions.js?v=2.3.1"></script>
-    <script src="app/clipEngine.js?v=2.3.1"></script>
-    <script src="app/sessionRecord.js?v=2.3.1"></script>
-    <script src="app/mediaLibrary.js?v=2.3.1"></script>
-    <script src="app/projectFile.js?v=2.3.1"></script>
-    <script src="app/timelinePanel.js?v=2.3.1"></script>
-    <script src="app/sidebar.js?v=2.3.1"></script>
-    <script src="app/headerPickers.js?v=2.3.1"></script>
-    <script src="app/assetPanel.js?v=2.3.1"></script>
-    <script src="app/eqPanel.js?v=2.3.1"></script>
-    <script src="app/app.js?v=2.3.1"></script>
+    <script src="app/audioProcessor.js?v=2.4.0"></script>
+    <script src="app/videoOrientation.js?v=2.4.0"></script>
+    <script src="app/visualizer.js?v=2.4.0"></script>
+    <script src="app/trackSource.js?v=2.4.0"></script>
+    <script src="app/analysisEq.js?v=2.4.0"></script>
+    <script src="app/voiceTrack.js?v=2.4.0"></script>
+    <script src="app/musicalTime.js?v=2.4.0"></script>
+    <script src="app/transitions.js?v=2.4.0"></script>
+    <script src="app/clipEngine.js?v=2.4.0"></script>
+    <script src="app/sessionRecord.js?v=2.4.0"></script>
+    <script src="app/mediaLibrary.js?v=2.4.0"></script>
+    <script src="app/projectFile.js?v=2.4.0"></script>
+    <script src="app/textOverlay.js?v=2.4.0"></script>
+    <script src="app/textPanel.js?v=2.4.0"></script>
+    <script src="app/timelinePanel.js?v=2.4.0"></script>
+    <script src="app/sidebar.js?v=2.4.0"></script>
+    <script src="app/headerPickers.js?v=2.4.0"></script>
+    <script src="app/assetPanel.js?v=2.4.0"></script>
+    <script src="app/eqPanel.js?v=2.4.0"></script>
+    <script src="app/app.js?v=2.4.0"></script>
   </body>
 </html>

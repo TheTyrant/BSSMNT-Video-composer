@@ -123,6 +123,7 @@ class ClipEngine {
       importance: this.clips.length + 1,   // = position in the Action Editor stack
       story: 'none',             // 'none' | 'hook' | 'result' | 'cta' (Story Mode only)
       storyHold: 3,              // seconds an image story block holds (Q9)
+      fade: { on: false, curve: 'smooth', bars: 1 },   // Auto Fade Music around this locked clip (D-59)
     };
     this.assets.push(asset);
     if (kind === 'image') this.loadImageAsset(asset);
@@ -232,6 +233,7 @@ class ClipEngine {
       thumb: thumb || null, lastPos: 0, ready: false, error: null, offline: true, ref: saved.ref,
       asClip: saved.asClip, layer: saved.layer, band: saved.band, pace: saved.pace,
       importance: saved.importance, story: saved.story, storyHold: saved.storyHold, rotation: saved.rotation || 0,
+      fade: { on: false, curve: 'smooth', bars: 1, ...(saved.fade || {}) },
     };
     this.assets.push(asset);
     this.emit('clips');
@@ -504,6 +506,11 @@ class ClipEngine {
     a.story = role;
     this.renumber();
     this.emit('clips');
+  }
+
+  setClipFade(id, patch) {
+    const a = this.clipById(id);
+    if (a) { a.fade = { ...(a.fade || { on: false, curve: 'smooth', bars: 1 }), ...patch }; this.emit('clips'); }
   }
 
   setStoryHold(id, seconds) {

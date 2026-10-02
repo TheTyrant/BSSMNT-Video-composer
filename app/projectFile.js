@@ -119,7 +119,7 @@ class ProjectFile {
       assets.push({
         id: a.id, name: a.name, kind: a.kind, ref: a.file ? MediaLibrary.ref(a.file) : a.ref,
         asClip: a.asClip, layer: a.layer, band: a.band, pace: a.pace, importance: a.importance,
-        story: a.story, storyHold: a.storyHold, duration: a.duration, width: a.width, height: a.height,
+        story: a.story, storyHold: a.storyHold, fade: { ...(a.fade || {}) }, duration: a.duration, width: a.width, height: a.height,
         rotation: a.rotation || 0, thumb,
       });
     }
@@ -148,6 +148,7 @@ class ProjectFile {
       eq: { mode: app.eqMode, bands: app.eq.bands.map(b => ({ ...b })), sensitivity: { bass: app.bassGain, mid: app.midGain, high: app.highGain } },
       mutes: { music: app.musicMuted, voice: v.muted },
       voice,
+      text: app.text.toJSON(),
       assets,
       record: {
         edl: e.edl(),
@@ -308,6 +309,13 @@ class ProjectFile {
     app.musicMuted = !!(project.mutes && project.mutes.music);
     app.voiceUI.muteMaster.setAttribute('aria-pressed', String(app.musicMuted));
     app.applyMusicLevel();
+
+    // Text (titles, credits, text) — D-60.
+    app.text.fromJSON(project.text || null);
+    // Projects saved with the old global Auto Fade switch: fade every locked clip.
+    if (project.engine && project.engine.settings && project.engine.settings.storyFade) {
+      e.assets.forEach(a => { if (a.story !== 'none' && !(a.fade && a.fade.on)) a.fade = { on: true, curve: 'linear', bars: 1 }; });
+    }
 
     // 6. Session record: cut list, beat grid, per-frame analysis log.
     const rec = project.record || {};
