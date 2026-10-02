@@ -279,24 +279,46 @@ class TimelinePanel {
     });
     const bin = this.el.bin;
     this.dragId = null;
+
+    // Reordering cards (an in-page drag) is handled on the Action Editor row.
     bin.addEventListener('dragover', (e) => {
+      if (this.dragId == null) return;
       e.preventDefault();
-      if (this.dragId != null) this.showInsert(this.insertIndexAt(e.clientX));
-      else bin.classList.add('drag-over');
+      this.showInsert(this.insertIndexAt(e.clientX));
     });
     bin.addEventListener('dragleave', (e) => {
-      if (!bin.contains(e.relatedTarget)) { bin.classList.remove('drag-over'); this.showInsert(-1); }
+      if (!bin.contains(e.relatedTarget)) this.showInsert(-1);
     });
     bin.addEventListener('drop', (e) => {
+      if (this.dragId == null) return;
       e.preventDefault();
+      e.stopPropagation();
+      this.reorderTo(this.dragId, this.insertIndexAt(e.clientX));
+      this.dragId = null;
+      this.showInsert(-1);
+    });
+
+    // Files from the desktop can be dropped anywhere on the bottom editor
+    // (Clips lane, timeline, Action Editor) and are added as assets.
+    const editor = document.getElementById('editorPanel');
+    const hasFiles = (e) => e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files');
+    editor.addEventListener('dragover', (e) => {
+      if (this.dragId != null || !hasFiles(e)) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+      bin.classList.add('drag-over');
+      editor.classList.add('drag-over-panel');
+    });
+    editor.addEventListener('dragleave', (e) => {
+      if (!editor.contains(e.relatedTarget)) { bin.classList.remove('drag-over'); editor.classList.remove('drag-over-panel'); }
+    });
+    editor.addEventListener('drop', (e) => {
+      if (this.dragId != null || !hasFiles(e)) return;
+      e.preventDefault();
+      e.stopPropagation();
       bin.classList.remove('drag-over');
-      if (this.dragId != null) {
-        this.reorderTo(this.dragId, this.insertIndexAt(e.clientX));
-        this.dragId = null;
-        this.showInsert(-1);
-      } else {
-        this.engine.addFiles(e.dataTransfer.files);
-      }
+      editor.classList.remove('drag-over-panel');
+      this.engine.addFiles(e.dataTransfer.files);
     });
   }
 

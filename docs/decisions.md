@@ -238,6 +238,11 @@ The brief's four questions were not answered before the build. Rather than guess
 - **As built:** number-pad digits work too. Plain-key shortcuts no longer fire while Ctrl/Alt/Cmd is held, so browser shortcuts like Ctrl+R / Ctrl+F aren't doubled up with app actions. Tab tooltips and the header MODE menu show each key; the help overlay (?) lists them.
 - **Verified:** Ctrl+1/2/3 and Alt+2 toggle the right panels (second press closes); Shift+A toggles the Auto-Editor; 5…9, 0, Numpad 3, 1 select the matching modes.
 
+### D-53 · Drag and drop for clips, anywhere it makes sense *(Accepted — built)*
+- **Problem (Omar):** dropping clips "stopped working". Only the small drop zone in 02 Assets and the Action Editor row accepted files; a drop anywhere else (the asset list, the options, the timeline) was ignored, and in a normal browser a missed file drop makes the browser **open the file and replace the app**.
+- **Decision:** the **whole 02 Assets panel** and the **whole bottom editor** (Clips lane, timeline, Action Editor) accept image and video files, highlighted while files are over them. Card reordering in the Action Editor stays an in-page drag and never adds files. A page-wide guard stops the browser from opening a dropped file anywhere else.
+- **Verified with real OS-style file drops (DevTools drag events):** Action Editor, Clips lane, drop zone, asset list and options area each added exactly one asset; a drop on the viewport added nothing and the page stayed; dragging a card still reorders.
+
 ### Q17 · Export *(open — in discussion with Omar)*
 Real-time capture vs. an offline builder. Offline is the goal (long-form edits can't take real time), and needs the Phase 1 plan model + offline song analysis first. To be decided before building.
 

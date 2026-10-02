@@ -206,6 +206,12 @@ class DJVisualizerApp {
 
     this.timeline.init();
 
+    // Files dropped outside a drop target must not make the browser open
+    // the file (which would replace the app and lose the session).
+    const hasFiles = (e) => e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files');
+    window.addEventListener('dragover', (e) => { if (hasFiles(e)) e.preventDefault(); });
+    window.addEventListener('drop', (e) => { if (hasFiles(e)) e.preventDefault(); });
+
     // Header quick pickers: SRC / MODE dropdowns + activity light (D-50)
     this.headerPickers = new HeaderPickers(this);
     this.headerPickers.init();

@@ -25,11 +25,24 @@ class AssetPanel {
       this.addAndSelect(e.target.files);
       e.target.value = '';
     });
-    drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('drag-over'); });
-    drop.addEventListener('dragleave', () => drop.classList.remove('drag-over'));
-    drop.addEventListener('drop', (e) => {
+    // Files can be dropped anywhere on the 02 Assets panel (the list, the
+    // EQ, the options), not only on the small drop zone; the zone and the
+    // panel both light up while files are over it.
+    const panel = document.getElementById('customMediaSection');
+    const hasFiles = (e) => e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files');
+    const lit = (on) => { drop.classList.toggle('drag-over', on); panel.classList.toggle('drag-over-panel', on); };
+    panel.addEventListener('dragover', (e) => {
+      if (!hasFiles(e)) return;
       e.preventDefault();
-      drop.classList.remove('drag-over');
+      e.dataTransfer.dropEffect = 'copy';
+      lit(true);
+    });
+    panel.addEventListener('dragleave', (e) => { if (!panel.contains(e.relatedTarget)) lit(false); });
+    panel.addEventListener('drop', (e) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      lit(false);
       this.addAndSelect(e.dataTransfer.files);
     });
 

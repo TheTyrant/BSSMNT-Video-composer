@@ -362,6 +362,7 @@ input[type="checkbox"] { accent-color: var(--ink); margin: 0; }
 }
 
 .dropzone { transition: background 0.1s, outline-color 0.1s; }
+.drag-over-panel { outline: 2px dashed var(--ink); outline-offset: -4px; }
 .dropzone.drag-over {
   outline: 2px dashed var(--ink);
   outline-offset: -2px;
