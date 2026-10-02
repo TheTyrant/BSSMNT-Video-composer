@@ -41,7 +41,7 @@ What exists on the `v2` branch:
 
 ---
 
-## v2.1 — Creator essentials 🟡 *(now)*
+## v2.1 — Creator essentials ✅ *(steps 0–8 built and verified 2026-10-02; step 9, aesthetics, is next)*
 
 **Spec:** [brief-v2.1.md](brief-v2.1.md) asks for three changes: **per-clip timing + Importance**, **Story Mode**, and **Voice record/import**. Omar then added the **workspace changes** below (2026-10-02, D-42–D-46). After that comes an aesthetic pass, and then the roadmap resumes at Phase 1.
 
@@ -62,28 +62,31 @@ Steps are ordered by dependency. Each ends with a working app and a docs update.
 
 | Step | Group | What | Depends on |
 |---|---|---|---|
-| **0** | Housekeeping | Commit the test-round fixes (D-27–D-29) and per-clip Pace (D-30), so v2.1 starts from a clean tree | — |
-| **1** | Docs | This plan: brief saved, roadmap, codemap §4.0, decisions §J | — |
-| **2** | Foundation | **2a** Asset model: one list of typed assets (`kind: video/image`) with `role` (clip / layer), `band`, `pace` ✅, `importance`, `story` (defaults = today). **2b** Music bus: a gain node *after* the analyser in `TrackSource` | 0 |
-| **3** | Sidebar | **3a** Modular tab sidebar: 01 Audio (+ Visualization) · 02 EQ · 03 Assets · 04 Output, slide-out panels, collapsible to a tabs-only rail (state remembered). **3b** Status → semi-transparent viewport overlay (top-right); removed from the sidebar | 0 |
-| **4** | Asset bin | **4a** 03 Assets: drag/drop + chooser for images and video, asset list, selection. **4b** Selected-asset properties panel (replaces the Bass/Mid/High upload slots); options change per item; per-asset status under it. **4c** Media Layers become an asset option (background / bass / mid / high + enabled, justify, stack), driving the existing `loadLayerMedia` engine | 2a, 3a |
-| **5** | Action Editor + ① | **5a** The bottom Bin becomes the Action Editor: the auto-edit sequence as an ordered stack; selecting an item opens the same properties. **5b** Drag to reorder → Importance = place in the stack. **5c** Importance weights `choose()`; Sequential plays in stack order. **5d** Images play as auto-edit clips (hold = Pace). Per-clip Pace already done (D-30) | 4 |
-| **6** | ③ Voice | **6a** `VoiceTrack` on its own chain. **6b** Import. **6c** Record. **6d** Volume + Normalize. **6e** Music mute (uses 2b). **6f** Voice lane on the timeline | 2b |
-| **7** | ② Story Mode | **7a** Story Mode toggle + Story Position in asset properties. **7b** Story assets leave the automated pool; Hook / Result / CTA placement. **7c** Story blocks on the clip lane. **7d** Auto Fade Music (uses 2b) | 2b, 5 |
-| **8** | Verify + docs | End-to-end test of every Story combination, voice + music + mute, Importance reorder, sidebar collapse; update codemap/decisions; screenshots | 3–7 |
+| **0** ✅ | Housekeeping | Commit the test-round fixes (D-27–D-29) and per-clip Pace (D-30), so v2.1 starts from a clean tree | — |
+| **1** ✅ | Docs | This plan: brief saved, roadmap, codemap §4.0, decisions §J | — |
+| **2** ✅ | Foundation | **2a** Asset model: one list of typed assets (`kind: video/image`) with `role` (clip / layer), `band`, `pace` ✅, `importance`, `story` (defaults = today). **2b** Music bus: a gain node *after* the analyser in `TrackSource` | 0 |
+| **3** ✅ | Sidebar | **3a** Modular tab sidebar: 01 Audio (+ Visualization) · 02 EQ · 03 Assets · 04 Output, slide-out panels, collapsible to a tabs-only rail (state remembered). **3b** Status → semi-transparent viewport overlay (top-right); removed from the sidebar | 0 |
+| **4** ✅ | Asset bin | **4a** 03 Assets: drag/drop + chooser for images and video, asset list, selection. **4b** Selected-asset properties panel (replaces the Bass/Mid/High upload slots); options change per item; per-asset status under it. **4c** Media Layers become an asset option (background / bass / mid / high + enabled, justify, stack), driving the existing `loadLayerMedia` engine | 2a, 3a |
+| **5** ✅ | Action Editor + ① | **5a** The bottom Bin becomes the Action Editor: the auto-edit sequence as an ordered stack; selecting an item opens the same properties. **5b** Drag to reorder → Importance = place in the stack. **5c** Importance weights `choose()`; Sequential plays in stack order. **5d** Images play as auto-edit clips (hold = Pace). Per-clip Pace already done (D-30) | 4 |
+| **6** ✅ | ③ Voice | **6a** `VoiceTrack` on its own chain. **6b** Import. **6c** Record. **6d** Volume + Normalize. **6e** Music mute (uses 2b). **6f** Voice lane on the timeline | 2b |
+| **7** ✅ | ② Story Mode | **7a** Story Mode toggle + Story Position in asset properties. **7b** Story assets leave the automated pool; Hook / Result / CTA placement. **7c** Story blocks on the clip lane. **7d** Auto Fade Music (uses 2b) | 2b, 5 |
+| **8** ✅ | Verify + docs | End-to-end test of every Story combination, voice + music + mute, Importance reorder, sidebar collapse; update codemap/decisions; screenshots | 3–7 |
 | **9** | Aesthetics | Visual pass (separate brief) | 8 |
 
 The workspace (3–5) comes first because every per-item control from ①–③ lives in the asset properties panel. Voice (6) is independent. Story Mode (7) has the most open questions, so it goes last.
 
 ### Exit criteria
-- [ ] With every new control at its default, cuts, clip order and audio are identical to v2.
-- [ ] Images and videos go into 03 Assets by drag/drop or chooser. Selecting one shows only the options that apply to it. Any asset can still drive a Media Layer exactly as before.
-- [ ] Sidebar tabs open and close their panels, the sidebar collapses to a tab rail and back, and Status reads correctly in the viewport overlay.
-- [ ] Each clip has a Pace and an Importance. Cuts stay on the master beat grid. Reordering the Action Editor stack updates Importance, and higher-Importance clips are chosen measurably more often.
-- [ ] In Story Mode, all four Hook / Result / CTA combinations in the brief place correctly, each story asset appears exactly once, and story assets never appear in the automated fill.
-- [ ] Auto Fade Music fades the music around each story block when on, and does nothing when off. BPM and bands keep tracking during a fade.
-- [ ] Voice can be recorded or imported, has its own volume and Normalize, and plays in sync on seek, pause and stop. Muting music leaves voice only.
-- [ ] Changing any clip's timing or Importance never changes the voice track.
+Verified in step 8 with real files (the six test WebMs, the CREAM 97 BPM instrumental, an imported MP3 voice, a fake-mic take). Details in [decisions.md D-47](decisions.md#d-47--v21-verification-step-8).
+- [x] With every new control at its default, cuts, clip order and audio are identical to v2. *Same session run on the pre-v2.1 build and on v2.1: same order (ABCD…), same beat grid, music bus at 1, no voice. **One flagged exception:** Random / By band order is now weighted by the stack (Q15, see D-32).*
+- [x] Images and videos go into 03 Assets by drag/drop or chooser. Selecting one shows only the options that apply to it. Any asset can still drive a Media Layer exactly as before.
+- [x] Sidebar tabs open and close their panels, the sidebar collapses to a tab rail and back, and Status reads correctly in the viewport overlay.
+- [x] Each clip has a Pace and an Importance. Cuts stay on the master beat grid. Reordering the Action Editor stack updates Importance, and higher-Importance clips are chosen measurably more often. *(6000 Random picks: 1525 / 1322 / 1182 / 947 / 677 / 347 by stack position.)*
+- [x] In Story Mode, all four Hook / Result / CTA combinations in the brief place correctly, each story asset appears exactly once, and story assets never appear in the automated fill.
+- [x] Auto Fade Music fades the music around each story block when on, and does nothing when off. BPM and bands keep tracking during a fade.
+- [x] Voice can be recorded or imported, has its own volume and Normalize, and plays in sync on seek, pause and stop. Muting music leaves voice only.
+- [x] Changing any clip's timing or Importance never changes the voice track.
+
+Screenshots: [assets panel](screenshots/v2.1-assets-panel.png) · [Action Editor](screenshots/v2.1-action-editor.png) · [Story Hook](screenshots/v2.1-story-hook.png) · [Story end](screenshots/v2.1-story-end.png).
 
 ---
 
@@ -217,7 +220,7 @@ The workspace (3–5) comes first because every per-item control from ①–③ 
 ```
 Phase 0  v2 auto-editor (live, video-only, recorded timeline)          ✅
    │
-v2.1     tab sidebar · asset bin · Action Editor (Importance) · Voice · Story Mode → aesthetics   🟡  ← now
+v2.1     tab sidebar · asset bin · Action Editor (Importance) · Voice · Story Mode   ✅  → aesthetics (step 9) ← now
    │         (story anchors, music bus and voice lane carry into the plan model)
 Phase 1  stills + song analysis + placement plan + editable timeline    ⬜
    │         (the plan model unlocks everything below)

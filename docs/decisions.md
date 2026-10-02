@@ -203,11 +203,11 @@ The brief's four questions were not answered before the build. Rather than guess
 - `app.js` defines `switchVisualizationMode` twice (the string version wins) and has an unused `setupKeyboardShortcuts`.
 - `README.md` clone URL still points at `philaconvalley/djVisualizer`.
 
-## J. v2.1 — the three final changes *(proposed, 2026-10-02)*
+## J. v2.1 — the three final changes *(built and verified, 2026-10-02)*
 
 Spec: [brief-v2.1.md](brief-v2.1.md). Build order: [roadmap.md › v2.1](roadmap.md#v21--creator-essentials--now). Code plan: [codemap.md §4.0](codemap.md#40-v21--creator-essentials-).
 
-Everything in this section is **Proposed**. Each entry becomes *Accepted* (or is rewritten) when its build step lands. The open questions at the end block specific steps. Answers will be recorded here.
+Each entry was *Proposed* and became *Accepted* (or was rewritten) when its build step landed. Q9–Q16 were built with their proposed answers and are marked Accepted. **One open conflict:** Q15 vs. "defaults change nothing" (see D-32).
 
 ### Guiding rules taken from the brief
 1. **The master timeline and the existing beat clock are the only source of timing** (D-06). Nothing in v2.1 adds a second clock or a second timeline.
@@ -354,6 +354,22 @@ Everything in this section is **Proposed**. Each entry becomes *Accepted* (or is
 | **Q14** | A recorded take is lost on reload (nothing persists). Add a "Download take" button? | **Yes**, one button. ***Accepted** (built in step 6)* | 6c |
 | **Q15** | Is stack position 1 the *most* important (picked most often)? And should Random stay uniform until the user reorders? | **Yes, 1 = top = most weight** (`N − pos + 1`). Weighting is on from the start, since the stack is visible. ***Accepted** (built in step 5c) — but see the conflict noted in D-32* | 5c |
 | **Q16** | Can one asset be both an auto-edit clip and a Media Layer at once? | **Yes.** "Use as" is two independent switches. ***Accepted** (built in step 4)* | 4c |
+
+### D-47 · v2.1 verification (step 8)
+One fresh session per check, with real files: the six test WebMs, CREAM (97 BPM, 195.5 s), an imported MP3 as voice, and Chrome's fake mic for a recorded take.
+
+| Exit criterion | Result |
+|---|---|
+| Defaults identical to v2 | Same default session on the pre-v2.1 build (`11bbba1`) and on v2.1: same order ABCD…, same 2-beat grid from beat 0, settings identical apart from the two new Story flags (off), music bus at 1, no voice. The baseline stepped to 3-beat holds mid-run because the untouched detector read 146 BPM there (108 in the v2.1 run); that is detector variance, not a v2.1 change. **Exception, flagged:** Random / By band are weighted by the stack (Q15/D-32) |
+| 03 Assets + Media Layers | Chooser and drag/drop; per-kind fields; an asset drives the Bass layer through `loadLayerMedia`; pop-out still mirrors layers |
+| Sidebar + Status overlay | Collapse to rail: canvas 1287 → 1539 px; tabs reopen; state survives reload; overlay reads device / BPM / FPS |
+| Pace + Importance | Mixed paces (Relaxed / Frantic / Global) cut only on whole master beats; reorder renumbers the stack; 6000 Random picks 1525 / 1322 / 1182 / 947 / 677 / 347 |
+| Story Mode | All four orderings placed and played at their block times; fill never contains a story asset; each block once per pass (HOOK … RESULT CTA, counts 1 / 1 / 1); Free Mode removes blocks and keeps roles |
+| Auto Fade Music | 0 inside blocks, 0.58 partway into a 1-bar fade, 1 elsewhere; BPM/bands keep updating; off → untouched |
+| Voice | Within 10 ms of the master through play / seek / pause / stop; Volume + Normalize; mute music → voice only with BPM 120 still reading |
+| Voice vs clip timing | Pace on every clip + a reorder during playback: voice offset unchanged, no nudges, drift −8 ms |
+
+**Noted, not changed (outside v2.1):** the frozen BPM detector reads this 97 BPM song as anything from 97 to ~146 BPM in different runs. It's in `audioProcessor.js`, so it stays as is; offline song analysis (roadmap Phase 1.2) is the planned fix.
 
 ### Not changing in v2.1 (boundary check)
 - No export or render (Q3 stays "live playback only"). "Voice-only result" means voice-only **playback** until Phase 3 export, which will mix voice and the music bus.

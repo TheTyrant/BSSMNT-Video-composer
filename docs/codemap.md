@@ -264,7 +264,7 @@ Tokens in `:root`: `--surface #EDEAE4 · --panel #E3DFD7 · --steel #D7DADC · -
 
 Names below are proposed signatures, not existing code. Framework suggestions are **suggestions**, to be confirmed as decisions when adopted.
 
-### 4.0 v2.1 — Creator essentials 🟡
+### 4.0 v2.1 — Creator essentials ✅ *(steps 2–8 built; step 9 aesthetics next)*
 
 Spec: [brief-v2.1.md](brief-v2.1.md). Decisions: D-31–D-46; open questions Q9–Q16 ([decisions.md §J](decisions.md#j-v21--the-three-final-changes-proposed-2026-10-02)). Step numbers match [roadmap.md › v2.1](roadmap.md#v21--creator-essentials--now). **No new libraries:** everything uses Web Audio, MediaRecorder and the existing p5 setup.
 
@@ -319,7 +319,7 @@ Spec: [brief-v2.1.md](brief-v2.1.md). Decisions: D-31–D-46; open questions Q9�
 | 7c ✅ | `timelinePanel.js` | `drawClips()` renders story blocks (fixed, labelled HOOK / RESULT / CTA) and, in track mode, ghost outlines of upcoming blocks from `storyPlan()` |
 | 7d ✅ | `app.js` (+ `trackSource.setMusicLevel`) | *As built:* `storyFadeLevel(t)` computes the music level from the master time (0 inside a block, linear over 1 bar before/after, 2 s before BPM is known) and `applyMusicLevel()` applies it to `musicGain` every analysis frame while Auto Fade is on. Seek, pause, stop and plan changes need no bookkeeping. Mute overrides it |
 
-**Test focus (step 8):** all four story orderings from the brief, plus Story Mode off. Sidebar collapse/expand resizes the canvas. Media Layers driven from asset properties look identical to before. Reorder updates Importance. Story assets never appear in the fill. Importance histogram over ~200 cuts. Cuts stay on master beats with mixed timings. Voice in sync after seek, pause and stop, unaffected by any timing or Importance change. BPM reading unchanged while music is muted or faded.
+**Test focus (step 8) — ✅ all passed, see decisions D-47:** all four story orderings from the brief, plus Story Mode off. Sidebar collapse/expand resizes the canvas. Media Layers driven from asset properties look identical to before. Reorder updates Importance. Story assets never appear in the fill. Importance histogram over ~200 cuts. Cuts stay on master beats with mixed timings. Voice in sync after seek, pause and stop, unaffected by any timing or Importance change. BPM reading unchanged while music is muted or faded.
 
 ### Phase 1 — Systematic placement of video + stills along the song ⬜
 
