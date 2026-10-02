@@ -266,7 +266,16 @@ The brief's four questions were not answered before the build. Rather than guess
 - **First scope:** **all visual modes** (Omar), plus the Clip Auto-Editor, Media Layers, Story blocks and transitions. Spectrum Bars is HTML today and needs a canvas version for rendering.
 - **Browsers:** Chrome and Edge first (full fast path: WebCodecs + streaming to disk). Firefox and Safari later through fallbacks (Origin Private File System instead of direct disk writes; a WebAssembly audio encoder if one is missing; ffmpeg.wasm or real-time capture as a last resort). Not locked out.
 - **Libraries:** browser built-ins (WebCodecs, OfflineAudioContext, File System Access / OPFS, WebGL) + Mediabunny for reading and writing MP4/WebM (free, MPL-2.0). Avoid AGPL analysis libraries (e.g. Essentia.js) for a commercial product.
-- **Next:** a render-speed test on real files (decode, draw each mode, encode at 1080p) before building, since speed depends on the machine.
+- **Speed test (`test-assets/render-speed.html`, run 2026-10-02 in headless Chrome with GPU, 1080p, 30 fps target):**
+
+  | Stage | fps | × real time |
+  |---|---|---|
+  | Decode Omar's phone clip (H.264, rotation 90° applied) / a WebM | 195 / 711 | 6.5× / 23.7× |
+  | Draw: Particles · Rings · Waves · Mandala · Tunnel · Galaxy · Polygons | 281 · 379 · 109 · **23** · 342 · 211 · 466 | 9.4 · 12.7 · 3.6 · **0.77** · 11.4 · 7.0 · 15.5 |
+  | Galaxy draw + H.264 encode | 129 | 4.3× |
+  | Clip pipeline (decode → composite → encode) | 108–129 | 3.6–4.3× |
+
+  Rendering is feasible faster than real time with free browser technology. **Mandala** is the only mode slower than real time: its 96 spokes are drawn as separate WebGL lines, which p5 handles slowly. Batching them into one shape keeps the look identical and is a renderer task. Headless numbers are a floor; Omar should run the page in his own Chrome for his machine's figures.
 
 ## I. Known carry-overs (pre-existing on `main`, not changed)
 - Placeholder text drawn with `p.text()` in WebGL mode doesn't render, because no font is loaded (affects the Media Layers "Upload images…" prompt). v2 uses a DOM overlay for its own hints.

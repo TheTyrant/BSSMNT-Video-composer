@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Render Speed Test</title>
+  <style>
+    body { font-family: "Segoe UI", system-ui, sans-serif; background: #EDEAE4; color: #1A1A1A; margin: 0; padding: 24px; max-width: 900px; }
+    h1 { font-size: 20px; text-transform: uppercase; margin: 0 0 4px; }
+    p { line-height: 1.5; }
+    .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 12px 0; }
+    button, select { font: 11px/1 "Cascadia Mono", Consolas, monospace; text-transform: uppercase; letter-spacing: .06em; height: 30px; padding: 0 14px; border: 1px solid #1A1A1A; background: #fff; color: #1A1A1A; }
+    button { background: #1A1A1A; color: #fff; cursor: pointer; }
+    button:disabled { opacity: .5; cursor: default; }
+    table { border-collapse: collapse; width: 100%; margin-top: 12px; background: #fff; font-family: "Cascadia Mono", Consolas, monospace; font-size: 12px; }
+    th, td { border: 1px solid #1A1A1A; padding: 6px 10px; text-align: left; }
+    th { background: #1A1A1A; color: #fff; font-weight: 500; }
+    td.num { text-align: right; }
+    .fast { color: #1F9D55; font-weight: 700; }
+    .slow { color: #E5322D; font-weight: 700; }
+    #log { font: 12px "Cascadia Mono", Consolas, monospace; white-space: pre-wrap; margin-top: 12px; color: #45443F; }
+    #stage { position: fixed; right: 12px; bottom: 12px; width: 320px; height: 180px; border: 1px solid #1A1A1A; background: #000; overflow: hidden; }
+    #stage canvas { width: 320px !important; height: 180px !important; }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+  <script src="../app/visualizer.js"></script>
+</head>
+<body>
+  <h1>Render speed test</h1>
+  <p>Measures how fast this machine can do the offline renderer's work at the chosen size: <b>decode</b> a real clip,
+     <b>draw</b> each visual mode with the app's own drawing code, <b>encode</b> to H.264, and the full
+     <b>clip pipeline</b> (decode → composite → encode). Nothing leaves this computer. “× real time” is how many
+     seconds of video one second of rendering produces at 30 fps.</p>
+  <div class="row">
+    <label>Clip: <input type="file" id="clip" accept="video/*"></label>
+    <select id="size">
+      <option value="1920x1080">1080p (16:9)</option>
+      <option value="1280x720">720p (16:9)</option>
+      <option value="1080x1920">1080 × 1920 (9:16)</option>
+      <option value="3840x2160">4K (16:9)</option>
+    </select>
+    <button id="run" disabled>Run test</button>
+  </div>
+  <table id="results" hidden>
+    <thead><tr><th>Stage</th><th>Frames</th><th>Seconds</th><th>fps</th><th>× real time (30 fps)</th></tr></thead>
+    <tbody></tbody>
+  </table>
+  <div id="log"></div>
+  <div id="stage"></div>
+
+<script type="module">
+import { Input, ALL_FORMATS, BlobSource, CanvasSink, Output, Mp4OutputFormat, BufferTarget, CanvasSource, Quality }
+  from 'https://cdn.jsdelivr.net/npm/mediabunny@1.61.0/+esm';
+
+const $ = (id) => document.getElementById(id);
+const FPS = 30;
+const log = (m) => { $('log').textContent += m + '\n'; };
+const results = [];
+const row = (stage, frames, secs) => {
+  const fps = frames / secs, x = fps / FPS;
+  results.push({ stage, frames, secs, fps, x });
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td>${stage}</td><td class="num">${frames}</td><td class="num">${secs.toFixed(2)}</td><td class="num">${fps.toFixed(1)}</td>` +
+    `<td class="num ${x >= 1 ? 'fast' : 'slow'}">${x.toFixed(2)}×</td>`;
+  $('results').querySelector('tbody').appendChild(tr);
+  $('results').hidden = false;
+};
+window.RenderSpeed = { results };
+
+$('clip').addEventListener('change', () => { $('run').disabled = !$('clip').files[0]; });
+$('run').addEventListener('click', () => run().catch(e => log('ERROR: ' + (e && e.message || e))));
+
+// Fake but music-like analysis values, so the modes work as hard as live.
+function audioAt(i) {
+  const t = i / FPS, beat = (t * 2) % 1;
+  const kick = Math.exp(-beat * 6);
+  const spectrum = Array.from({ length: 512 }, (_, k) => Math.max(0, 0.9 * Math.exp(-k / 60) * (0.6 + 0.4 * kick) + 0.1 * Math.sin(t * 3 + k * 0.1)));
+  return { rms: 0.15 + 0.1 * kick, bass: 0.15 + 0.45 * kick, mid: 0.2 + 0.1 * Math.sin(t * 2), high: 0.12 + 0.08 * Math.sin(t * 5), spectrum, bpm: 120, isActive: true };
+}
+
+async function run() {
+  $('run').disabled = true;
+  $('results').querySelector('tbody').innerHTML = '';
+  results.length = 0;
+  $('log').textContent = '';
+  const [W, H] = $('size').value.split('x').map(Number);
+  const file = $('clip').files[0];
+  log(`Size ${W}×${H}, clip "${file.name}" (${(file.size / 1e6).toFixed(1)} MB)`);
+
+  // 1) Decode: frame-accurate decoding + resize (rotation from the file is applied).
+  const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
+  const track = await input.getPrimaryVideoTrack();
+  const dur = await input.computeDuration();
+  log(`Track ${track.codec}, ${await track.getDisplayWidth()}×${await track.getDisplayHeight()}, rotation ${await track.getRotation()}°, ${dur.toFixed(1)} s`);
+  const sink = new CanvasSink(track, { width: W, height: H, fit: 'cover', poolSize: 4 });
+  const end = Math.min(dur, 12);
+  let n = 0, t0 = performance.now();
+  for await (const _ of sink.canvases(0, end)) n++;
+  row('Decode clip (+ resize, rotation)', n, (performance.now() - t0) / 1000);
+
+  // 2) Draw: every canvas visual mode through the app's own DJVisualizer.draw().
+  const p = await new Promise((resolve) => new p5((pp) => {
+    pp.setup = () => { pp.pixelDensity(1); pp.createCanvas(W, H, pp.WEBGL); pp.noLoop(); resolve(pp); };
+    pp.draw = () => { if (pp.viz) pp.viz.draw(pp); };
+  }, $('stage')));
+  const gl = p.drawingContext, px = new Uint8Array(4);
+  const viz = new DJVisualizer();
+  Object.assign(viz, { p5Instance: p, w: W, h: H, isRunning: true });
+  viz.initializeParticles();
+  p.viz = viz;
+  const frame = (i) => {
+    viz.audioData = audioAt(i);
+    viz.beatFlash = Math.exp(-((i / FPS * 2) % 1) * 6);
+    viz.beatPulse = viz.beatFlash;
+    p.redraw();
+    gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);   // wait for the GPU, so timings are real
+  };
+  const modes = [['particles', 'Floating Particles'], ['rings', 'Frequency Rings'], ['waves', 'Wave Forms'], ['mandala', 'Mandala'],
+    ['tunnel', 'Tunnel Vision'], ['galaxy', 'Galaxy'], ['polygons', 'Polygon Collage']];
+  for (const [mode, label] of modes) {
+    viz.currentMode = mode;
+    viz.polygonCollageStarted = false;
+    for (let i = 0; i < 5; i++) frame(i);                          // warm-up
+    const N = 90;
+    t0 = performance.now();
+    for (let i = 0; i < N; i++) frame(i);
+    row(`Draw: ${label}`, N, (performance.now() - t0) / 1000);
+    await new Promise(r => setTimeout(r, 0));
+  }
+  log('Spectrum Bars is drawn with page elements today; the renderer needs a canvas version, so it is not timed here.');
+
+  // 3) Encode: draw Galaxy (one of the heavier modes) and encode H.264 at the same time.
+  const encode = async (label, frames, paint, canvas) => {
+    const output = new Output({ format: new Mp4OutputFormat(), target: new BufferTarget() });
+    const src = new CanvasSource(canvas, { codec: 'avc', bitrate: new Quality('high') });
+    output.addVideoTrack(src, { frameRate: FPS });
+    await output.start();
+    const s0 = performance.now();
+    for (let i = 0; i < frames; i++) { await paint(i); await src.add(i / FPS, 1 / FPS); }
+    await output.finalize();
+    const secs = (performance.now() - s0) / 1000;
+    row(label, frames, secs);
+    const blob = new Blob([output.target.buffer], { type: 'video/mp4' });
+    const v = document.createElement('video');
+    v.src = URL.createObjectURL(blob);
+    await new Promise(r => v.addEventListener('loadedmetadata', r, { once: true }));
+    log(`${label}: wrote a playable ${(blob.size / 1e6).toFixed(1)} MB MP4, ${v.duration.toFixed(2)} s, ${v.videoWidth}×${v.videoHeight}`);
+    return blob;
+  };
+  viz.currentMode = 'galaxy';
+  await encode('Galaxy: draw + H.264 encode', 150, (i) => frame(i), p.canvas);
+
+  // 4) Clip pipeline: decode → composite (cover-fit + a beat flash) → encode.
+  const comp = document.createElement('canvas');
+  comp.width = W; comp.height = H;
+  const cx = comp.getContext('2d');
+  const sink2 = new CanvasSink(track, { width: W, height: H, fit: 'cover', poolSize: 4 });
+  const it = sink2.canvases(0, end);
+  const total = Math.min(150, n);
+  const blob = await encode('Clip pipeline: decode + composite + encode', total, async (i) => {
+    const next = await it.next();
+    if (!next.done) cx.drawImage(next.value.canvas, 0, 0, W, H);
+    const flash = Math.exp(-((i / FPS * 2) % 1) * 6);
+    if (flash > 0.05) { cx.fillStyle = `rgba(255,255,255,${(flash * 0.3).toFixed(3)})`; cx.fillRect(0, 0, W, H); }
+  }, comp);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'render-speed-sample.mp4'; a.textContent = 'Download the clip-pipeline sample';
+  $('log').appendChild(a);
+
+  const worst = results.filter(r => r.stage.startsWith('Draw')).sort((a, b) => a.fps - b.fps)[0];
+  log(`\nSlowest mode to draw: ${worst.stage.replace('Draw: ', '')} at ${worst.x.toFixed(2)}× real time (drawing only).`);
+  log('Done.');
+  window.RenderSpeed.done = true;
+  $('run').disabled = false;
+}
+</script>
+</body>
+</html>
