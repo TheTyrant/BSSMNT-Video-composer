@@ -16,6 +16,10 @@ class DJVisualizerApp {
     this.audioSourceMode = 'mic'; // 'mic' | 'file'
     this.trackSource = new TrackSource(this.audioProcessor);
 
+    // Voice Over: its own chain, follows the master timeline (D-38)
+    this.voice = new VoiceTrack(this);
+    this.musicMuted = false;
+
     // Clip auto-editor + bottom timeline panel
     this.clipEngine = new ClipEngine(this.visualizer);
     this.visualizer.clipEngine = this.clipEngine;
@@ -174,9 +178,93 @@ class DJVisualizerApp {
     this.assetPanel = new AssetPanel(this);
     this.assetPanel.init();
 
+    this.setupVoice();
+
     // Check permissions and populate audio devices
     await this.checkAudioPermissions();
     await this.populateAudioDevices();
+    this.populateVoiceMics();
+  }
+
+  // ---- Voice + Music (v2.1 step 6) ----------------------------------------
+
+  setupVoice() {
+    const $ = (id) => document.getElementById(id);
+    const v = this.voice;
+    this.voiceUI = {
+      record: $('voiceRecord'), importInput: $('voiceImport'), mic: $('voiceMic'),
+      status: $('voiceStatus'), controls: $('voiceControls'), volume: $('voiceVolume'),
+      volumeValue: $('voiceVolumeValue'), normalize: $('voiceNormalize'), offset: $('voiceOffset'),
+      download: $('voiceDownload'), remove: $('voiceRemove'), recBadge: $('recBadge'),
+      musicMute: $('musicMute'), musicHint: $('musicHint'),
+    };
+    const ui = this.voiceUI;
+    const fail = (e) => { console.error(e); alert('Voice: ' + (e.message || e)); };
+
+    ui.record.addEventListener('click', () => {
+      (v.recording ? v.stopRecording() : v.startRecording(ui.mic.value)).catch(fail);
+    });
+    ui.importInput.addEventListener('change', (e) => {
+      const f = e.target.files[0];
+      e.target.value = '';
+      if (f) v.importFile(f).catch(fail);
+    });
+    ui.volume.addEventListener('input', () => {
+      v.setVolume(ui.volume.value / 100);
+      ui.volumeValue.textContent = `${ui.volume.value}%`;
+    });
+    ui.normalize.addEventListener('change', () => v.setNormalize(ui.normalize.checked));
+    ui.offset.addEventListener('change', () => v.setOffset(parseFloat(ui.offset.value) || 0));
+    ui.download.addEventListener('click', () => { v.downloadTake(); this.updateVoiceUI(); });
+    ui.remove.addEventListener('click', () => { if (v.confirmReplace()) v.unload(); });
+    v.on(() => this.updateVoiceUI());
+    setInterval(() => {
+      if (v.recording) ui.recBadge.textContent = `REC ${fmtTime(v.recordElapsed(), false)}`;
+    }, 200);
+
+    ui.musicMute.addEventListener('change', () => {
+      this.musicMuted = ui.musicMute.checked;
+      this.applyMusicLevel();
+    });
+    this.updateVoiceUI();
+    this.updateMusicUI();
+  }
+
+  async populateVoiceMics() {
+    try {
+      const mics = await this.voice.listMics();
+      const sel = this.voiceUI.mic;
+      while (sel.options.length > 1) sel.remove(1);
+      mics.forEach((m, i) => sel.add(new Option(m.label || `Microphone ${i + 1}`, m.deviceId)));
+    } catch (e) { /* no device access yet: default mic still works */ }
+  }
+
+  updateVoiceUI() {
+    const v = this.voice, ui = this.voiceUI;
+    ui.record.innerHTML = v.recording ? '&#x25A0; Stop' : '&#x25CF; Record';
+    ui.record.classList.toggle('is-live', v.recording);
+    ui.recBadge.hidden = !v.recording;
+    ui.controls.hidden = !v.isLoaded;
+    ui.download.hidden = !v.takeBlob;
+    ui.offset.value = v.offset.toFixed(1);
+    ui.status.textContent = v.recording ? `Recording from ${fmtTime(v.recordStart, true)}…`
+      : v.isLoaded ? `${v.name} · ${fmtTime(v.duration, true)} · starts ${fmtTime(v.offset, true)}`
+      : 'No voice track';
+  }
+
+  // Music mute and (step 7) story fades act on the music bus after the
+  // analyser (D-36). Only the track file plays through BSSMNT; live input
+  // comes from the DJ's own rig, so there is nothing to mute there.
+  applyMusicLevel() {
+    this.trackSource.setMusicLevel(this.musicMuted ? 0 : 1, 0.05);
+  }
+
+  updateMusicUI() {
+    const live = this.audioSourceMode !== 'file';
+    this.voiceUI.musicMute.disabled = live;
+    this.voiceUI.musicHint.textContent = live
+      ? 'Live input: the music plays from your own rig, so BSSMNT has nothing to mute.'
+      : 'Mutes the track for a voice-only result. BPM and cuts keep following the music.';
   }
 
   async checkAudioPermissions() {
@@ -350,6 +438,7 @@ class DJVisualizerApp {
     this.setStartButton(mode === 'file' ? 'Play' : 'Start Audio', false);
     this.audioFileStatus.textContent = 'No file selected';
     this.resetSession();
+    this.updateMusicUI();
   }
 
   wireDropZone(zoneEl, onFile) {
@@ -666,6 +755,7 @@ class DJVisualizerApp {
 
   destroy() {
     this.stopAudio();
+    this.voice.unload();
     this.visualizer.destroy();
   }
 }

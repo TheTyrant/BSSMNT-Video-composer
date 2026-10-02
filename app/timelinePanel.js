@@ -9,7 +9,7 @@ class TimelinePanel {
   constructor(app) {
     this.app = app;
     this.engine = app.clipEngine;
-    this.ROWS = { ruler: 28, master: 72, clips: 64 };   // match styles.css
+    this.ROWS = { ruler: 28, master: 72, clips: 64, voice: 40 };   // match styles.css (.ch-*)
     this.LIVE_WINDOW = 30;                                // seconds visible in live mode
     this.view = { start: 0, span: 30, fit: true };
     this.energy = [];     // { t, b, m, h } per analysis frame
@@ -38,6 +38,13 @@ class TimelinePanel {
     this.initBin();
     this.initCanvasInteraction();
     this.initSplitter();
+
+    // Voice lane appears only while a voice track exists (D-41).
+    this.app.voice.on(() => {
+      document.getElementById('chVoice').hidden = !this.app.voice.isLoaded;
+      document.getElementById('chVoiceSub').textContent = this.app.voice.isLoaded ? this.app.voice.name : '—';
+      this.resizeCanvas();
+    });
 
     this.engine.on((type) => {
       if (type === 'clips' || type === 'select') this.renderBin();
@@ -461,7 +468,8 @@ class TimelinePanel {
   resizeCanvas() {
     const dpr = window.devicePixelRatio || 1;
     const w = this.canvas.clientWidth;
-    const h = this.ROWS.ruler + this.ROWS.master + this.ROWS.clips;
+    const h = this.ROWS.ruler + this.ROWS.master + this.ROWS.clips + (this.app.voice.isLoaded ? this.ROWS.voice : 0);
+    this.canvas.style.height = `${h}px`;
     this.canvas.width = Math.max(1, Math.round(w * dpr));
     this.canvas.height = Math.round(h * dpr);
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -631,6 +639,7 @@ class TimelinePanel {
     this.drawRuler(ctx, C, x, W, R);
     this.drawMaster(ctx, C, x, W, yMaster, R.master, now);
     this.drawClips(ctx, C, x, W, yClips, R.clips, now);
+    if (this.app.voice.isLoaded) this.drawVoice(ctx, C, x, W, yClips + R.clips, R.voice);
 
     // Row rules
     ctx.fillStyle = C.ink;
@@ -785,6 +794,28 @@ class TimelinePanel {
       }
       ctx.setLineDash([]);
     }
+  }
+
+  // Voice lane: the take's waveform at its offset on the master timeline.
+  drawVoice(ctx, C, x, W, y, h) {
+    const v = this.app.voice;
+    ctx.fillStyle = C.paper;
+    ctx.fillRect(0, y, W, h);
+    ctx.fillStyle = 'rgba(26,26,26,0.16)';
+    ctx.fillRect(0, y, W, 1);
+    const x0 = x(v.offset), x1 = x(v.offset + v.duration);
+    if (x1 < 0 || x0 > W) return;
+    ctx.fillStyle = C.steel;
+    ctx.fillRect(Math.max(0, x0), y + 4, Math.min(W, x1) - Math.max(0, x0), h - 8);
+    const n = v.peaks.length / 2, mid = y + h / 2, amp = h / 2 - 6;
+    ctx.fillStyle = C.ink;
+    for (let px = Math.max(0, Math.floor(x0)); px < Math.min(W, x1); px++) {
+      const i = Math.floor(((px - x0) / (x1 - x0)) * n);
+      const mn = v.peaks[i * 2] || 0, mx = v.peaks[i * 2 + 1] || 0;
+      ctx.fillRect(px, mid - mx * amp, 1, Math.max(1, (mx - mn) * amp));
+    }
+    ctx.strokeStyle = C.ink;
+    ctx.strokeRect(Math.round(x0) + 0.5, y + 4.5, Math.max(1, Math.round(x1 - x0) - 1), h - 9);
   }
 
   // Jump = solid bar; crossfade = X over the blend; blur = hatched blend.

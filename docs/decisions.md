@@ -251,7 +251,7 @@ Everything in this section is **Proposed**. Each entry becomes *Accepted* (or is
 - **Context:** A live set has no known end, so CTA and Result can't be placed "at the end" automatically.
 - **Decision:** In live mode, Hook plays automatically on Start. **Result** and **CTA** are fired by two transport buttons ("Result", "End with CTA"), each once. In track mode, all three are placed automatically.
 
-### D-36 · Music bus: one gain node *after* the analyser *(Accepted — built in step 2b)*
+### D-36 · Music bus: one gain node *after* the analyser *(Accepted — built in step 2b; mute UI in step 6e)*
 - **Decision:** `TrackSource` routes `source → analyser → musicGain → speakers` (today it's `analyser → speakers`). Music mute (voice-only) and story fades both drive `musicGain`.
 - **Why:** The analyser still sees the full-level track, so BPM, bands and cuts keep running while the music is faded or muted. This is "the existing audio architecture" the brief asks for: one extra node in the current graph, not a new audio system. `audioProcessor.js` is untouched.
 - **Verified:** with the bus at 0 on a real track, bass/mid levels, BPM and cutting carried on unchanged (5 cuts during a 5 s mute).
@@ -262,15 +262,17 @@ Everything in this section is **Proposed**. Each entry becomes *Accepted* (or is
 - **Why:** It follows the brief's "Music → fade → HOOK → music fades in → …" sequence. Fade lengths in bars keep the transitions musical at any tempo (D-07). With no BPM yet, the fades fall back to 2 s.
 - **Consequences:** If CTA is the last block, the music doesn't come back after it.
 
-### D-38 · Voice is its own chain, never connected to the analyser
+### D-38 · Voice is its own chain, never connected to the analyser *(Accepted — built in step 6)*
 - **Decision:** New `VoiceTrack` module: its own `<audio>` element and its own AudioContext, `element → normGain → volumeGain → speakers`. It is **never connected to the analyser or to `musicGain`**.
 - **Why:**
   - The track's AudioContext is recreated on every track load and closed by the frozen processor's `stop()`, so voice can't live inside it.
   - Keeping voice out of the analyser means narration never moves BPM, bands or cuts.
   - Clip timing has no code path to the voice track at all, which enforces the brief's "critical separation" structurally, not just by convention.
 - **Sync:** voice follows the master clock (play, pause, stop and seek follow the transport) at `voiceTime = masterTime − voice.offset`, and is nudged back if drift exceeds ~50 ms. In live mode it starts when Start is pressed.
+- **As built:** the voice runs its own small rAF loop reading `masterTime()` / `timelineRolling()`, instead of hooks in each transport function, so nothing can miss a sync. After a start or seek there is a 400 ms grace before drift is judged: a media element needs a moment to begin playing, and an instant re-check would stutter.
+- **Verified (CREAM + an imported MP3):** voice within 10 ms of the master through play, seek to 30 s, pause, resume and stop (one nudge, at the seek). Separate AudioContext from the track. Muting the music left the voice playing and BPM/cuts running. Changing Pace and Importance on three clips left the voice offset and position exactly unchanged.
 
-### D-39 · Recording and import *(placement pending Q13)*
+### D-39 · Recording and import *(Accepted — built in step 6)*
 - **Record:**
   - Uses `getUserMedia` with echo cancellation and noise suppression on, plus `MediaRecorder` (WebM/Opus, or MP4/AAC where WebM isn't supported).
   - The voice mic has its own device picker, separate from the DJ input.
@@ -278,12 +280,14 @@ Everything in this section is **Proposed**. Each entry becomes *Accepted* (or is
   - A take is placed where the playhead was when Record was pressed.
 - **Import:** any `audio/*` file the browser can decode. It starts at 0:00 by default.
 - **One voice track** for v2.1: a new take or import replaces the current one (confirmed if it would discard a recording).
+- **As built:** the Voice and Music controls live in the **01 Audio** tab. A red **REC mm:ss** badge shows in the transport bar while recording. An imported file's start can be nudged with **Starts at** (seconds). **Verified:** a 3.2 s take recorded at the 12.7 s playhead was placed at 12.7 s; re-importing over an undownloaded take asked first.
 
-### D-40 · Normalize is non-destructive
+### D-40 · Normalize is non-destructive *(Accepted — built in step 6)*
 - **Decision:** On load, the voice is decoded once (`decodeAudioData`) and two numbers are measured: speech loudness (RMS gated to skip silence) and peak. **Normalize** (on/off) sets `normGain` so speech sits at about −16 LUFS-equivalent, capped so the peak stays ≤ −1 dBFS. **Volume** (0–150 %) multiplies on top.
+- **As built:** "−16 LUFS-equivalent" is approximated as −16 dBFS gated RMS (no K-weighting), which is close for speech. **Verified:** the applied gain equals `normGainFor(stats)`.
 - **Why:** Volume and Normalize work independently of the music, as the brief asks. The original file is never rewritten. Normalize can be switched off to get the raw take back, and nothing is re-encoded.
 
-### D-41 · Voice lane on the timeline
+### D-41 · Voice lane on the timeline *(Accepted — built in step 6)*
 - **Decision:** A **Voice** row below the clip lane shows the voice waveform at its offset, using the same peaks approach as `loadTrackWaveform` (D-14). `TimelinePanel.ROWS` gains `voice`, and the matching `.ch-voice` height goes in CSS (D-15 invariant). The row is only drawn when a voice track exists.
 
 ### D-42 · Modular tab sidebar *(Accepted — built in step 3a)*
@@ -341,8 +345,8 @@ Everything in this section is **Proposed**. Each entry becomes *Accepted* (or is
 | **Q10** | Do story blocks sit *on* the song (music continues underneath, D-34), or does the song **pause** while a block plays? | **On the song** (overlay). Pausing breaks the beat clock and seek, and amounts to a second timeline | 7b, 7d |
 | **Q11** | Story Mode in live mode, where the end isn't known? | **Hook auto on Start; Result and CTA fired by buttons** (D-35) | 7b |
 | **Q12** | Fade shape: fade to silence, or duck to a lower level? Length? | **Fade to silence, 1 bar out / 1 bar in**, a single on/off toggle | 7d |
-| **Q13** | Where does a voice track start? | **Recorded:** at the playhead when Record was pressed. **Imported:** at 0:00, with a start-offset nudge | 6b–6c |
-| **Q14** | A recorded take is lost on reload (nothing persists). Add a "Download take" button? | **Yes**, one button | 6c |
+| **Q13** | Where does a voice track start? | **Recorded:** at the playhead when Record was pressed. **Imported:** at 0:00, with a start-offset nudge. ***Accepted** (built in step 6)* | 6b–6c |
+| **Q14** | A recorded take is lost on reload (nothing persists). Add a "Download take" button? | **Yes**, one button. ***Accepted** (built in step 6)* | 6c |
 | **Q15** | Is stack position 1 the *most* important (picked most often)? And should Random stay uniform until the user reorders? | **Yes, 1 = top = most weight** (`N − pos + 1`). Weighting is on from the start, since the stack is visible. ***Accepted** (built in step 5c) — but see the conflict noted in D-32* | 5c |
 | **Q16** | Can one asset be both an auto-edit clip and a Media Layer at once? | **Yes.** "Use as" is two independent switches. ***Accepted** (built in step 4)* | 4c |
 

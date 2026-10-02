@@ -558,6 +558,20 @@ input[type="range"]::-moz-range-thumb {
 #propRemove { margin-top: 12px; }
 .prop-group .prop-check { display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer; }
 
+/* Voice + Music (01 Audio, step 6) */
+.voice-block { display: flex; flex-direction: column; gap: 8px; }
+.voice-block .btn-row { margin-top: 0; }
+.btn-file { display: inline-flex; align-items: center; justify-content: center; }
+.btn-file input { display: none; }
+.voice-row { display: grid; grid-template-columns: 64px 1fr auto; align-items: center; gap: 6px; }
+.voice-row label { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-2); }
+.voice-offset input { height: 24px; }
+.voice-check { display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer; margin-top: 4px; }
+.voice-check:has(input:disabled) { opacity: 0.5; cursor: default; }
+#voiceControls { display: flex; flex-direction: column; gap: 8px; }
+#voiceControls[hidden] { display: none; }
+.badge.rec { background: var(--live); border-color: var(--live); color: var(--paper); }
+
 /* Media layers */
 .layer-upload-group {
   display: flex;
@@ -738,7 +752,7 @@ input[type="range"]::-moz-range-thumb {
 .editor-main {
   display: grid;
   grid-template-columns: 112px 1fr;
-  grid-template-rows: 164px 1fr;
+  grid-template-rows: auto 1fr;
   min-width: 0;
   min-height: 0;
   border-right: 1px solid var(--ink);
@@ -755,12 +769,14 @@ input[type="range"]::-moz-range-thumb {
 .ch-ruler { height: 28px; border-bottom: 1px solid var(--ink); }
 .ch-master { height: 72px; }
 .ch-clips { height: 64px; border-bottom: 1px solid var(--ink); }
+.ch-voice { height: 40px; border-bottom: 1px solid var(--ink); }
+.ch-clips:has(+ .ch-voice:not([hidden])) { border-bottom: 1px solid var(--hair); }
 .ch-bin { background: var(--panel); border-right: 1px solid var(--ink); border-bottom: none; justify-content: flex-start; padding-top: 10px; }
 .ch-name { font-weight: 800; font-size: 12px; text-transform: uppercase; }
 .ch-sub { font-family: var(--font-mono); font-size: 9px; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.06em; }
 
 .lanes { position: relative; min-width: 0; border-bottom: 1px solid var(--ink); overflow: hidden; }
-#timelineCanvas { display: block; width: 100%; height: 164px; cursor: crosshair; }
+#timelineCanvas { display: block; width: 100%; height: 164px; cursor: crosshair; }   /* height set by TimelinePanel.resizeCanvas() */
 #timelineCanvas.no-seek { cursor: default; }
 
 .clip-bin {
@@ -816,7 +832,7 @@ input[type="range"]::-moz-range-thumb {
   background: var(--live);
   color: var(--paper);
 }
-.bin-thumb { width: 100%; aspect-ratio: 16 / 9; background: var(--ink); display: block; object-fit: cover; border-bottom: 1px solid var(--ink); }
+.bin-thumb { width: 100%; flex: 1 1 0; min-height: 24px; background: var(--ink); display: block; object-fit: cover; border-bottom: 1px solid var(--ink); }   /* flexes so cards fit the row when the voice lane takes space */
 .bin-meta { display: flex; align-items: center; gap: 4px; padding: 3px 5px 0; min-width: 0; }
 .bin-name { flex: 1; font-size: 11px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bin-dur { font-family: var(--font-mono); font-size: 9px; color: var(--ink-3); }

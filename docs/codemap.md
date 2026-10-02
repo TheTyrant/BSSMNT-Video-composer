@@ -15,7 +15,8 @@ styles/
   styles.css               All app styling. Design tokens live in :root
 app/
   audioProcessor.js        FROZEN — mic capture, FFT, band energy, BPM detection
-  trackSource.js           Track-file playback routed through the frozen processor
+  trackSource.js           Track-file playback routed through the frozen processor (+ music bus)
+  voiceTrack.js            Voice Over: record/import, own audio chain, follows the master timeline
   visualizer.js            p5 (WebGL) renderer, all visual modes, Media Layers, beat clock
   musicalTime.js           Beats / bars / measures math, 4/4 constant, auto tempo multiplier
   transitions.js           Transition registry (jump cut, crossfade, blur)
@@ -36,7 +37,7 @@ netlify.toml · vercel.json Static deploy configs (vercel uses globs: *.html, ap
 **No build step.** Plain `<script>` tags, global classes, loaded in this order (order matters — later files reference earlier globals):
 
 ```
-p5 (CDN) → audioProcessor → visualizer → trackSource → musicalTime → transitions → clipEngine → timelinePanel → sidebar → assetPanel → app
+p5 (CDN) → audioProcessor → visualizer → trackSource → voiceTrack → musicalTime → transitions → clipEngine → timelinePanel → sidebar → assetPanel → app
 ```
 
 External runtime dependencies: p5.js 1.9.0 (cdnjs), p5.asciify (unpkg, currently unused), Google Fonts (Boldonse, Inter Tight, JetBrains Mono — falls back to system fonts offline).
@@ -103,6 +104,21 @@ Plays an uploaded track through the frozen processor by assigning `audioContext 
 | `unload()` | Pause element, `processor.stop()`, revoke object URL, drop `musicGain` |
 | `isLoaded` / `isPlaying` / `currentTime` / `duration` | State getters |
 
+### 3.2b `app/voiceTrack.js` — `class VoiceTrack` — ✅ *(v2.1 step 6)*
+Own `<audio>` + own AudioContext: `element → normGain → volumeGain → speakers`. Never connected to the analyser, `musicGain` or `ClipEngine` (invariant 7).
+
+| Function | Role |
+|---|---|
+| `load(blob, {offset, name, isTake})` / `unload()` | Decodes once (`decodeAudioData`) for duration, Normalize stats and lane peaks |
+| `importFile(file)` | Starts at 0:00 (Q13); asks before discarding an undownloaded take |
+| `listMics()` / `startRecording(deviceId)` / `stopRecording()` | getUserMedia (echo cancellation + noise suppression) + MediaRecorder; the take is placed at the playhead when Record was pressed |
+| `downloadTake()` | Saves the last take (Q14) |
+| `setVolume(0–1.5)` / `setNormalize(on)` / `setOffset(s)` / `applyGains()` | Volume × Normalize gain |
+| `analyze(buffer)` / `normGainFor(stats)` / `peaksOf(buffer, n)` | Gated RMS (50 ms windows above −50 dBFS) + peak → gain to ≈ −16 dBFS RMS, peak ≤ −1 dBFS |
+| `syncTo(masterTime, rolling)` / `loop()` | Own rAF loop: plays/pauses with the transport at `masterTime − offset`; re-seeks if drift > 50 ms (400 ms grace after a start or seek) |
+
+App side (`app.js`): `setupVoice()`, `updateVoiceUI()`, `populateVoiceMics()`, `applyMusicLevel()` (mute → `trackSource.setMusicLevel`), `updateMusicUI()` (mute disabled in live mode). The UI lives in **01 Audio** (Voice + Music blocks); REC badge in the transport bar.
+
 ### 3.3 `app/visualizer.js` — `class DJVisualizer` — ✅
 | Area | Functions |
 |---|---|
@@ -167,7 +183,7 @@ State: `assets[]` (every imported image/video, fields in §4.0), `clips` (getter
 | `on(fn)` / `emit(type)` | Events: `clips · cut · beat · seek · reset` |
 
 ### 3.7 `app/timelinePanel.js` — `class TimelinePanel` — ✅
-Single 2D canvas redrawn ~30 fps. Row heights `ROWS = { ruler 28, master 72, clips 64 }` **must match** `.ch-*` heights in `styles.css`.
+Single 2D canvas redrawn ~30 fps. Row heights `ROWS = { ruler 28, master 72, clips 64, voice 40 }` **must match** `.ch-*` heights in `styles.css`. The voice row (and `.ch-voice`) only exists while a voice track is loaded; `resizeCanvas()` sets the canvas height.
 
 | Function | Role |
 |---|---|
@@ -181,7 +197,7 @@ Single 2D canvas redrawn ~30 fps. Row heights `ROWS = { ruler 28, master 72, cli
 | `initSplitter()` | Resizable editor height (localStorage, try/catch) |
 | `updateView()` | Track = fit/zoom window; Live = rolling 30 s window |
 | `updateHeader()` / `updateHud()` | LCD readouts, mode badge, summary; viewport HUD + hints |
-| `draw()` → `drawRuler` · `drawMaster` · `drawClips` · `drawTransitionMark` | Ruler, waveform + energy, beat/bar grid, segments, ghost cut markers, playhead |
+| `draw()` → `drawRuler` · `drawMaster` · `drawClips` · `drawVoice` · `drawTransitionMark` | Ruler, waveform + energy, beat/bar grid, segments, ghost cut markers, playhead |
 
 ### 3.7b `app/sidebar.js` — `class Sidebar` — ✅ *(v2.1 step 3a)*
 Builds a rail button per `#tabPanels > .side-panel` (`data-tab`, `data-num`, `data-label`); one panel open at a time.
@@ -283,13 +299,13 @@ Spec: [brief-v2.1.md](brief-v2.1.md). Decisions: D-31–D-46; open questions Q9�
 | 5b ✅ | `timelinePanel.js` | Drag-reorder (HTML5 drag events, keyboard Alt+←/→ since the stack is horizontal) → `engine.moveClip(id, i)` |
 | 5c ✅ | `clipEngine.js` | `choose()` → `regularPool()` (ready, `asClip`; story exclusion lands in 7b). Sequential = stack order; random/band = `weightedPick(pool)` with weight `N − rank + 1` within the pool (Q15) |
 | 5d ✅ | `clipEngine.js` | Images as clips: `drawClip` handles `p5.Image`; `prepare()`/`retire()` skip video calls for images; in-point ignored |
-| 6a | `app/voiceTrack.js` (new) — `class VoiceTrack` | `constructor(app)`, `load(blob|file, {offset})`, `unload()`, `syncTo(masterTime, playing)` (called from the app's frame loop; drift > 50 ms → seek), `setVolume(v)`, `setNormalize(on)`, `get duration/offset/isLoaded` |
-| 6b | `voiceTrack.js`, `index.html` | `importFile(file)`; **Voice** block inside the 01 Audio tab: import button, status line |
-| 6c | `voiceTrack.js` | `listMics()`, `startRecording(deviceId)` (getUserMedia echoCancellation/noiseSuppression + MediaRecorder), `stopRecording()` → `load(blob, {offset: recordStartMasterTime})`, `downloadTake()` (Q14); record indicator in transport bar |
-| 6d | `voiceTrack.js` | `analyze(buffer)` → `{rmsGated, peak}`; `normGainFor(stats)` → target ≈ −16 LUFS-eq, peak ≤ −1 dBFS; Volume slider 0–150 %, Normalize checkbox |
-| 6e | `app.js`, `index.html` | **Music** mute toggle → `trackSource.setMusicLevel(0/1)`; disabled with a hint in mic mode (D-36) |
-| 6f | `timelinePanel.js`, `styles.css`, `index.html` | `ROWS.voice`, `.ch-voice` channel header, `drawVoice()` (peaks at offset), `loadVoiceWaveform(buffer)` |
-| 6* | `app.js` | Owns `this.voice = new VoiceTrack(this)`; transport hooks (`startAudio`/`stopAudio`/`transportStop`/`seekMaster`) call `voice.syncTo(...)`; `destroy()` unloads it |
+| 6a ✅ | `app/voiceTrack.js` (new) — `class VoiceTrack` | `constructor(app)`, `load(blob|file, {offset})`, `unload()`, `syncTo(masterTime, playing)` (called from the app's frame loop; drift > 50 ms → seek), `setVolume(v)`, `setNormalize(on)`, `get duration/offset/isLoaded` |
+| 6b ✅ | `voiceTrack.js`, `index.html` | `importFile(file)`; **Voice** block inside the 01 Audio tab: import button, status line |
+| 6c ✅ | `voiceTrack.js` | `listMics()`, `startRecording(deviceId)` (getUserMedia echoCancellation/noiseSuppression + MediaRecorder), `stopRecording()` → `load(blob, {offset: recordStartMasterTime})`, `downloadTake()` (Q14); record indicator in transport bar |
+| 6d ✅ | `voiceTrack.js` | `analyze(buffer)` → `{rmsGated, peak}`; `normGainFor(stats)` → target ≈ −16 LUFS-eq, peak ≤ −1 dBFS; Volume slider 0–150 %, Normalize checkbox |
+| 6e ✅ | `app.js`, `index.html` | **Music** mute toggle → `trackSource.setMusicLevel(0/1)`; disabled with a hint in mic mode (D-36) |
+| 6f ✅ | `timelinePanel.js`, `styles.css`, `index.html` | `ROWS.voice`, `.ch-voice` channel header, `drawVoice()` (peaks at offset), `loadVoiceWaveform(buffer)` |
+| 6* ✅ | `app.js` | Owns `this.voice = new VoiceTrack(this)`; `destroy()` unloads it. *As built:* no transport hooks are needed, because `VoiceTrack` runs its own rAF loop reading `app.masterTime()` / `app.timelineRolling()`, so play, pause, stop and seek are all followed from one place |
 | 7a | `clipEngine.js`, `timelinePanel.js`, `index.html` | `settings.storyMode`, `settings.storyFade`; Auto-Editor panel **"Story Mode"** block (toggle + Auto Fade Music checkbox); Story Position in asset properties (only in Story Mode); Pace/Importance hidden for story assets |
 | 7b | `clipEngine.js` | `storyPlan(songDur)` → `[{role, clip, start, end}]` per D-34 (track mode); `storyBlockAt(t)`; `update()` plays a block (not `choose()`) while `masterTime` is inside one, then `nextCutPos = null` to re-sync; segments carry `story: role`; live mode: `fireStory(role)` (Q11); `seekTo()` re-evaluates blocks |
 | 7c | `timelinePanel.js` | `drawClips()` renders story blocks (fixed, labelled HOOK / RESULT / CTA) and, in track mode, ghost outlines of upcoming blocks from `storyPlan()` |

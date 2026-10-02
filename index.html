@@ -89,6 +89,44 @@
                 <option value="clips">Clip Auto-Editor</option>
               </select>
             </div>
+
+            <!-- Voice Over (D-38–D-41): its own audio chain, follows the master timeline -->
+            <h4 class="sub-head">Voice</h4>
+            <div class="voice-block">
+              <div class="btn-row">
+                <button id="voiceRecord" class="btn" type="button" title="Record at the playhead">&#x25CF; Record</button>
+                <label class="btn btn-file" title="Import a voice recording">Import
+                  <input type="file" id="voiceImport" accept="audio/*">
+                </label>
+              </div>
+              <div class="field">
+                <label for="voiceMic">Voice mic</label>
+                <select id="voiceMic"><option value="">Default microphone</option></select>
+              </div>
+              <span id="voiceStatus" class="custom-media-status">No voice track</span>
+              <div id="voiceControls" hidden>
+                <div class="slider-group voice-row">
+                  <label for="voiceVolume">Volume</label>
+                  <input type="range" id="voiceVolume" min="0" max="150" step="1" value="100">
+                  <span id="voiceVolumeValue">100%</span>
+                </div>
+                <label class="voice-check"><input type="checkbox" id="voiceNormalize"> <span>Normalize</span></label>
+                <div class="voice-row voice-offset">
+                  <label for="voiceOffset">Starts at</label>
+                  <input type="number" id="voiceOffset" min="0" step="0.1" value="0">
+                  <span>s</span>
+                </div>
+                <div class="btn-row">
+                  <button id="voiceDownload" class="btn" type="button" hidden>Download take</button>
+                  <button id="voiceRemove" class="btn" type="button">Remove voice</button>
+                </div>
+              </div>
+              <p class="hint" id="voiceHint">Recording over the music? Use headphones so the speakers don’t bleed into the take.</p>
+            </div>
+
+            <h4 class="sub-head">Music</h4>
+            <label class="voice-check"><input type="checkbox" id="musicMute"> <span>Mute music (voice only)</span></label>
+            <p class="hint" id="musicHint"></p>
           </section>
 
           <section class="control-section side-panel" id="panel-eq" data-tab="eq" data-num="02" data-label="EQ">
@@ -193,6 +231,7 @@
               <span class="lcd-cell"><span class="lcd-k">BAND</span><span class="lcd-v band-chip" id="tlBand">–</span></span>
             </div>
             <span class="badge" id="tlModeBadge">LIVE</span>
+            <span class="badge rec" id="recBadge" hidden>REC 00:00</span>
             <span class="tl-summary" id="tlSummary">Add clips to the bin to start auto-editing</span>
           </div>
 
@@ -202,6 +241,7 @@
                 <div class="ch ch-ruler"></div>
                 <div class="ch ch-master"><span class="ch-name">Master</span><span class="ch-sub" id="chMasterSub">Live input</span></div>
                 <div class="ch ch-clips"><span class="ch-name">Clips</span><span class="ch-sub">Auto-edit</span></div>
+                <div class="ch ch-voice" id="chVoice" hidden><span class="ch-name">Voice</span><span class="ch-sub" id="chVoiceSub">—</span></div>
               </div>
               <div class="lanes" id="timelineLanes">
                 <canvas id="timelineCanvas"></canvas>
@@ -313,6 +353,7 @@
     <script src="app/audioProcessor.js"></script>
     <script src="app/visualizer.js"></script>
     <script src="app/trackSource.js"></script>
+    <script src="app/voiceTrack.js"></script>
     <script src="app/musicalTime.js"></script>
     <script src="app/transitions.js"></script>
     <script src="app/clipEngine.js"></script>
