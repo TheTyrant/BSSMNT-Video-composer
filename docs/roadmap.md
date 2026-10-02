@@ -90,6 +90,27 @@ Screenshots: [assets panel](screenshots/v2.1-assets-panel.png) · [Action Editor
 
 ---
 
+## v2.3 — Offline export ⬜ *(next; design agreed 2026-10-02, decisions D-55)*
+
+**Goal:** export the finished video faster than real time, matching what was seen, with muted tracks left out.
+
+| Step | What |
+|---|---|
+| 1 | **Speed test** on real files: decode, draw each visual mode, encode at 1080p; measure on Omar's machine |
+| 2 | **Session record:** keep the edit decision list for a full pass (seek no longer discards it); log the per-frame analysis values; save/load the record |
+| 3 | **Renderer (all visual modes):** frame loop at the export frame rate replaying the record through the existing drawing code (Spectrum Bars gets a canvas version); clips decoded frame-accurately (WebCodecs via Mediabunny, rotation from D-54); GPU encode; audio mixdown with mutes, fades, voice and story sound; streamed to disk with progress, time left and cancel |
+| 4 | **Output panel:** format (MP4 H.264+AAC / WebM), size (16:9, 9:16, 1:1 at 720p/1080p/4K), frame rate, quality, range |
+| 5 | **Fast pass:** the same frozen analysis run over a track or recorded set at high speed, filling the record without real-time playback |
+| 6 | **Firefox / Safari fallbacks:** OPFS output + download, WebAssembly audio encoding where needed |
+
+**Exit criteria:**
+- [ ] An export matches the live session's cuts, in-points, transitions and audio-reactive motion.
+- [ ] Muted tracks are absent from the exported audio; unmuted voice and story sound are present and in sync.
+- [ ] A 3-minute 1080p export finishes faster than real time on the target machine; a 2-hour project exports without running out of memory.
+- [ ] Every visual mode exports.
+
+---
+
 ## Phase 1 — Systematic placement of video + stills along the song ⬜ *(after v2.1)*
 
 **Goal:** drop video clips **and static images** into the bin as today, and have them **systematically placed along the time of the song**, as a plan you can see, edit and replay, not just a live recording.

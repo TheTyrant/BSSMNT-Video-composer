@@ -254,8 +254,19 @@ The brief's four questions were not answered before the build. Rather than guess
 - **Decision (`app/videoOrientation.js`):** the rotation is read from the file header (MP4/MOV `tkhd` matrix). Only videos with a rotation flag are drawn through a per-video 2D canvas copy (`drawImage` applies the rotation; long edge capped at 1280 px), used by clips, Media Layers and the pop-out. Unrotated video is untouched. Asset status shows the detected rotation.
 - **Verified:** rotation read as 90 for the phone clip and 0 for the WebMs; the bridge produces a 720×1280 portrait frame; the clip renders upright and in proportion as a clip and as a layer. **Needs Omar's confirmation on his GPU browser**, since the broken path can't be reproduced here.
 
-### Q17 · Export *(open — in discussion with Omar)*
-Real-time capture vs. an offline builder. Offline is the goal (long-form edits can't take real time), and needs the Phase 1 plan model + offline song analysis first. To be decided before building.
+### D-55 · Export = offline renderer from a session record *(Agreed — Omar, 2026-10-02; not built yet)*
+- **Decision:** export is an **offline renderer** (faster than real time, no sitting through the song). It renders from a **session record**, not from a second, different analysis:
+  - **Edit decision list:** every cut as already logged by the engine: clip, start/end on the master timeline, in-point, transition and blend length, triggering band, story role. Kept for one complete pass (today a backward seek discards it; the record must survive that).
+  - **Per-frame analysis log:** the values the live analysis produced each frame: rms, bass/mid/high (after sensitivity / Dynamic EQ), spectrum (downsampled), BPM and the beat-clock state (beat edges, beatFlash/beatPulse). The visual modes replay these, so they react exactly as they did.
+  - **Settings + media references + track mutes.** Muted tracks are left out of the mixdown (D-49).
+- **No seeded randomness (Omar):** live playback keeps `Math.random`. The record stores the *outcomes* (which clip, which in-point), so cuts are exact; per-particle randomness inside some visual modes (e.g. Particles, Polygons) re-randomises in the render, with the same audio-driven behaviour. A seed would not have stopped live playback adapting to the music, but recording outcomes makes it unnecessary.
+- **Two ways to fill the record, one renderer:**
+  - **Live pass:** the record is written as the set plays (exact copy of what was seen).
+  - **Fast pass (Omar: yes):** the **same frozen analysis code** (`AudioProcessor.bandEnergy/detectBeat`) run over a track or a recorded set, with the file decoded offline and a simulated 60 fps clock, much faster than real time. Not a second algorithm, so no second interpretation. May differ from a jittery live run by about a frame, which Omar accepts. `audioProcessor.js` stays unmodified.
+- **First scope:** **all visual modes** (Omar), plus the Clip Auto-Editor, Media Layers, Story blocks and transitions. Spectrum Bars is HTML today and needs a canvas version for rendering.
+- **Browsers:** Chrome and Edge first (full fast path: WebCodecs + streaming to disk). Firefox and Safari later through fallbacks (Origin Private File System instead of direct disk writes; a WebAssembly audio encoder if one is missing; ffmpeg.wasm or real-time capture as a last resort). Not locked out.
+- **Libraries:** browser built-ins (WebCodecs, OfflineAudioContext, File System Access / OPFS, WebGL) + Mediabunny for reading and writing MP4/WebM (free, MPL-2.0). Avoid AGPL analysis libraries (e.g. Essentia.js) for a commercial product.
+- **Next:** a render-speed test on real files (decode, draw each mode, encode at 1080p) before building, since speed depends on the machine.
 
 ## I. Known carry-overs (pre-existing on `main`, not changed)
 - Placeholder text drawn with `p.text()` in WebGL mode doesn't render, because no font is loaded (affects the Media Layers "Upload images…" prompt). v2 uses a DOM overlay for its own hints.
