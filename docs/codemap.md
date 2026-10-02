@@ -27,6 +27,9 @@ app/
   headerPickers.js         Header SRC / MODE dropdowns (mode icons) + activity light
   analysisEq.js            Dynamic EQ: analysis-only filter chain (source → filters → analyser), presets, Listen
   videoOrientation.js      Reads rotation from MP4/MOV headers; 2D bridge so rotated phone video draws upright in WebGL
+  sessionRecord.js         Per-frame analysis log on a 60 fps grid (for the offline renderer), serialisable
+  mediaLibrary.js          Linked-media fingerprints, remembered file handles (IndexedDB), reconnect by folder / files
+  projectFile.js           .mnt project files: save / open / restore / reconnect (ZIP via fflate)
   eqPanel.js               02 Assets EQ: Sensitivity / Dynamic tabs, Use radios, EQ graph
   assetPanel.js            03 Assets: image/video bin, asset list, selected-asset properties + status
   app.js                   App controller: wiring, audio source modes, master clock, shortcuts

@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Boldonse&family=Inter+Tight:wght@400;500;600;800&family=JetBrains+Mono:wght@400;500;700&display=swap">
 
     <!-- External Styles -->
-    <link rel="stylesheet" href="styles/styles.css?v=2.2.5">
+    <link rel="stylesheet" href="styles/styles.css?v=2.3.0">
 
     <!-- External Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
@@ -142,7 +142,7 @@
           </section>
 
           <section class="control-section side-panel" id="customMediaSection" data-tab="assets" data-num="02" data-label="Assets">
-            <h3><span class="sec-num">02</span>Assets</h3>
+            <h3><span class="sec-num">02</span>Sound</h3>
 
             <!-- EQ (D-51): two views on one tab swap. Sensitivity = the band
                  faders (simple); Dynamic = an analysis EQ curve (advanced). The
@@ -206,9 +206,9 @@
                 </div>
                 <p class="hint" id="eqHint">Shapes what the beat and band analysis hears, so band reactions and band-driven cuts follow the part you pick (try Kick emphasis). Your sound and exports aren&rsquo;t changed. Listen lets you hear it.</p>
               </div>
-            </div>
+            </div></section><br>
 
-            <h4 class="sub-head">Assets</h4>
+            <h3><span class="sec-num">02.5</span>Assets</h3>
             <!-- One bin for images and video (D-44). -->
             <label class="asset-drop dropzone" id="assetDrop" title="Drop images or video here, or click to choose">
               <input type="file" id="assetUpload" accept="image/*,video/*" multiple>
@@ -223,6 +223,33 @@
 
           <section class="control-section side-panel" id="panel-output" data-tab="output" data-num="03" data-label="Output">
             <h3><span class="sec-num">03</span>Output</h3>
+            <!-- Project file (.mnt, D-57): reopenable and editable. Media is linked. -->
+            <h4 class="sub-head sub-head-first">Project</h4>
+            <div class="project-block">
+              <div class="field">
+                <label for="projectName">Name</label>
+                <input type="text" id="projectName" value="Untitled" spellcheck="false">
+              </div>
+              <div class="btn-row">
+                <button id="projectSave" class="btn btn-primary" type="button" title="Save (Ctrl+S)">Save</button>
+                <button id="projectSaveAs" class="btn" type="button" title="Save as (Ctrl+Shift+S)">Save as</button>
+                <button id="projectOpen" class="btn" type="button" title="Open (Ctrl+O)">Open</button>
+              </div>
+              <input type="file" id="projectOpenInput" accept=".mnt" hidden>
+              <p class="hint" id="projectStatus">New project</p>
+              <div id="projectMissing" class="project-missing" hidden>
+                <p class="hint"><b id="missingCount">0</b> media file(s) to reconnect:</p>
+                <ul id="missingList" class="missing-list"></ul>
+                <div class="btn-row">
+                  <button id="reconnectAuto" class="btn" type="button" title="Reconnect files this browser remembers">Reconnect</button>
+                  <button id="reconnectFolder" class="btn" type="button" title="Pick a folder; files are matched by name and size">Find in folder</button>
+                </div>
+                <label class="btn btn-file btn-block" title="Pick the files; they are matched by name and size">Choose files<input type="file" id="reconnectFiles" multiple></label>
+              </div>
+              <p class="hint">Saves assets, settings, Story, voice and the session record as one <b>.mnt</b> file. Video, image and music files are linked, not copied.</p>
+            </div>
+
+            <h4 class="sub-head">Output window</h4>
             <button id="popOutOutput" class="btn btn-block" type="button">Pop Out Output Window</button>
             <p class="hint">Drag the pop-out to your projector and fullscreen it there. Canvas only &mdash; no controls.</p>
           </section>
@@ -421,20 +448,23 @@
     </div>
 
     <!-- Application Modules -->
-    <script src="app/audioProcessor.js?v=2.2.5"></script>
-    <script src="app/videoOrientation.js?v=2.2.5"></script>
-    <script src="app/visualizer.js?v=2.2.5"></script>
-    <script src="app/trackSource.js?v=2.2.5"></script>
-    <script src="app/analysisEq.js?v=2.2.5"></script>
-    <script src="app/voiceTrack.js?v=2.2.5"></script>
-    <script src="app/musicalTime.js?v=2.2.5"></script>
-    <script src="app/transitions.js?v=2.2.5"></script>
-    <script src="app/clipEngine.js?v=2.2.5"></script>
-    <script src="app/timelinePanel.js?v=2.2.5"></script>
-    <script src="app/sidebar.js?v=2.2.5"></script>
-    <script src="app/headerPickers.js?v=2.2.5"></script>
-    <script src="app/assetPanel.js?v=2.2.5"></script>
-    <script src="app/eqPanel.js?v=2.2.5"></script>
-    <script src="app/app.js?v=2.2.5"></script>
+    <script src="app/audioProcessor.js?v=2.3.0"></script>
+    <script src="app/videoOrientation.js?v=2.3.0"></script>
+    <script src="app/visualizer.js?v=2.3.0"></script>
+    <script src="app/trackSource.js?v=2.3.0"></script>
+    <script src="app/analysisEq.js?v=2.3.0"></script>
+    <script src="app/voiceTrack.js?v=2.3.0"></script>
+    <script src="app/musicalTime.js?v=2.3.0"></script>
+    <script src="app/transitions.js?v=2.3.0"></script>
+    <script src="app/clipEngine.js?v=2.3.0"></script>
+    <script src="app/sessionRecord.js?v=2.3.0"></script>
+    <script src="app/mediaLibrary.js?v=2.3.0"></script>
+    <script src="app/projectFile.js?v=2.3.0"></script>
+    <script src="app/timelinePanel.js?v=2.3.0"></script>
+    <script src="app/sidebar.js?v=2.3.0"></script>
+    <script src="app/headerPickers.js?v=2.3.0"></script>
+    <script src="app/assetPanel.js?v=2.3.0"></script>
+    <script src="app/eqPanel.js?v=2.3.0"></script>
+    <script src="app/app.js?v=2.3.0"></script>
   </body>
 </html>

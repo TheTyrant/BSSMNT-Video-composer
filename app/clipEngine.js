@@ -60,6 +60,12 @@ class ClipEngine {
     this.pending = null;    // pre-rolled next clip { clip, inPoint }
     this.transition = null; // { def, startMs, lengthMs }
     this.story = null;      // story block on screen, if any
+    // Session record (D-56): segments/beats are kept across seeks. Each
+    // play-through after a seek is a "pass" that overwrites only the span
+    // it actually plays, like punching in on a DAW track.
+    this.pass = 0;
+    this.passStart = 0;
+    this.lastAdvanceTime = 0;
     this.fired = [];        // live mode: story roles fired this session { role, at }
     this.emit('reset');
   }
@@ -101,14 +107,15 @@ class ClipEngine {
     return { added, rejected };
   }
 
-  addAsset(file, kind = ClipEngine.kindOf(file) || 'video') {
+  addAsset(file, kind = ClipEngine.kindOf(file) || 'video', opts = {}) {
     const p = this.viz.p5Instance;
     if (!p) return;
+    if (opts.id) this.nextClipId = Math.max(this.nextClipId, opts.id + 1);
     const asset = {
-      id: this.nextClipId++, name: file.name.replace(/\.[^.]+$/, ''), file,
+      id: opts.id || this.nextClipId++, name: file.name.replace(/\.[^.]+$/, ''), file,
       url: URL.createObjectURL(file), kind,
       media: null, el: null, duration: 0, width: 0, height: 0, thumb: null,
-      lastPos: 0, ready: false, error: null,
+      lastPos: 0, ready: false, error: null, rotation: 0,
       asClip: true,              // "Use as: Auto-edit clip"
       layer: null,               // "Use as: Media Layer" slot -> visualizer.layers
       band: 'any',
@@ -212,16 +219,49 @@ class ClipEngine {
     };
   }
 
+  // ---- project restore (D-57) -------------------------------------------
+
+  // An asset from a saved project whose file isn't connected yet. It keeps
+  // its id (the recorded cut list refers to it), its settings and its saved
+  // thumbnail, shows as "Offline" and is skipped by the automation.
+  addOfflineAsset(saved, thumb) {
+    this.nextClipId = Math.max(this.nextClipId, saved.id + 1);
+    const asset = {
+      id: saved.id, name: saved.name, file: null, url: null, kind: saved.kind,
+      media: null, el: null, duration: saved.duration || 0, width: saved.width || 0, height: saved.height || 0,
+      thumb: thumb || null, lastPos: 0, ready: false, error: null, offline: true, ref: saved.ref,
+      asClip: saved.asClip, layer: saved.layer, band: saved.band, pace: saved.pace,
+      importance: saved.importance, story: saved.story, storyHold: saved.storyHold, rotation: saved.rotation || 0,
+    };
+    this.assets.push(asset);
+    this.emit('clips');
+    return asset;
+  }
+
+  // Connect a file to an offline asset: load its media in place.
+  relinkAsset(id, file) {
+    const a = this.clipById(id);
+    if (!a || !a.offline) return false;
+    a.file = file;
+    a.url = URL.createObjectURL(file);
+    a.offline = false;
+    a.ready = false;
+    if (a.kind === 'image') this.loadImageAsset(a); else this.loadVideoAsset(a);
+    if (a.layer) this.viz.loadLayerMedia(a.layer, file);
+    this.emit('clips');
+    return true;
+  }
+
   removeAsset(id) {
     const clip = this.clipById(id);
     if (!clip) return;
     if (this.current && this.current.clip === clip) this.current = null;
     if (this.outgoing && this.outgoing.clip === clip) { this.outgoing = null; this.transition = null; }
     if (this.pending && this.pending.clip === clip) this.pending = null;
-    if (clip.layer) this.viz.clearLayerMedia(clip.layer);
+    if (clip.layer && !clip.offline) this.viz.clearLayerMedia(clip.layer);
     if (clip.bridge) clip.bridge.remove();
     if (clip.kind === 'video' && clip.media) clip.media.remove();
-    URL.revokeObjectURL(clip.url);
+    if (clip.url) URL.revokeObjectURL(clip.url);
     this.assets = this.assets.filter(c => c !== clip);
     if (this.selectedId === id) this.selectedId = null;
     this.renumber();
@@ -351,14 +391,14 @@ class ClipEngine {
     if (this.clips.length === 0 && !this.storyBlocks().length) return;
 
     const bpm = audioData.bpm || 0;
+    this.overwritePlayed(this.clock());
 
     // Beat edge from the visualizer's clock. Counted through story blocks
     // too, so the bar grid stays continuous.
     if (bpm > 0 && this.viz.lastBeatTime !== this.lastSeenBeatTime) {
       this.lastSeenBeatTime = this.viz.lastBeatTime;
       this.beatIndex++;
-      this.beats.push({ time: this.clock(), index: this.beatIndex });
-      if (this.beats.length > 20000) this.beats.splice(0, 5000);
+      this.beats.push({ time: this.clock(), index: this.beatIndex, pass: this.pass });
       this.emit('beat', this.beatIndex);
     }
 
@@ -549,12 +589,14 @@ class ClipEngine {
       if (this.outgoing) { this.retire(this.outgoing.clip); this.outgoing = null; }
       this.transition = null;
       if (this.current) {
-        this.current.segment.end = t;
+        // Only close a cut that is still open: after a seek it was already
+        // closed where playback left it.
+        if (this.current.segment.end == null) this.current.segment.end = t;
         if (this.current.clip !== a) this.retire(this.current.clip);
       }
       const segment = {
         clipId: a.id, start: t, end: null, inPoint: into, transition: 'jump',
-        band: this.dominant, beat: this.beatIndex, story: block.role, blendSec: 0,
+        band: this.dominant, beat: this.beatIndex, story: block.role, blendSec: 0, pass: this.pass,
       };
       this.segments.push(segment);
       this.current = { clip: a, segment };
@@ -666,17 +708,16 @@ class ClipEngine {
     if (this.outgoing && this.outgoing.clip !== next.clip) this.retire(this.outgoing.clip);
 
     if (this.current) {
-      this.current.segment.end = now;
+      if (this.current.segment.end == null) this.current.segment.end = now;
       this.outgoing = this.current;
     }
 
     const segment = {
       clipId: next.clip.id, start: now, end: null, inPoint: next.inPoint,
       transition: def.id, band, beat: this.beatIndex,
-      pace: next.clip.pace, holdBeats: hold,
+      pace: next.clip.pace, holdBeats: hold, pass: this.pass,
     };
     this.segments.push(segment);
-    if (this.segments.length > 5000) this.segments.splice(0, 1000);
     this.current = { clip: next.clip, segment };
 
     // Blend length scales with tempo; never longer than the incoming shot.
@@ -704,17 +745,60 @@ class ClipEngine {
   // playhead is discarded and regenerated live from there.
   seekTo(seconds) {
     if (this.story) this.endStory();   // re-entered from the matching offset if the seek lands inside a block
-    this.segments = this.segments.filter(s => s.start < seconds);
-    const last = this.segments[this.segments.length - 1];
-    if (last) last.end = seconds;
-    this.beats = this.beats.filter(b => b.time < seconds);
-    this.beatIndex = this.beats.length ? this.beats[this.beats.length - 1].index : -1;
+    // Keep the whole record (D-56): only the cut that spans the new
+    // playhead is trimmed there. Playing from here overwrites as it goes.
+    // The cut on air ends where playback actually was, not at the seek target.
+    this.closeOpenSegment(this.lastAdvanceTime);
+    this.segments.forEach(s => {
+      if (s.start < seconds && (s.end == null || s.end > seconds)) s.end = seconds;
+    });
+    // Drop cuts trimmed down to nothing.
+    this.segments = this.segments.filter(s => s.end == null || s.end > s.start + 0.001 || (this.current && s === this.current.segment));
+    this.pass++;
+    this.passStart = seconds;
+    const before = this.beats.filter(b => b.time < seconds);
+    this.beatIndex = before.length ? before[before.length - 1].index : -1;
     this.lastSeenBeatTime = this.viz.lastBeatTime;
     this.nextCutPos = null;   // forces a cut on the next frame
     this.segStartPos = null;
     this.holdBeats = null;
     this.pending = null;
     this.emit('seek', seconds);
+  }
+
+  // Punch-in overwrite: anything recorded by an earlier pass that starts
+  // inside [passStart, now) has just been played over. A cut that runs past
+  // the playhead keeps its remaining part (start and in-point move up), so
+  // stopping mid-way leaves the rest of the earlier take intact.
+  overwritePlayed(now) {
+    this.lastAdvanceTime = now;
+    const from = this.passStart;
+    if (!(now > from)) return;
+    for (let i = this.segments.length - 1; i >= 0; i--) {
+      const s = this.segments[i];
+      if (s.pass === this.pass || s.start < from || s.start >= now) continue;
+      if (s.end != null && s.end <= now + 0.001) this.segments.splice(i, 1);
+      else { s.inPoint += now - s.start; s.start = now; }
+    }
+    for (let i = this.beats.length - 1; i >= 0; i--) {
+      const b = this.beats[i];
+      if (b.pass !== this.pass && b.time >= from && b.time < now) this.beats.splice(i, 1);
+    }
+  }
+
+  // Close the live cut at time t (pause, stop, seek, save).
+  closeOpenSegment(t) {
+    if (this.current && this.current.segment.end == null && t >= this.current.segment.start) {
+      this.current.segment.end = t;
+    }
+  }
+
+  // The edit decision list in time order, every cut closed.
+  edl() {
+    return this.segments
+      .map(s => ({ ...s, end: s.end == null ? Math.max(s.start, this.lastAdvanceTime) : s.end }))
+      .filter(s => s.end > s.start)
+      .sort((a, b) => a.start - b.start);
   }
 
   // Leaving clips mode or stopping audio: hold still, keep the recording.

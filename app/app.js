@@ -28,6 +28,10 @@ class DJVisualizerApp {
     // EQ (D-51): Use = 'sensitivity' (band faders, today's behaviour),
     // 'dynamic' (analysis EQ curve) or 'blend' (both).
     this.eq = new AnalysisEQ();
+
+    // Session record (per-frame analysis log) and .mnt project file (D-56, D-57)
+    this.record = new SessionRecord();
+    this.project = new ProjectFile(this);
     this.eqMode = 'sensitivity';
     this.musicMuted = false;
 
@@ -106,6 +110,13 @@ class DJVisualizerApp {
     // Set up keyboard shortcuts for live performance
     document.addEventListener('keydown', (e) => {
       const t = e.target;
+      if ((e.ctrlKey || e.metaKey) && (e.code === 'KeyS' || e.code === 'KeyO')) {
+        e.preventDefault();
+        const fail = (err) => { if (err && err.name !== 'AbortError') alert('Project: ' + (err.message || err)); };
+        if (e.code === 'KeyO') this.project.openPicker().catch(fail);
+        else this.project.save(e.shiftKey).catch(fail);
+        return;
+      }
       // Only real text entry blocks shortcuts. Sliders, checkboxes, file
       // pickers, buttons and selects keep focus after a click, and Space
       // must still mean play/stop there.
@@ -192,6 +203,10 @@ class DJVisualizerApp {
       // Clip auto-editor consumes the same adjusted data + the visualizer's
       // beat clock updated just above.
       this.clipEngine.update(adjustedData);
+      if (this.timelineRolling()) {
+        this.record.capture(this.masterTime(), adjustedData, this.visualizer);
+        this.project.markDirty();
+      }
       this.timeline.onAudioFrame(adjustedData);
 
       // Auto Fade Music follows the master time every frame while it's on.
@@ -210,7 +225,12 @@ class DJVisualizerApp {
     // the file (which would replace the app and lose the session).
     const hasFiles = (e) => e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files');
     window.addEventListener('dragover', (e) => { if (hasFiles(e)) e.preventDefault(); });
-    window.addEventListener('drop', (e) => { if (hasFiles(e)) e.preventDefault(); });
+    window.addEventListener('drop', (e) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      MediaLibrary.captureDrop(e);
+      this.openIfProject(e.dataTransfer.files);
+    });
 
     // Header quick pickers: SRC / MODE dropdowns + activity light (D-50)
     this.headerPickers = new HeaderPickers(this);
@@ -219,6 +239,20 @@ class DJVisualizerApp {
     // 03 Assets: asset bin + selected-asset properties (v2.1, D-44)
     this.assetPanel = new AssetPanel(this);
     this.assetPanel.init();
+
+    // Project file (.mnt): 03 Output › Project, Ctrl+S / Ctrl+Shift+S / Ctrl+O
+    this.project.init();
+    this.clipEngine.on((type) => { if (type !== 'beat' && type !== 'select') this.project.markDirty(); });
+    this.voice.on(() => this.project.markDirty());
+    this.eq.on(() => this.project.markDirty());
+    ['input', 'change'].forEach(t => document.addEventListener(t, (e) => {
+      if (e.target && e.target.closest && e.target.closest('#sidebar, #rightbar, .channels') && e.target.id !== 'projectName') this.project.markDirty();
+    }, true));
+    // Choosers go through the picker that remembers files, so projects can reconnect them.
+    const MEDIA = { 'video/*': ['.mp4', '.m4v', '.mov', '.webm', '.mkv'], 'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp'] };
+    MediaLibrary.usePicker(document.getElementById('assetUpload'), MEDIA, (files) => this.assetPanel.addAndSelect(files));
+    MediaLibrary.usePicker(document.getElementById('clipUpload'), MEDIA, (files) => this.addDroppedFiles(files));
+    MediaLibrary.usePicker(this.audioFileInput, { 'audio/*': ['.mp3', '.wav', '.m4a', '.aac', '.ogg', '.flac'] }, (files) => this.loadAudioFile(files[0]));
 
     // EQ section of 02 Assets: Sensitivity / Dynamic tabs + Use radios
     this.eqPanel = new EqPanel(this);
@@ -310,7 +344,16 @@ class DJVisualizerApp {
   // Files dropped on the timeline / Action Editor: add them, open 02 Assets
   // with the first one selected so it's visibly "in the bin", and say what
   // happened (including anything that couldn't be used).
+  // A .mnt among the files opens as a project instead of being added.
+  openIfProject(files) {
+    const p = Array.from(files || []).find(f => /\.mnt$/i.test(f.name));
+    if (!p) return false;
+    this.project.open(p).catch(e => alert('Project: ' + (e.message || e)));
+    return true;
+  }
+
   addDroppedFiles(files) {
+    if (this.openIfProject(files)) return { added: [], rejected: [] };
     const { added, rejected } = this.clipEngine.addFiles(files);
     if (added.length) {
       this.clipEngine.select(added[0].id);
@@ -584,17 +627,25 @@ class DJVisualizerApp {
     });
   }
 
-  async loadAudioFile(file) {
+  async loadAudioFile(file, { autoplay = true, keepSession = false } = {}) {
     this.audioFileStatus.textContent = `Loading: ${file.name}...`;
     try {
       await this.trackSource.load(file);
       this.attachEq();
       this.audioFileStatus.textContent = `Loaded: ${file.name}`;
-      this.resetSession();
+      if (!keepSession) this.resetSession();
       this.timeline.loadTrackWaveform(file);
+      this.applyMusicLevel();
+      this.project.markDirty();
 
-      this.isRunning = true;
       this.visualizer.start();
+      if (!autoplay) {
+        this.isRunning = false;
+        this.setStartButton('Play', false);
+        this.deviceStatusSpan.textContent = `Ready: ${file.name}`;
+        return;
+      }
+      this.isRunning = true;
       this.setStartButton('Pause', true);
       this.deviceStatusSpan.textContent = `Playing: ${file.name}`;
 
@@ -627,6 +678,7 @@ class DJVisualizerApp {
   resetSession() {
     this.sessionStart = null;
     this.sessionElapsed = 0;
+    this.record.clear();
     this.clipEngine.reset();
     this.timeline.resetSession();
   }
@@ -634,6 +686,7 @@ class DJVisualizerApp {
   seekMaster(seconds) {
     if (!this.isTrackMode()) return;
     this.trackSource.seek(seconds);
+    this.record.breakContinuity();
     this.clipEngine.seekTo(this.trackSource.currentTime);
   }
 

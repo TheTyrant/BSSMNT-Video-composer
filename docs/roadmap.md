@@ -90,6 +90,17 @@ Screenshots: [assets panel](screenshots/v2.1-assets-panel.png) · [Action Editor
 
 ---
 
+## v2.2 — Workspace rework ✅ *(2026-10-02, decisions section K)*
+
+Supersedes parts of the v2.1 layout (the v2.1 table below describes it as it was first built):
+- **Tabs-only sidebars** (no rail, closed by default, one left panel at a time): **01 Audio · 02 Assets · 03 Output** on the left, **AE Auto-Editor** on the right. The timeline runs the full width underneath (D-48).
+- **Track mutes** (M) on Master and Voice; muted tracks will be left out of exports (D-49).
+- **Header pickers:** SRC / MODE dropdowns with an icon per mode and an activity light (D-50).
+- **EQ inside 02 Assets:** Sensitivity / Dynamic tabs with Use = Sensitivity, Dynamic or Blend; Dynamic is an analysis-only EQ (D-51).
+- **Shortcuts** (D-52), **drag-and-drop** anywhere sensible (D-53), **timeline drops reach the bin + rotated phone video fix** (D-54).
+
+---
+
 ## v2.3 — Offline export ⬜ *(next; design agreed 2026-10-02, decisions D-55)*
 
 **Goal:** export the finished video faster than real time, matching what was seen, with muted tracks left out.
@@ -97,7 +108,7 @@ Screenshots: [assets panel](screenshots/v2.1-assets-panel.png) · [Action Editor
 | Step | What |
 |---|---|
 | 1 🟡 | **Speed test** on real files: decode, draw each visual mode, encode at 1080p. *Built (`test-assets/render-speed.html`) and run here: 3.6–4.3× real time for the full clip pipeline; every mode faster than real time except Mandala (0.77×, fix: batch its lines). Still to run on Omar's machine.* |
-| 2 | **Session record:** keep the edit decision list for a full pass (seek no longer discards it); log the per-frame analysis values; save/load the record |
+| 2 ✅ | **Session record + .mnt project files:** the cut list is kept across seeks with punch-in overwrite; per-frame analysis log; projects save/open as `.mnt` with linked media and reconnect (D-56, D-57) |
 | 3 | **Renderer (all visual modes):** frame loop at the export frame rate replaying the record through the existing drawing code (Spectrum Bars gets a canvas version); clips decoded frame-accurately (WebCodecs via Mediabunny, rotation from D-54); GPU encode; audio mixdown with mutes, fades, voice and story sound; streamed to disk with progress, time left and cancel |
 | 4 | **Output panel:** format (MP4 H.264+AAC / WebM), size (16:9, 9:16, 1:1 at 720p/1080p/4K), frame rate, quality, range |
 | 5 | **Fast pass:** the same frozen analysis run over a track or recorded set at high speed, filling the record without real-time playback |

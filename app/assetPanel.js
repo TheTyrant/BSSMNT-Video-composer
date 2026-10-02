@@ -42,6 +42,7 @@ class AssetPanel {
       if (!hasFiles(e)) return;
       e.preventDefault();
       e.stopPropagation();
+      MediaLibrary.captureDrop(e);
       lit(false);
       this.addAndSelect(e.dataTransfer.files);
     });
@@ -56,6 +57,7 @@ class AssetPanel {
   }
 
   addAndSelect(files) {
+    if (this.app.openIfProject(files)) return;
     const { added, rejected } = this.engine.addFiles(files);
     if (added.length) this.engine.select(added[0].id);
     this.app.notify(this.app.addedMessage(added, rejected));
@@ -72,7 +74,7 @@ class AssetPanel {
     this.engine.assets.forEach(a => {
       const row = document.createElement('button');
       row.type = 'button';
-      row.className = 'asset-row' + (a.id === sel ? ' selected' : '') + (a.error ? ' bin-error' : '');
+      row.className = 'asset-row' + (a.id === sel ? ' selected' : '') + (a.error || a.offline ? ' bin-error' : '');
       row.setAttribute('role', 'option');
       row.setAttribute('aria-selected', String(a.id === sel));
       row.dataset.id = a.id;
@@ -247,7 +249,7 @@ class AssetPanel {
       ['Length', a.kind === 'image' ? 'Still' : (a.duration ? fmtTime(a.duration, true) : '…')],
       ['Size', a.width ? `${a.width}×${a.height}` : '…'],
       ['Rotation', a.kind === 'video' ? (a.rotation ? `${a.rotation}° (corrected)` : 'None') : '—'],
-      ['Decode', a.error ? 'ERR' : a.ready ? 'OK' : 'Loading…'],
+      ['Decode', a.offline ? 'Offline: reconnect in 03 Output' : a.error ? 'ERR' : a.ready ? 'OK' : 'Loading…'],
       ['On air', onAir ? 'Yes' : 'No'],
       ['Role', roles.join(' · ') || 'Unused'],
     ];

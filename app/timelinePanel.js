@@ -323,6 +323,7 @@ class TimelinePanel {
       if (isCard(e) || !hasFiles(e)) return;
       e.preventDefault();
       e.stopPropagation();
+      MediaLibrary.captureDrop(e);
       bin.classList.remove('drag-over');
       editor.classList.remove('drag-over-panel');
       this.app.addDroppedFiles(e.dataTransfer.files);
@@ -399,7 +400,7 @@ class TimelinePanel {
       name.title = clip.name;
       const dur = document.createElement('span');
       dur.className = 'bin-dur';
-      dur.textContent = clip.error ? 'ERR' : !clip.ready ? '…' : clip.kind === 'image' ? 'Still' : fmtTime(clip.duration, false);
+      dur.textContent = clip.offline ? 'OFFLINE' : clip.error ? 'ERR' : !clip.ready ? '…' : clip.kind === 'image' ? 'Still' : fmtTime(clip.duration, false);
       if (clip.error) {
         card.classList.add('bin-error');
         card.title = `${clip.error}. Try Chrome/Edge, or convert to WebM (VP9) or H.264 MP4.`;

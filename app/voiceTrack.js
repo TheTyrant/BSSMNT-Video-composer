@@ -75,6 +75,7 @@ class VoiceTrack {
     this.audio = audio;
     this.url = url;
     this.name = name;
+    this.blob = blob;         // kept so a project file can store the voice (D-57)
     this.offset = Math.max(0, offset);
     if (isTake) { this.takeBlob = blob; this.takeSaved = false; } else { this.takeBlob = null; this.takeSaved = true; }
     this.applyGains();
