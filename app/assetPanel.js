@@ -88,6 +88,7 @@ class AssetPanel {
     const t = [a.kind === 'image' ? 'IMG' : 'VID'];
     if (a.asClip) t.push(`#${a.importance}`);
     if (a.layer) t.push(a.layer.slice(0, 3).toUpperCase());
+    if (this.engine.settings.storyMode && a.story !== 'none') t.push(({ hook: 'HOOK', result: 'RES', cta: 'CTA' })[a.story]);
     return t.join(' · ');
   }
 
@@ -129,8 +130,36 @@ class AssetPanel {
     if (a.layer && a.layer !== 'background') useAs.appendChild(this.layerControls(a.layer));
     P.appendChild(useAs);
 
-    // Clip fields (only when used as an auto-edit clip)
-    if (a.asClip) {
+    // Story Position (Story Mode only, D-33). A story asset has a fixed
+    // place and plays once, so Pace and Importance don't apply to it.
+    const storyMode = this.engine.settings.storyMode;
+    const isStory = storyMode && a.story !== 'none';
+    if (storyMode) {
+      const sg = this.group('Story');
+      sg.appendChild(this.row('Position', this.select(
+        [['none', 'None'], ['hook', 'Hook'], ['result', 'Result / Climax'], ['cta', 'CTA']], a.story,
+        (v) => this.engine.setClipStory(a.id, v), 'propStory',
+        'Hook = beginning, Result / Climax = after the automated content, CTA = ending. Each plays once.')));
+      if (isStory && a.kind === 'image') {
+        const hold = document.createElement('input');
+        hold.type = 'number';
+        hold.id = 'propStoryHold';
+        hold.min = 0.5;
+        hold.step = 0.5;
+        hold.value = a.storyHold;
+        hold.addEventListener('change', () => this.engine.setStoryHold(a.id, parseFloat(hold.value) || 3));
+        sg.appendChild(this.row('Holds (s)', hold));
+      } else if (isStory) {
+        const note = document.createElement('p');
+        note.className = 'hint';
+        note.textContent = 'Plays its full length once, with its own sound.';
+        sg.appendChild(note);
+      }
+      P.appendChild(sg);
+    }
+
+    // Clip fields (only when used as an auto-edit clip, and not a story asset)
+    if (a.asClip && !isStory) {
       const clipG = this.group('Clip');
       clipG.appendChild(this.row('Band', this.select(
         [['any', 'Any band'], ['bass', 'Bass'], ['mid', 'Mid'], ['high', 'High']], a.band,
@@ -198,7 +227,8 @@ class AssetPanel {
     const now = this.engine.nowShowing();
     const onAir = !!(now && now.clip === a);
     const roles = [];
-    if (a.asClip) roles.push(`Clip #${a.importance}`);
+    if (this.engine.settings.storyMode && a.story !== 'none') roles.push(`Story ${a.story}`);
+    else if (a.asClip) roles.push(`Clip #${a.importance}`);
     if (a.layer) roles.push(`Layer ${a.layer}`);
     const rows = [
       ['Type', a.kind === 'image' ? 'Image' : 'Video'],

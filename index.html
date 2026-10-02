@@ -223,6 +223,8 @@
               <button class="btn btn-icon" id="tlHome" type="button" title="Back to start">&#x23EE;</button>
               <button class="btn btn-icon btn-primary" id="tlPlay" type="button" title="Play / pause (Space)">&#x25B6;</button>
               <button class="btn btn-icon" id="tlStop" type="button" title="Stop">&#x25A0;</button>
+              <button class="btn story-fire" id="tlFireResult" type="button" title="Play the Result / Climax block now (live Story Mode)" hidden>Result</button>
+              <button class="btn story-fire" id="tlFireCta" type="button" title="Play the CTA block now (live Story Mode)" hidden>End with CTA</button>
             </div>
             <div class="lcd">
               <span class="lcd-cell"><span class="lcd-k">TIME</span><span class="lcd-v" id="tlTime">00:00.0</span></span>
@@ -314,6 +316,20 @@
                 <input type="checkbox" id="propOverlay">
                 <span>Overlay Media Layers</span>
               </label>
+
+              <!-- Story Mode (D-33–D-37): off = Free Mode, unchanged automation -->
+              <div class="prop prop-story">
+                <div class="prop-label">Story Mode</div>
+                <div class="seg seg-btns" id="propStoryMode">
+                  <button type="button" data-v="off">Free</button>
+                  <button type="button" data-v="on">Story</button>
+                </div>
+                <label class="prop-check" id="propStoryFadeRow">
+                  <input type="checkbox" id="propStoryFade">
+                  <span>Auto Fade Music to Story Blocks</span>
+                </label>
+                <p class="hint" id="propStoryHint"></p>
+              </div>
             </aside>
           </div>
         </section>

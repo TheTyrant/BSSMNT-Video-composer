@@ -25,6 +25,8 @@ class ClipEngine {
       transitionMode: 'band',  // 'band' (auto by band) | a ClipTransitions id
       inPoint: 'random',       // 'random' | 'resume' | 'start'
       overlayLayers: false,    // draw Media Layers (bass/mid/high) over clips
+      storyMode: false,        // Story Mode (Hook / Result / CTA anchors); off = Free Mode
+      storyFade: false,        // Auto Fade Music to Story Blocks
     };
     // Used when transitionMode === 'band': which band triggered the switch
     // picks the transition.
@@ -33,6 +35,7 @@ class ClipEngine {
     // Master timeline hooks, supplied by the app.
     this.clock = () => 0;            // seconds on the master timeline
     this.isAdvancing = () => false;  // true while the timeline is rolling
+    this.songDuration = () => 0;     // track length in track mode, 0 in live mode
 
     this.listeners = new Set();
     this.bandAvg = { bass: 0.05, mid: 0.05, high: 0.05 };
@@ -56,6 +59,8 @@ class ClipEngine {
     this.outgoing = null;
     this.pending = null;    // pre-rolled next clip { clip, inPoint }
     this.transition = null; // { def, startMs, lengthMs }
+    this.story = null;      // story block on screen, if any
+    this.fired = [];        // live mode: story roles fired this session { role, at }
     this.emit('reset');
   }
 
@@ -223,19 +228,24 @@ class ClipEngine {
   // Importance = position in the Action Editor stack (1 = top, D-32).
   // Moving a clip renumbers the whole stack so positions stay 1..N.
   moveClip(id, toIndex) {
-    const stack = this.clips;
+    const stack = this.stack;
     const from = stack.findIndex(c => c.id === id);
     if (from < 0) return;
     const [clip] = stack.splice(from, 1);
     stack.splice(Math.max(0, Math.min(stack.length, toIndex)), 0, clip);
     stack.forEach((c, i) => { c.importance = i + 1; });
+    this.renumber();
     this.emit('clips');
   }
 
   setClipImportance(id, n) { this.moveClip(id, Math.round(n) - 1); }
 
+  // Stack clips are 1..N. Story assets (Story Mode) have no Importance;
+  // they sit after the stack and rejoin it at the bottom in Free Mode.
   renumber() {
-    this.clips.forEach((c, i) => { c.importance = i + 1; });
+    const stack = this.stack;
+    stack.forEach((c, i) => { c.importance = i + 1; });
+    this.clips.filter(c => !stack.includes(c)).forEach((c, i) => { c.importance = stack.length + i + 1; });
   }
 
   // "Use as: Media Layer". Drives the existing layer engine
@@ -298,6 +308,7 @@ class ClipEngine {
       globalBeats: this.intervalBeats(bpm),
       clipPace: curClip && curClip.pace && curClip.pace !== 'global' ? curClip.pace : null,
       nextCutPos: this.nextCutPos,
+      story: this.story ? this.story.role : null,
       autoLabel: MusicalTime.autoMultiplier(bpm, this.settings.autoPace).label,
       dominant: this.dominant,
       position: this.beatIndex >= 0 ? this.beatIndex + this.beatPhase() : -1,
@@ -312,25 +323,37 @@ class ClipEngine {
   // Called once per analysis frame, after DJVisualizer.updateAudioData().
   update(audioData) {
     this.trackBands(audioData);
-    if (!this.isAdvancing() || this.clips.length === 0) return;
+    if (!this.isAdvancing()) return;
+    if (this.clips.length === 0 && !this.storyBlocks().length) return;
 
     const bpm = audioData.bpm || 0;
 
-    // Put a clip on screen as soon as the timeline rolls; beat-locked
-    // cutting takes over once BPM locks (the first beat cuts).
-    if (!this.current) this.cut(bpm, null);
-
-    if (!(bpm > 0)) return;
-
-    // Beat edge from the visualizer's clock.
-    if (this.viz.lastBeatTime !== this.lastSeenBeatTime) {
+    // Beat edge from the visualizer's clock. Counted through story blocks
+    // too, so the bar grid stays continuous.
+    if (bpm > 0 && this.viz.lastBeatTime !== this.lastSeenBeatTime) {
       this.lastSeenBeatTime = this.viz.lastBeatTime;
       this.beatIndex++;
       this.beats.push({ time: this.clock(), index: this.beatIndex });
       if (this.beats.length > 20000) this.beats.splice(0, 5000);
       this.emit('beat', this.beatIndex);
     }
-    if (this.beatIndex < 0) return;
+
+    // Story Mode: while the master time is inside a story block, that block
+    // owns the screen (no automated picks). When it ends, cutting re-syncs
+    // on the master beat grid, the same way it does after a seek (D-34).
+    const block = this.settings.storyMode ? this.storyBlockAt(this.clock()) : null;
+    if (block) { this.playStory(block); return; }
+    if (this.story) {
+      this.endStory();
+      if (!(bpm > 0) || this.beatIndex < 0) { this.cut(bpm, null); return; }
+      this.nextCutPos = null;
+    }
+
+    // Put a clip on screen as soon as the timeline rolls; beat-locked
+    // cutting takes over once BPM locks (the first beat cuts).
+    if (!this.current) this.cut(bpm, null);
+
+    if (!(bpm > 0) || this.beatIndex < 0) return;
 
     const pos = this.beatIndex + this.beatPhase();
 
@@ -383,10 +406,157 @@ class ClipEngine {
     }
   }
 
-  // Clips the automation may pick: decoded, used as clips, in stack order.
-  // (Story assets leave this pool in Story Mode -- step 7.)
+  // The Action Editor stack: clips minus story assets while Story Mode is
+  // on (story assets have fixed places and no Importance, D-33).
+  get stack() {
+    const sm = this.settings.storyMode;
+    return this.clips.filter(c => !(sm && c.story !== 'none'));
+  }
+
+  // Clips the automation may pick: decoded, in stack order.
   regularPool() {
-    return this.clips.filter(c => c.ready);
+    return this.stack.filter(c => c.ready);
+  }
+
+  // ---- Story Mode (v2.1 step 7, D-33–D-35) ------------------------------
+
+  setStoryMode(on) {
+    this.settings.storyMode = on;
+    if (!on && this.story) this.endStory();
+    this.renumber();
+    this.emit('clips');
+  }
+
+  // One asset per role: taking a role that's in use releases it from the
+  // other asset. Positions are kept while Story Mode is off (Free Mode
+  // ignores them).
+  setClipStory(id, role) {
+    const a = this.clipById(id);
+    if (!a) return;
+    if (role !== 'none') {
+      const holder = this.assets.find(x => x !== a && x.story === role);
+      if (holder) holder.story = 'none';
+    }
+    a.story = role;
+    this.renumber();
+    this.emit('clips');
+  }
+
+  setStoryHold(id, seconds) {
+    const a = this.clipById(id);
+    if (a) { a.storyHold = Math.max(0.5, seconds); this.emit('clips'); }
+  }
+
+  storyAssets() {
+    const out = {};
+    if (!this.settings.storyMode) return out;
+    this.assets.forEach(a => { if (a.story !== 'none' && a.ready) out[a.story] = a; });
+    return out;
+  }
+
+  // A video block plays its full length once; an image holds storyHold (Q9).
+  storyLength(a) {
+    return a.kind === 'image' ? a.storyHold : (a.duration || 0);
+  }
+
+  // Track mode: blocks sit on the song's own timeline (D-34), so the
+  // master timeline stays the only clock. HOOK at the start, CTA at the
+  // end, RESULT/CLIMAX ending where CTA starts (or at the song's end).
+  // Every ordering in the brief falls out of these three rules.
+  storyPlan(songDur) {
+    const s = this.storyAssets();
+    const blocks = [];
+    let hookEnd = 0, tail = songDur;
+    if (s.hook) {
+      hookEnd = Math.min(this.storyLength(s.hook), songDur);
+      if (hookEnd > 0) blocks.push({ role: 'hook', clip: s.hook, start: 0, end: hookEnd });
+    }
+    if (s.cta) {
+      const start = Math.max(hookEnd, songDur - this.storyLength(s.cta));
+      if (songDur - start > 0) { blocks.push({ role: 'cta', clip: s.cta, start, end: songDur }); tail = start; }
+    }
+    if (s.result) {
+      const start = Math.max(hookEnd, tail - this.storyLength(s.result));
+      if (tail - start > 0) blocks.push({ role: 'result', clip: s.result, start, end: tail });
+    }
+    return blocks.sort((a, b) => a.start - b.start);
+  }
+
+  // Live mode (Q11): no known end, so Hook plays on Start and Result / CTA
+  // are fired from the transport, each once per session.
+  liveStoryBlocks() {
+    const s = this.storyAssets();
+    const out = [];
+    if (s.hook) out.push({ role: 'hook', clip: s.hook, start: 0, end: this.storyLength(s.hook) });
+    this.fired.forEach(f => {
+      const a = s[f.role];
+      if (a) out.push({ role: f.role, clip: a, start: f.at, end: f.at + this.storyLength(a) });
+    });
+    return out;
+  }
+
+  storyBlocks() {
+    if (!this.settings.storyMode) return [];
+    const dur = this.songDuration();
+    return dur > 0 ? this.storyPlan(dur) : this.liveStoryBlocks();
+  }
+
+  storyBlockAt(t) {
+    return this.storyBlocks().find(b => t >= b.start && t < b.end) || null;
+  }
+
+  fireStory(role) {
+    if (this.fired.some(f => f.role === role) || !this.storyAssets()[role]) return false;
+    this.fired.push({ role, at: this.clock() });
+    this.emit('story');
+    return true;
+  }
+
+  // Enter (or hold) a story block: a jump cut to the story asset, which is
+  // not chosen by the automation. A video block plays once from the
+  // matching offset, WITH its own audio (Q9), kept on the master timeline.
+  playStory(block) {
+    const t = this.clock();
+    const a = block.clip;
+    const into = Math.max(0, t - block.start);
+    if (!this.story || this.story.role !== block.role || this.story.clip !== a) {
+      if (this.story) this.endStory();
+      this.pending = null;
+      if (this.outgoing) { this.retire(this.outgoing.clip); this.outgoing = null; }
+      this.transition = null;
+      if (this.current) {
+        this.current.segment.end = t;
+        if (this.current.clip !== a) this.retire(this.current.clip);
+      }
+      const segment = {
+        clipId: a.id, start: t, end: null, inPoint: into, transition: 'jump',
+        band: this.dominant, beat: this.beatIndex, story: block.role, blendSec: 0,
+      };
+      this.segments.push(segment);
+      this.current = { clip: a, segment };
+      this.story = block;
+      if (a.kind === 'video') {
+        a.el.loop = false;
+        a.el.muted = false;
+        a.el.volume = 1;
+        try { a.el.currentTime = into; } catch (e) { /* not seekable yet */ }
+        a.el.play().catch(() => {});
+      }
+      this.emit('cut', segment);
+    } else if (a.kind === 'video' && !a.el.ended && Math.abs(a.el.currentTime - into) > 0.15) {
+      a.el.currentTime = into;
+    }
+  }
+
+  endStory() {
+    const a = this.story && this.story.clip;
+    if (a && a.kind === 'video') {
+      a.el.pause();
+      a.el.muted = true;
+      a.el.volume = 0;
+      a.el.loop = true;
+    }
+    this.story = null;
   }
 
   // Importance (stack position) only changes WHICH clip is picked (D-32):
@@ -509,6 +679,7 @@ class ClipEngine {
   // Master-timeline seek (track mode). Everything recorded after the new
   // playhead is discarded and regenerated live from there.
   seekTo(seconds) {
+    if (this.story) this.endStory();   // re-entered from the matching offset if the seek lands inside a block
     this.segments = this.segments.filter(s => s.start < seconds);
     const last = this.segments[this.segments.length - 1];
     if (last) last.end = seconds;

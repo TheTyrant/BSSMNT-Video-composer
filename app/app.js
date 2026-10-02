@@ -25,6 +25,7 @@ class DJVisualizerApp {
     this.visualizer.clipEngine = this.clipEngine;
     this.clipEngine.clock = () => this.masterTime();
     this.clipEngine.isAdvancing = () => this.visualizer.currentMode === 'clips' && this.timelineRolling();
+    this.clipEngine.songDuration = () => (this.isTrackMode() ? this.trackSource.duration : 0);
     this.timeline = new TimelinePanel(this);
     this.sessionStart = null;   // live-mode session clock (performance.now at start)
     this.sessionElapsed = 0;
@@ -165,6 +166,10 @@ class DJVisualizerApp {
       // beat clock updated just above.
       this.clipEngine.update(adjustedData);
       this.timeline.onAudioFrame(adjustedData);
+
+      // Auto Fade Music follows the master time every frame while it's on.
+      const st = this.clipEngine.settings;
+      if (st.storyMode && st.storyFade) this.applyMusicLevel();
     };
 
     this.visualModeSelect = document.getElementById('visualMode');
@@ -256,7 +261,28 @@ class DJVisualizerApp {
   // analyser (D-36). Only the track file plays through BSSMNT; live input
   // comes from the DJ's own rig, so there is nothing to mute there.
   applyMusicLevel() {
-    this.trackSource.setMusicLevel(this.musicMuted ? 0 : 1, 0.05);
+    const level = this.musicMuted ? 0 : this.storyFadeLevel(this.masterTime());
+    this.trackSource.setMusicLevel(level, 0.05);
+  }
+
+  // Auto Fade Music to Story Blocks (D-37): the music fades out over 1 bar
+  // into each story block, stays down during it and fades back in over
+  // 1 bar after it (2 s before BPM is known). Evaluated from the master
+  // time, so seek, pause and stop need no extra bookkeeping.
+  storyFadeLevel(t) {
+    const st = this.clipEngine.settings;
+    if (!(st.storyMode && st.storyFade && this.isTrackMode())) return 1;
+    const bpm = this.visualizer.audioData.bpm || 0;
+    const fade = bpm > 0 ? MusicalTime.beatsToMs(MusicalTime.toBeats(1, 'bar'), bpm) / 1000 : 2;
+    let level = 1;
+    for (const b of this.clipEngine.storyBlocks()) {
+      let l = 1;
+      if (t >= b.start && t < b.end) l = 0;
+      else if (t < b.start && t >= b.start - fade) l = (b.start - t) / fade;
+      else if (t >= b.end && t < b.end + fade) l = (t - b.end) / fade;
+      level = Math.min(level, l);
+    }
+    return level;
   }
 
   updateMusicUI() {

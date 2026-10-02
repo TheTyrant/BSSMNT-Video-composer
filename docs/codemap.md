@@ -162,10 +162,10 @@ State: `assets[]` (every imported image/video, fields in §4.0), `clips` (getter
 | `addFiles(list)` / `addAsset(file)` | `video/*` and `image/*`. `loadVideoAsset` (p5 `createVideo`, muted/looping/hidden) / `loadImageAsset` (p5 `loadImage` + thumb) |
 | `makeThumb(clip)` | Poster frame via separate `<video>`; also resolves `Infinity` durations (seek-to-end probe) |
 | `removeAsset(id)` / `setClipBand(id, band)` / `clipById(id)` | Asset management; band tag = `any · bass · mid · high`. Removing releases its Media Layer slot |
-| `setAssetAsClip(id, on)` / `moveClip(id, i)` / `setClipImportance(id, n)` / `renumber()` | "Use as: Auto-edit clip"; Importance = stack position 1..N |
+| `setAssetAsClip(id, on)` / `moveClip(id, i)` / `setClipImportance(id, n)` / `renumber()` | "Use as: Auto-edit clip"; Importance = position in `stack` 1..N (story assets sit after it) |
 | `setAssetLayer(id, slot)` | "Use as: Media Layer": calls `viz.loadLayerMedia` / `clearLayerMedia`; one asset per slot |
 | `select(id)` | Shared selection (03 Assets + Action Editor); emits `select` |
-| `update(audioData)` | Per frame: `trackBands()`; first clip goes on screen immediately; on viz beat edges `beatIndex++`; cut when position reaches `nextCutPos`; pre-roll |
+| `update(audioData)` | Per frame: `trackBands()`; on viz beat edges `beatIndex++` (also during story blocks); **story block** at the master time → `playStory()` and stop; leaving one → `endStory()` + re-sync; first clip goes on screen immediately; cut when position reaches `nextCutPos`; pre-roll |
 | `intervalFor(clip, bpm)` | A clip's hold: its own `pace` if set, else the global interval |
 | `setClipPace(id, pace)` | Per-clip pace: `global` or a `MusicalTime.AUTO_PACES` key |
 | `intervalBeats(bpm)` | Auto (`autoMultiplier`) or manual (`toBeats(count, unit)`) |
@@ -179,7 +179,13 @@ State: `assets[]` (every imported image/video, fields in §4.0), `clips` (getter
 | `seekTo(s)` | Truncate segments/beats after `s`, force cut next frame |
 | `setActive(bool)` / `pauseAll()` / `reset()` | Lifecycle |
 | `draw(p)` | Cover-fit clip render (video **and image** through the same `drawClip`), active transition render, optional Media Layers overlay |
-| `status()` / `nowShowing()` / `beatPhase()` | For UI |
+| `status()` / `nowShowing()` / `beatPhase()` | For UI (`status().story` = role on air) |
+| `stack` (getter) | Clips minus story assets while Story Mode is on = the Action Editor stack; `renumber()` gives it 1..N |
+| `setStoryMode(on)` / `setClipStory(id, role)` / `setStoryHold(id, s)` | Story Mode toggle; one asset per role; image block hold (Q9) |
+| `storyAssets()` / `storyLength(a)` | Ready assets by role (Story Mode only); video = full length, image = `storyHold` |
+| `storyPlan(songDur)` / `liveStoryBlocks()` / `storyBlocks()` / `storyBlockAt(t)` | Track mode: HOOK `[0, len)`, CTA `[end − len, end)`, RESULT ending where CTA starts (clamped after HOOK). Live mode: HOOK at 0 + fired blocks |
+| `fireStory(role)` | Live mode: Result / CTA once per session (Q11) |
+| `playStory(block)` / `endStory()` | Jump cut to the story asset (segment flagged `story`); a video block plays once from the matching offset, unmuted (Q9), kept on the master time; on exit it is re-muted and cutting re-syncs on the master beat |
 | `on(fn)` / `emit(type)` | Events: `clips · cut · beat · seek · reset` |
 
 ### 3.7 `app/timelinePanel.js` — `class TimelinePanel` — ✅
@@ -197,7 +203,8 @@ Single 2D canvas redrawn ~30 fps. Row heights `ROWS = { ruler 28, master 72, cli
 | `initSplitter()` | Resizable editor height (localStorage, try/catch) |
 | `updateView()` | Track = fit/zoom window; Live = rolling 30 s window |
 | `updateHeader()` / `updateHud()` | LCD readouts, mode badge, summary; viewport HUD + hints |
-| `draw()` → `drawRuler` · `drawMaster` · `drawClips` · `drawVoice` · `drawTransitionMark` | Ruler, waveform + energy, beat/bar grid, segments, ghost cut markers, playhead |
+| `draw()` → `drawRuler` · `drawMaster` · `drawClips` (+ `drawStoryBlock`, dashed outlines of upcoming story blocks) · `drawVoice` · `drawTransitionMark` |
+| `storyHint()` / `storyCard(a, label)` | Story Mode panel text; fixed Hook / Result / CTA markers at the ends of the Action Editor | Ruler, waveform + energy, beat/bar grid, segments, ghost cut markers, playhead |
 
 ### 3.7b `app/sidebar.js` — `class Sidebar` — ✅ *(v2.1 step 3a)*
 Builds a rail button per `#tabPanels > .side-panel` (`data-tab`, `data-num`, `data-label`); one panel open at a time.
@@ -229,7 +236,8 @@ The 03 Assets tab. Drop zone + `#assetUpload` chooser (`image/*,video/*`, multip
 | Devices | `checkAudioPermissions`, `populateAudioDevices`, `onDeviceSelectionChange`, `restartAudioWithNewDevice` |
 | Source modes | `setAudioSourceMode('mic'|'file')`, `loadAudioFile(file)`, `wireDropZone` |
 | Transport | `toggleAudio`, `startAudio`, `stopAudio`, `transportStop`, `setStartButton` |
-| Master timeline | `isTrackMode`, `masterTime`, `timelineRolling`, `resetSession`, `seekMaster` |
+| Master timeline | `isTrackMode`, `masterTime`, `timelineRolling`, `resetSession`, `seekMaster`; `clipEngine.songDuration` hook (track length, 0 live) |
+| Music bus | `applyMusicLevel()` (mute × `storyFadeLevel(t)`), `updateMusicUI()` |
 | Misc | `setupGainControls`, `resetGains`, `updateBPM`, `updateFPS`, `toggleFullscreen`, `toggleHelp/hideHelp`, `switchVisualizationMode`, `destroy` |
 
 Global `var djApp` (must stay `var` — `output.js` reads `window.opener.djApp`).
@@ -306,10 +314,10 @@ Spec: [brief-v2.1.md](brief-v2.1.md). Decisions: D-31–D-46; open questions Q9�
 | 6e ✅ | `app.js`, `index.html` | **Music** mute toggle → `trackSource.setMusicLevel(0/1)`; disabled with a hint in mic mode (D-36) |
 | 6f ✅ | `timelinePanel.js`, `styles.css`, `index.html` | `ROWS.voice`, `.ch-voice` channel header, `drawVoice()` (peaks at offset), `loadVoiceWaveform(buffer)` |
 | 6* ✅ | `app.js` | Owns `this.voice = new VoiceTrack(this)`; `destroy()` unloads it. *As built:* no transport hooks are needed, because `VoiceTrack` runs its own rAF loop reading `app.masterTime()` / `app.timelineRolling()`, so play, pause, stop and seek are all followed from one place |
-| 7a | `clipEngine.js`, `timelinePanel.js`, `index.html` | `settings.storyMode`, `settings.storyFade`; Auto-Editor panel **"Story Mode"** block (toggle + Auto Fade Music checkbox); Story Position in asset properties (only in Story Mode); Pace/Importance hidden for story assets |
-| 7b | `clipEngine.js` | `storyPlan(songDur)` → `[{role, clip, start, end}]` per D-34 (track mode); `storyBlockAt(t)`; `update()` plays a block (not `choose()`) while `masterTime` is inside one, then `nextCutPos = null` to re-sync; segments carry `story: role`; live mode: `fireStory(role)` (Q11); `seekTo()` re-evaluates blocks |
-| 7c | `timelinePanel.js` | `drawClips()` renders story blocks (fixed, labelled HOOK / RESULT / CTA) and, in track mode, ghost outlines of upcoming blocks from `storyPlan()` |
-| 7d | `app.js` (+ `trackSource.setMusicLevel`) | `scheduleStoryFades()` — ramps on `musicGain` 1 bar before/after each block (`MusicalTime.toBeats(1,'bar')` at live BPM, 2 s fallback); rebuilt on play/seek/stop/plan change; mute overrides it |
+| 7a ✅ | `clipEngine.js`, `timelinePanel.js`, `index.html` | `settings.storyMode`, `settings.storyFade`; Auto-Editor panel **"Story Mode"** block (toggle + Auto Fade Music checkbox); Story Position in asset properties (only in Story Mode); Pace/Importance hidden for story assets |
+| 7b ✅ | `clipEngine.js` | `storyPlan(songDur)` → `[{role, clip, start, end}]` per D-34 (track mode); `storyBlockAt(t)`; `update()` plays a block (not `choose()`) while `masterTime` is inside one, then `nextCutPos = null` to re-sync; segments carry `story: role`; live mode: `fireStory(role)` (Q11); `seekTo()` re-evaluates blocks |
+| 7c ✅ | `timelinePanel.js` | `drawClips()` renders story blocks (fixed, labelled HOOK / RESULT / CTA) and, in track mode, ghost outlines of upcoming blocks from `storyPlan()` |
+| 7d ✅ | `app.js` (+ `trackSource.setMusicLevel`) | *As built:* `storyFadeLevel(t)` computes the music level from the master time (0 inside a block, linear over 1 bar before/after, 2 s before BPM is known) and `applyMusicLevel()` applies it to `musicGain` every analysis frame while Auto Fade is on. Seek, pause, stop and plan changes need no bookkeeping. Mute overrides it |
 
 **Test focus (step 8):** all four story orderings from the brief, plus Story Mode off. Sidebar collapse/expand resizes the canvas. Media Layers driven from asset properties look identical to before. Reorder updates Importance. Story assets never appear in the fill. Importance histogram over ~200 cuts. Cuts stay on master beats with mixed timings. Voice in sync after seek, pause and stop, unaffected by any timing or Importance change. BPM reading unchanged while music is muted or faded.
 

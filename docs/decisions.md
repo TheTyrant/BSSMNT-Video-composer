@@ -230,13 +230,14 @@ Everything in this section is **Proposed**. Each entry becomes *Accepted* (or is
 - **⚠ Conflicts with the v2.1 rule "every new control defaults to today's behaviour"** (and exit criterion 1): with an untouched stack, Random and By band are no longer uniform/rotating. Built as Q15 proposes, flagged for Omar. Switching back to "uniform until the user reorders" is a one-line change in `weightedPick()`.
 - **Consequences:** New clips are added to the bottom of the stack, which is upload order, so Sequential matches v2. Random weighting does change from v2's uniform pick. Q15 asks whether it should stay uniform until the user reorders. Future: Importance becomes overlap-based crossfade on the action line (roadmap Phase 1.4 note).
 
-### D-33 · Story assets leave the automated pool; Free Mode ignores positions
+### D-33 · Story assets leave the automated pool; Free Mode ignores positions *(Accepted — built in step 7)*
 - **Decision:** Each asset has **Story Position** (in the asset properties panel, D-44): None · Hook · Result/Climax · CTA. Only one asset can hold each position; assigning a position that's taken moves it. The menu is shown only while Story Mode is on.
   - **Story Mode ON:** an asset with a position is removed from `choose()`'s pool and from the Action Editor stack (it shows as a fixed Story block instead). Its Pace and Importance controls are hidden (the brief excludes them).
   - **Story Mode OFF (Free Mode):** positions are remembered but ignored, and every clip is a regular clip again. Free Mode behaves exactly like v2.
 - **Why:** Matches "static, single-use" and "Free Mode remains unrestricted", and toggling Story Mode never loses the user's assignments.
+- **As built:** Story Mode is a Free / Story switch in the Auto-Editor panel. Story Position shows in the asset properties only in Story Mode. A story asset doesn't need to be an auto-edit clip. Story assets have no Importance, so they sit after the stack and **rejoin it at the bottom** when Story Mode is switched off (their roles are kept). **Verified:** with Hook / Result / CTA set, 3000 automated picks and every fill segment contained no story asset; Free Mode → no blocks, all clips back in the pool, roles kept.
 
-### D-34 · Story blocks sit on the master timeline (overlay model) *(pending Q10)*
+### D-34 · Story blocks sit on the master timeline (overlay model) *(Accepted — built in step 7; Q9, Q10)*
 - **Decision:** Story blocks occupy windows **on the song's own timeline**. The song keeps playing underneath and is not paused.
   - **Hook:** `[0, hookLen)`.
   - **CTA:** `[songEnd − ctaLen, songEnd)`.
@@ -245,11 +246,13 @@ Everything in this section is **Proposed**. Each entry becomes *Accepted* (or is
   The fill pauses during a block. When a block ends, beat-locked cutting re-syncs on the next master beat, the same way it does after a seek.
 - **Block length:** a video plays its full length once. An image holds for a set time (pending Q9).
 - **Why:** The master timeline stays the single source of truth, which is the brief's core rule. The beat clock, waveform, seek and band analysis all keep working through the blocks. The alternative (stop the song, insert the block, resume) would freeze the beat clock and break seek, and would amount to a second timeline.
+- **As built:** if blocks would overlap on a short song, Result and CTA are clamped to start after the Hook. Beat edges keep being counted during a block, so the bar grid stays continuous. A story video is unmuted for its block (its own sound) and re-muted when it ends. **Verified on CREAM (195.5 s):** ALL = hook[0–6] → result[186.6–189.6] → cta[189.6–195.5]; no Result = hook → cta; no Hook = result → cta; no CTA = hook → result[192.5–195.5]. Playback: HOOK B D E RESULT CTA, each story block once.
 - **Consequences:** "Once" means once per pass through the song. Seeking back before a block lets it play again; seeking into a block plays it from the matching offset. The four orderings in the brief all follow from these rules with no special cases. Story segments are flagged in the segment log and drawn as fixed blocks on the clip lane.
 
-### D-35 · Story Mode in live (unbounded) mode *(pending Q11)*
+### D-35 · Story Mode in live (unbounded) mode *(Accepted — built in step 7; Q11)*
 - **Context:** A live set has no known end, so CTA and Result can't be placed "at the end" automatically.
 - **Decision:** In live mode, Hook plays automatically on Start. **Result** and **CTA** are fired by two transport buttons ("Result", "End with CTA"), each once. In track mode, all three are placed automatically.
+- **Verified:** live Start → Hook on air (unmuted); "Result" fired the Result block once, then disabled itself; a second fire was refused. Auto Fade is disabled in live mode (D-36: BSSMNT doesn't play the music there).
 
 ### D-36 · Music bus: one gain node *after* the analyser *(Accepted — built in step 2b; mute UI in step 6e)*
 - **Decision:** `TrackSource` routes `source → analyser → musicGain → speakers` (today it's `analyser → speakers`). Music mute (voice-only) and story fades both drive `musicGain`.
@@ -257,9 +260,11 @@ Everything in this section is **Proposed**. Each entry becomes *Accepted* (or is
 - **Verified:** with the bus at 0 on a real track, bass/mid levels, BPM and cutting carried on unchanged (5 cuts during a 5 s mute).
 - **Consequences:** Applies in **track mode** only. In mic/live mode, BSSMNT doesn't play the music (it comes from the DJ's own rig), so there's nothing to mute or fade. The controls say so instead of silently doing nothing.
 
-### D-37 · Auto Fade Music = scheduled ramps around each block *(pending Q12)*
+### D-37 · Auto Fade Music = fades around each block *(Accepted — built in step 7, mechanism rewritten; Q12)*
 - **Decision:** With **Auto Fade Music to Story Blocks** on, the music fades out over 1 bar into each block and fades back in over 1 bar after it. The ramps are scheduled on the AudioContext clock (`linearRampToValueAtTime`) and rebuilt on seek, play and stop. With it off, `musicGain` stays at 1 (or 0 if muted).
 - **Why:** It follows the brief's "Music → fade → HOOK → music fades in → …" sequence. Fade lengths in bars keep the transitions musical at any tempo (D-07). With no BPM yet, the fades fall back to 2 s.
+- **As built (mechanism changed):** instead of scheduling AudioContext ramps and rebuilding them on every seek, play, stop and plan change, the music level is computed from the master time each analysis frame (`storyFadeLevel(t)`: 0 inside a block, linear over 1 bar before and after, 2 s without BPM) and applied to `musicGain` with a short glide. Same fade shape, and seek/pause/stop can't leave a stale ramp behind. Only runs while Auto Fade is on, so with it off the music path is exactly as before.
+- **Verified:** gain 0 inside the Hook, 0.58 partway into the 1-bar fade before Result, 1 well after a block; BPM and bass kept updating during fades; with Auto Fade off, gain stayed 1 inside a block.
 - **Consequences:** If CTA is the last block, the music doesn't come back after it.
 
 ### D-38 · Voice is its own chain, never connected to the analyser *(Accepted — built in step 6)*
@@ -341,10 +346,10 @@ Everything in this section is **Proposed**. Each entry becomes *Accepted* (or is
 
 | # | Question | Proposed answer | Blocks |
 |---|---|---|---|
-| **Q9** | Story block length and sound: does a video block play its full length with its own audio? How long does an image block hold? | **Video:** full length, once, **with its own audio** (that's what the music fades make room for). **Image:** holds 3 s, editable in its properties | 7b |
-| **Q10** | Do story blocks sit *on* the song (music continues underneath, D-34), or does the song **pause** while a block plays? | **On the song** (overlay). Pausing breaks the beat clock and seek, and amounts to a second timeline | 7b, 7d |
-| **Q11** | Story Mode in live mode, where the end isn't known? | **Hook auto on Start; Result and CTA fired by buttons** (D-35) | 7b |
-| **Q12** | Fade shape: fade to silence, or duck to a lower level? Length? | **Fade to silence, 1 bar out / 1 bar in**, a single on/off toggle | 7d |
+| **Q9** | Story block length and sound: does a video block play its full length with its own audio? How long does an image block hold? | **Video:** full length, once, **with its own audio** (that's what the music fades make room for). **Image:** holds 3 s, editable in its properties. ***Accepted** (built in step 7)* | 7b |
+| **Q10** | Do story blocks sit *on* the song (music continues underneath, D-34), or does the song **pause** while a block plays? | **On the song** (overlay). Pausing breaks the beat clock and seek, and amounts to a second timeline. ***Accepted** (built in step 7)* | 7b, 7d |
+| **Q11** | Story Mode in live mode, where the end isn't known? | **Hook auto on Start; Result and CTA fired by buttons** (D-35). ***Accepted** (built in step 7)* | 7b |
+| **Q12** | Fade shape: fade to silence, or duck to a lower level? Length? | **Fade to silence, 1 bar out / 1 bar in**, a single on/off toggle. ***Accepted** (built in step 7)* | 7d |
 | **Q13** | Where does a voice track start? | **Recorded:** at the playhead when Record was pressed. **Imported:** at 0:00, with a start-offset nudge. ***Accepted** (built in step 6)* | 6b–6c |
 | **Q14** | A recorded take is lost on reload (nothing persists). Add a "Download take" button? | **Yes**, one button. ***Accepted** (built in step 6)* | 6c |
 | **Q15** | Is stack position 1 the *most* important (picked most often)? And should Random stay uniform until the user reorders? | **Yes, 1 = top = most weight** (`N − pos + 1`). Weighting is on from the start, since the stack is visible. ***Accepted** (built in step 5c) — but see the conflict noted in D-32* | 5c |

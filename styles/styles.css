@@ -558,6 +558,17 @@ input[type="range"]::-moz-range-thumb {
 #propRemove { margin-top: 12px; }
 .prop-group .prop-check { display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer; }
 
+/* Story Mode (step 7) */
+.prop-story { margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--ink); }
+#propStoryFadeRow { display: flex; }
+#propStoryFadeRow[hidden] { display: none; }
+#propStoryFadeRow:has(input:disabled) { opacity: 0.5; }
+.story-card { cursor: pointer; border-color: var(--live); }
+.story-card .bin-thumb { opacity: 0.85; }
+.bin-rank.story-tag { right: auto; left: 0; background: var(--live); text-transform: uppercase; font-size: 10px; letter-spacing: 0.06em; }
+.btn.story-fire { margin-left: 6px; border-color: var(--live); color: var(--live); }
+.btn.story-fire:hover:not(:disabled) { background: var(--live); color: var(--paper); }
+
 /* Voice + Music (01 Audio, step 6) */
 .voice-block { display: flex; flex-direction: column; gap: 8px; }
 .voice-block .btn-row { margin-top: 0; }

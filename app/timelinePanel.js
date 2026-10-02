@@ -115,6 +115,8 @@ class TimelinePanel {
   // ---- transport -------------------------------------------------------
 
   initTransport() {
+    document.getElementById('tlFireResult').addEventListener('click', () => this.engine.fireStory('result'));
+    document.getElementById('tlFireCta').addEventListener('click', () => this.engine.fireStory('cta'));
     this.el.play.addEventListener('click', () => this.app.toggleAudio());
     this.el.stop.addEventListener('click', () => this.app.transportStop());
     this.el.home.addEventListener('click', () => this.app.seekMaster(0));
@@ -190,6 +192,32 @@ class TimelinePanel {
 
     const overlay = $('propOverlay');
     overlay.addEventListener('change', () => { s.overlayLayers = overlay.checked; });
+
+    // Story Mode (step 7). Off = Free Mode: the automation is unchanged.
+    this.segButtons($('propStoryMode'), null, (v) => {
+      this.engine.setStoryMode(v === 'on');
+      this.app.applyMusicLevel();
+      this.syncProps();
+    });
+    const fade = $('propStoryFade');
+    fade.addEventListener('change', () => {
+      s.storyFade = fade.checked;
+      this.app.applyMusicLevel();
+    });
+  }
+
+  storyHint() {
+    const s = this.engine.settings;
+    if (!s.storyMode) return 'Free Mode: the automation runs unrestricted.';
+    const roles = { hook: 'Hook', result: 'Result', cta: 'CTA' };
+    const set = Object.keys(roles).map(r => {
+      const a = this.engine.assets.find(x => x.story === r);
+      return `${roles[r]}: ${a ? a.name : '—'}`;
+    }).join(' · ');
+    const where = this.app.isTrackMode()
+      ? 'Hook → automated content → Result → CTA, placed on the song.'
+      : 'Live: Hook plays on Start; fire Result and CTA from the transport. Music fades need a track file.';
+    return `${where} Set positions in 03 Assets. ${set}`;
   }
 
   segButtons(container, _unused, onPick) {
@@ -212,6 +240,11 @@ class TimelinePanel {
     $('propTransition').value = s.transitionMode;
     $('propInPoint').value = s.inPoint;
     $('propOverlay').checked = s.overlayLayers;
+    mark('propStoryMode', s.storyMode ? 'on' : 'off');
+    $('propStoryFade').checked = s.storyFade;
+    $('propStoryFade').disabled = !s.storyMode || !this.app.isTrackMode();
+    $('propStoryFadeRow').hidden = !s.storyMode;
+    $('propStoryHint').textContent = this.storyHint();
     $('propBandMap').hidden = s.transitionMode !== 'band';
     document.querySelectorAll('[data-show-timing]').forEach(el => {
       el.hidden = el.dataset.showTiming !== s.timingMode;
@@ -270,7 +303,7 @@ class TimelinePanel {
   // Insertion slot 0..N under the pointer (before the card whose centre is
   // to the right of x).
   insertIndexAt(x) {
-    const cards = Array.from(this.el.binCards.children);
+    const cards = Array.from(this.el.binCards.querySelectorAll('.bin-card:not(.story-card)'));
     for (let i = 0; i < cards.length; i++) {
       const r = cards[i].getBoundingClientRect();
       if (x < r.left + r.width / 2) return i;
@@ -279,7 +312,7 @@ class TimelinePanel {
   }
 
   showInsert(slot) {
-    const cards = Array.from(this.el.binCards.children);
+    const cards = Array.from(this.el.binCards.querySelectorAll('.bin-card:not(.story-card)'));
     cards.forEach((c, i) => {
       c.classList.toggle('insert-before', i === slot);
       c.classList.toggle('insert-after', slot === cards.length && i === cards.length - 1);
@@ -289,14 +322,14 @@ class TimelinePanel {
   // slot is an insertion point in the current stack; convert to the index
   // the clip ends up at once it's been lifted out.
   reorderTo(id, slot) {
-    const from = this.engine.clips.findIndex(c => c.id === id);
+    const from = this.engine.stack.findIndex(c => c.id === id);
     if (from < 0) return;
     this.engine.moveClip(id, slot > from ? slot - 1 : slot);
   }
 
   renderBin() {
     const cards = this.el.binCards;
-    const clips = this.engine.clips;
+    const clips = this.engine.stack;
     const focusedId = document.activeElement && document.activeElement.closest && document.activeElement.closest('.bin-card')
       ? document.activeElement.closest('.bin-card').dataset.id : null;
     this.el.binCount.textContent = `${clips.length} clip${clips.length === 1 ? '' : 's'}`;
@@ -380,11 +413,46 @@ class TimelinePanel {
       });
       cards.appendChild(card);
     });
+    // Story Mode: Hook first, Result / CTA last, as fixed markers (D-45).
+    const story = this.engine.storyAssets();
+    if (story.hook) cards.prepend(this.storyCard(story.hook, 'Hook'));
+    if (story.result) cards.appendChild(this.storyCard(story.result, 'Result'));
+    if (story.cta) cards.appendChild(this.storyCard(story.cta, 'CTA'));
     if (focusedId) {
       const again = cards.querySelector(`[data-id="${focusedId}"]`);
       if (again) again.focus();
     }
     this.markShowing();
+  }
+
+  storyCard(a, label) {
+    const card = document.createElement('div');
+    card.className = 'bin-card story-card' + (a.id === this.engine.selectedId ? ' selected' : '');
+    card.dataset.id = a.id;
+    card.tabIndex = 0;
+    card.setAttribute('role', 'option');
+    card.setAttribute('aria-label', `${label}: ${a.name}`);
+    card.title = 'Story block: fixed place, plays once. Click for options.';
+    const tag = document.createElement('span');
+    tag.className = 'bin-rank story-tag';
+    tag.textContent = label;
+    let thumb;
+    if (a.thumb) { thumb = document.createElement('img'); thumb.src = a.thumb.toDataURL('image/jpeg', 0.8); thumb.alt = ''; thumb.draggable = false; }
+    else thumb = document.createElement('div');
+    thumb.className = 'bin-thumb';
+    const meta = document.createElement('div');
+    meta.className = 'bin-meta';
+    meta.innerHTML = `<span class="bin-name"></span><span class="bin-dur"></span>`;
+    meta.firstChild.textContent = a.name;
+    meta.lastChild.textContent = a.kind === 'image' ? `${a.storyHold}s` : fmtTime(a.duration, false);
+    const tags = document.createElement('div');
+    tags.className = 'bin-tags';
+    tags.textContent = 'Story · once';
+    card.append(tag, thumb, meta, tags);
+    const select = () => { this.engine.select(a.id); if (this.app.sidebar) this.app.sidebar.open('assets'); };
+    card.addEventListener('click', select);
+    card.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); select(); } });
+    return card;
   }
 
   markShowing() {
@@ -543,7 +611,26 @@ class TimelinePanel {
       'waiting-bpm': 'Listening for tempo…',
       'running': `${st.clipPace ? `Clip pace ${MusicalTime.AUTO_PACES[st.clipPace].label}: holding` : 'Cutting every'} ${MusicalTime.describeBeats(st.intervalBeats)} · ${(st.intervalMs / 1000).toFixed(2)}s · ${this.engine.segments.length} cuts`,
     };
-    this.el.summary.textContent = messages[st.state];
+    this.el.summary.textContent = st.story
+      ? `Story block: ${({ hook: 'HOOK', result: 'RESULT / CLIMAX', cta: 'CTA' })[st.story]} · automation paused`
+      : messages[st.state];
+
+    // Story panel bits that depend on the source mode (track vs live).
+    const fadeBox = document.getElementById('propStoryFade');
+    const fadeOff = !this.engine.settings.storyMode || !track;
+    if (fadeBox.disabled !== fadeOff) fadeBox.disabled = fadeOff;
+    const hint = this.storyHint();
+    const hintEl = document.getElementById('propStoryHint');
+    if (hintEl.textContent !== hint) hintEl.textContent = hint;
+
+    // Live Story Mode: Result / CTA are fired by hand, once each.
+    const liveStory = this.engine.settings.storyMode && !track;
+    const assets = this.engine.storyAssets();
+    [['tlFireResult', 'result'], ['tlFireCta', 'cta']].forEach(([id, role]) => {
+      const b = document.getElementById(id);
+      b.hidden = !liveStory || !assets[role];
+      b.disabled = this.engine.fired.some(f => f.role === role) || !this.app.isRunning;
+    });
     this.updateReadout();
   }
 
@@ -569,6 +656,7 @@ class TimelinePanel {
       add('In', now.clip.kind === 'image' ? 'Still' : fmtTime(now.segment.inPoint, true));
       add('Cut', `${tr.glyph} ${tr.label}${now.transition ? ' …' : ''}`);
       add('Band', now.segment.band);
+      if (now.segment.story) add('Story', ({ hook: 'Hook', result: 'Result / Climax', cta: 'CTA' })[now.segment.story], 'on-air');
       this.el.hud.hidden = false;
     } else {
       this.el.hud.hidden = true;
@@ -742,6 +830,8 @@ class TimelinePanel {
       const isCur = seg === current;
       const clip = this.engine.clipById(seg.clipId);
 
+      if (seg.story) { this.drawStoryBlock(ctx, C, seg.story, x0, x1, top, bh, isCur); continue; }
+
       ctx.fillStyle = isCur ? C.ink : C.paper;
       ctx.fillRect(x0, top, w, bh);
 
@@ -777,6 +867,22 @@ class TimelinePanel {
       this.drawTransitionMark(ctx, C, seg, x0, x(seg.start + (seg.blendSec || 0)), top, bh);
     }
 
+    // Story Mode: outlines of blocks still to come (track mode plan).
+    if (this.engine.settings.storyMode) {
+      for (const b of this.engine.storyBlocks()) {
+        if (b.start <= now || b.start > start + span) continue;
+        ctx.save();
+        ctx.setLineDash([4, 3]);
+        ctx.strokeStyle = C.live;
+        ctx.strokeRect(Math.round(x(b.start)) + 0.5, top + 0.5, Math.max(1, x(b.end) - x(b.start) - 1), bh - 1);
+        ctx.restore();
+        ctx.fillStyle = C.live;
+        ctx.font = '700 9px "JetBrains Mono", monospace';
+        ctx.fillText(({ hook: 'HOOK', result: 'RESULT', cta: 'CTA' })[b.role], x(b.start) + 5, top + 13);
+        ctx.font = '600 10px "Inter Tight", sans-serif';
+      }
+    }
+
     // Upcoming cut points (ghost markers), from the live beat clock. The
     // next one is exact; later ones assume the global interval, since the
     // clips (and their paces) haven't been picked yet.
@@ -794,6 +900,29 @@ class TimelinePanel {
       }
       ctx.setLineDash([]);
     }
+  }
+
+  // Fixed story block on the clip lane: solid, labelled, live-red edge.
+  drawStoryBlock(ctx, C, role, x0, x1, top, bh, isCur) {
+    const w = Math.max(1, x1 - x0);
+    ctx.fillStyle = C.ink;
+    ctx.fillRect(x0, top, w, bh);
+    ctx.fillStyle = C.live;
+    ctx.fillRect(x0, top, Math.min(4, w), bh);
+    if (w > 30) {
+      ctx.save();
+      ctx.beginPath(); ctx.rect(x0, top, w - 2, bh); ctx.clip();
+      ctx.fillStyle = C.paper;
+      ctx.font = '700 10px "JetBrains Mono", monospace';
+      ctx.fillText(({ hook: 'HOOK', result: 'RESULT / CLIMAX', cta: 'CTA' })[role], x0 + 9, top + 14);
+      ctx.font = '9px "JetBrains Mono", monospace';
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      ctx.fillText(isCur ? 'story · on air' : 'story · once', x0 + 9, top + 27);
+      ctx.restore();
+    }
+    ctx.strokeStyle = C.ink;
+    ctx.strokeRect(Math.round(x0) + 0.5, top + 0.5, Math.max(1, Math.round(w) - 1), bh - 1);
+    ctx.font = '600 10px "Inter Tight", sans-serif';
   }
 
   // Voice lane: the take's waveform at its offset on the master timeline.
