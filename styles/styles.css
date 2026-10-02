@@ -622,6 +622,8 @@ input[type="range"]::-moz-range-thumb {
 .missing-list { margin: 0; padding-left: 16px; font-family: var(--font-mono); font-size: 10px; max-height: 120px; overflow-y: auto; }
 
 /* Story Mode (step 7) */
+select.is-dead { opacity: 0.4; cursor: not-allowed; background: var(--steel); }
+select option:disabled { color: var(--ink-3); }
 .prop-story { margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--ink); }
 #propStoryFadeRow { display: flex; }
 #propStoryFadeRow[hidden] { display: none; }

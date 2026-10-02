@@ -149,11 +149,25 @@ class AssetPanel {
     const storyMode = this.engine.settings.storyMode;
     const isStory = storyMode && a.story !== 'none';
     if (storyMode) {
-      const sg = this.group('Story');
-      sg.appendChild(this.row('Position', this.select(
-        [['none', 'None'], ['hook', 'Hook'], ['result', 'Result / Climax'], ['cta', 'CTA']], a.story,
+      // Position lock (D-58): three positions in total. A position held by
+      // another asset is greyed out; once all three are used, assets
+      // without one can't pick any (the control fades and goes dead).
+      const sg = this.group('Position lock');
+      const holders = {};
+      this.engine.assets.forEach(x => { if (x.story !== 'none') holders[x.story] = x; });
+      const full = Object.keys(holders).length >= 3 && a.story === 'none';
+      const labels = { hook: 'Hook', result: 'Result / Climax', cta: 'CTA' };
+      const pos = this.select(
+        [['none', 'None'], ['hook', labels.hook], ['result', labels.result], ['cta', labels.cta]], a.story,
         (v) => this.engine.setClipStory(a.id, v), 'propStory',
-        'Hook = beginning, Result / Climax = after the automated content, CTA = ending. Each plays once.')));
+        full ? 'All three positions are in use. Clear one on another clip to use it here.'
+          : 'Hook = beginning, Result / Climax = after the automated content, CTA = ending. Each plays once.');
+      Array.from(pos.options).forEach(o => {
+        const h = holders[o.value];
+        if (h && h !== a) { o.disabled = true; o.textContent = `${labels[o.value]} (in use: ${h.name})`; }
+      });
+      if (full) { pos.disabled = true; pos.classList.add('is-dead'); }
+      sg.appendChild(this.row('Position', pos));
       if (isStory && a.kind === 'image') {
         const hold = document.createElement('input');
         hold.type = 'number';

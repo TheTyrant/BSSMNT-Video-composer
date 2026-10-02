@@ -98,6 +98,7 @@ Supersedes parts of the v2.1 layout (the v2.1 table below describes it as it was
 - **Header pickers:** SRC / MODE dropdowns with an icon per mode and an activity light (D-50).
 - **EQ inside 02 Assets:** Sensitivity / Dynamic tabs with Use = Sensitivity, Dynamic or Blend; Dynamic is an analysis-only EQ (D-51).
 - **Shortcuts** (D-52), **drag-and-drop** anywhere sensible (D-53), **timeline drops reach the bin + rotated phone video fix** (D-54).
+- **Position lock replaces the Story Mode switch:** Hook / Result / CTA always available per asset, limited to three; Clip Auto-Editor starts on a track (D-58).
 
 ---
 

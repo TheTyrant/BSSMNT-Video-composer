@@ -242,6 +242,7 @@ class ProjectFile {
 
     // 2. Settings.
     Object.assign(e.settings, project.engine.settings);
+    e.settings.storyMode = true;   // D-58: positions are always available
     Object.assign(e.bandTransitions, project.engine.bandTransitions);
     document.querySelectorAll('#propBandMap select').forEach((sel, i) => { sel.value = e.bandTransitions[['bass', 'mid', 'high'][i]]; });
     app.timeline.syncProps();

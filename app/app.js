@@ -217,6 +217,7 @@ class DJVisualizerApp {
     this.visualModeSelect = document.getElementById('visualMode');
     this.visualModeSelect.addEventListener('change', () => {
       this.clipEngine.setActive(this.visualModeSelect.value === 'clips' && this.timelineRolling());
+      if (this.visualModeSelect.value === 'clips') this.enterClipMode();
     });
 
     this.timeline.init();
@@ -337,6 +338,18 @@ class DJVisualizerApp {
     ui.status.textContent = v.recording ? `Recording from ${fmtTime(v.recordStart, true)}…`
       : v.isLoaded ? `${v.name} · ${fmtTime(v.duration, true)} · starts ${fmtTime(v.offset, true)}`
       : 'No voice track';
+  }
+
+  // Clip Auto-Editor works on a track (D-58): switching to it selects Track
+  // file and, if no track is loaded yet, opens the track file dialog and
+  // 01 Audio. Not while a project is being restored.
+  enterClipMode() {
+    if (this.project && this.project.restoring) return;
+    if (this.audioSourceMode !== 'file') document.getElementById('audioSourceFile').click();
+    if (!this.trackSource.isLoaded) {
+      this.sidebar.open('audio');
+      this.audioFileInput.click();
+    }
   }
 
   // ---- Adding media (D-53, D-54) ------------------------------------------

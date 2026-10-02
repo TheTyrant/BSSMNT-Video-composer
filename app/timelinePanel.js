@@ -194,7 +194,7 @@ class TimelinePanel {
     overlay.addEventListener('change', () => { s.overlayLayers = overlay.checked; });
 
     // Story Mode (step 7). Off = Free Mode: the automation is unchanged.
-    this.segButtons($('propStoryMode'), null, (v) => {
+    if ($('propStoryMode')) this.segButtons($('propStoryMode'), null, (v) => {
       this.engine.setStoryMode(v === 'on');
       this.app.applyMusicLevel();
       this.syncProps();
@@ -209,6 +209,8 @@ class TimelinePanel {
   storyHint() {
     const s = this.engine.settings;
     if (!s.storyMode) return 'Free Mode: the automation runs unrestricted.';
+    const used = this.engine.assets.filter(a => a.story !== 'none').length;
+    if (!used) return 'No positions set. Give up to three clips a position (Hook, Result / Climax, CTA) in 02 Assets › Asset timing; everything else stays automated.';
     const roles = { hook: 'Hook', result: 'Result', cta: 'CTA' };
     const set = Object.keys(roles).map(r => {
       const a = this.engine.assets.find(x => x.story === r);
@@ -217,7 +219,7 @@ class TimelinePanel {
     const where = this.app.isTrackMode()
       ? 'Hook → automated content → Result → CTA, placed on the song.'
       : 'Live: Hook plays on Start; fire Result and CTA from the transport. Music fades need a track file.';
-    return `${where} Set positions in 02 Assets. ${set}`;
+    return `${where} ${set} (${used} of 3 used)`;
   }
 
   segButtons(container, _unused, onPick) {
@@ -240,10 +242,10 @@ class TimelinePanel {
     $('propTransition').value = s.transitionMode;
     $('propInPoint').value = s.inPoint;
     $('propOverlay').checked = s.overlayLayers;
-    mark('propStoryMode', s.storyMode ? 'on' : 'off');
+    if ($('propStoryMode')) mark('propStoryMode', s.storyMode ? 'on' : 'off');
     $('propStoryFade').checked = s.storyFade;
     $('propStoryFade').disabled = !s.storyMode || !this.app.isTrackMode();
-    $('propStoryFadeRow').hidden = !s.storyMode;
+    $('propStoryFadeRow').hidden = false;
     $('propStoryHint').textContent = this.storyHint();
     $('propBandMap').hidden = s.transitionMode !== 'band';
     document.querySelectorAll('[data-show-timing]').forEach(el => {

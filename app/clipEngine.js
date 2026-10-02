@@ -25,7 +25,7 @@ class ClipEngine {
       transitionMode: 'band',  // 'band' (auto by band) | a ClipTransitions id
       inPoint: 'random',       // 'random' | 'resume' | 'start'
       overlayLayers: false,    // draw Media Layers (bass/mid/high) over clips
-      storyMode: false,        // Story Mode (Hook / Result / CTA anchors); off = Free Mode
+      storyMode: true,         // D-58: positions (Hook / Result / CTA) are always available; with none set this is Free Mode
       storyFade: false,        // Auto Fade Music to Story Blocks
     };
     // Used when transitionMode === 'band': which band triggered the switch
