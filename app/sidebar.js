@@ -89,7 +89,8 @@ class Sidebar {
       const name = b.querySelector('.rail-label').textContent;
       b.classList.toggle('on', on);
       b.setAttribute('aria-expanded', String(on));
-      b.title = on ? `Close ${name}` : `Open ${name}`;
+      const key = this.panels.find(p => p.dataset.tab === tab).dataset.key;
+      b.title = (on ? `Close ${name}` : `Open ${name}`) + (key ? ` (${key})` : '');
     });
     this.listeners.forEach(fn => fn(open.slice()));
   }

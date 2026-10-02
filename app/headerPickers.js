@@ -24,6 +24,11 @@ class HeaderPickers {
     clips: '<rect x="1.5" y="3" width="13" height="10"/><path d="M4 3v10M12 3v10M1.5 6h2.5M1.5 10h2.5M12 6h2.5M12 10h2.5"/><path d="M7 6.5l2.5 1.5L7 9.5z"/>',
   };
 
+  static keyFor(mode) {
+    const code = Object.keys(DJVisualizerApp.MODE_KEYS).find(k => DJVisualizerApp.MODE_KEYS[k] === mode);
+    return code ? code.replace('Digit', '') : '';
+  }
+
   static icon(mode) {
     const body = HeaderPickers.ICONS[mode] || '';
     return `<svg class="mode-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true">${body}</svg>`;
@@ -47,7 +52,7 @@ class HeaderPickers {
     this.mode = this.makePicker($('modeBtn'), $('modeMenu'),
       () => Array.from(this.modeSelect.options).map(o => ({
         value: o.value, label: o.textContent,
-        html: `${HeaderPickers.icon(o.value)}<span>${o.textContent}</span>`,
+        html: `${HeaderPickers.icon(o.value)}<span>${o.textContent}</span><kbd class="menu-key">${HeaderPickers.keyFor(o.value)}</kbd>`,
       })),
       () => this.modeSelect.value,
       (v) => {

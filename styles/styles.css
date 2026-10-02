@@ -145,6 +145,7 @@ kbd {
 .hdr-menu li:hover, .hdr-menu li:focus { background: var(--steel); outline: none; }
 .hdr-menu li[aria-selected="true"] { background: var(--ink); color: var(--paper); }
 .mode-icon { flex: none; }
+.hdr-menu .menu-key { margin-left: auto; padding: 0 4px; font-size: 9px; border-color: currentColor; background: transparent; color: inherit; opacity: 0.7; }
 .activity-light { width: 8px; height: 8px; border-radius: 50%; border: 1px solid var(--live); background: transparent; flex: none; transition: background 0.08s, box-shadow 0.08s; }
 .activity-light.on { background: var(--live); }
 .activity-light.beat { box-shadow: 0 0 0 3px rgba(229, 50, 45, 0.3); }

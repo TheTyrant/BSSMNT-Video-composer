@@ -224,6 +224,20 @@ The brief's four questions were not answered before the build. Rather than guess
 - **Verified:** default = no filters, dry sound; Dynamic + a low-pass shape drops the analysis spectrum above the cut to 0 while the sound stays dry; Listen swaps dry for EQ'd and back; Blend applies faders + EQ, Dynamic counts faders as 1.0; dragging a point moves it and switches the preset to Custom. Full regression (16 checks) still passes.
 - **Not built (open):** the per-asset dynamic EQ from the earlier layout sketch. The latest instruction names the bottom section "Asset timing", so it was left out pending confirmation.
 
+### D-52 · Keyboard shortcuts *(Accepted — built)*
+| Keys | Action |
+|---|---|
+| **Ctrl+1 / Ctrl+2 / Ctrl+3** | Toggle 01 Audio / 02 Assets / 03 Output |
+| **Alt+1 / Alt+2 / Alt+3** | Same (fallback) |
+| **Shift+A** | Toggle the Auto-Editor (edit controls) |
+| **1–9** | Visualization modes in menu order (Spectrum, Particles, Rings, Waves, Mandala, Tunnel, Galaxy, Polygons, Media Layers) |
+| **0** | Clip Auto-Editor |
+| Space · F · R · ? · Esc | Unchanged (play/stop, fullscreen, reset gains, help) |
+
+- **Why the Alt fallback:** browsers reserve Ctrl+1–9 for switching browser tabs (and VS Code uses them for editor groups), so a web page often never receives them. Ctrl works where the browser passes it through (e.g. a desktop build); Alt works in a normal tab.
+- **As built:** number-pad digits work too. Plain-key shortcuts no longer fire while Ctrl/Alt/Cmd is held, so browser shortcuts like Ctrl+R / Ctrl+F aren't doubled up with app actions. Tab tooltips and the header MODE menu show each key; the help overlay (?) lists them.
+- **Verified:** Ctrl+1/2/3 and Alt+2 toggle the right panels (second press closes); Shift+A toggles the Auto-Editor; 5…9, 0, Numpad 3, 1 select the matching modes.
+
 ### Q17 · Export *(open — in discussion with Omar)*
 Real-time capture vs. an offline builder. Offline is the goal (long-form edits can't take real time), and needs the Phase 1 plan model + offline song analysis first. To be decided before building.
 

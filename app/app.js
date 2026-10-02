@@ -1,4 +1,10 @@
 class DJVisualizerApp {
+  // Number keys for visualization modes, in menu order; 0 = clip editor.
+  static MODE_KEYS = {
+    Digit1: 'spectrum', Digit2: 'particles', Digit3: 'rings', Digit4: 'waves', Digit5: 'mandala',
+    Digit6: 'tunnel', Digit7: 'galaxy', Digit8: 'polygons', Digit9: 'layers', Digit0: 'clips',
+  };
+
   constructor() {
     this.audioProcessor = new AudioProcessor();
     this.visualizer = new DJVisualizer();
@@ -45,6 +51,8 @@ class DJVisualizerApp {
     // Modular tab sidebar (v2.1, D-42)
     // Left tabs (stack up to 2 panels) and the right Auto-Editor sidebar.
     // Both start closed and only span the viewport row (D-48).
+    [['panel-audio', 'Ctrl+1'], ['customMediaSection', 'Ctrl+2'], ['panel-output', 'Ctrl+3'], ['panel-autoedit', 'Shift+A']]
+      .forEach(([id, key]) => { const el = document.getElementById(id); if (el) el.dataset.key = key; });
     this.sidebar = new Sidebar('sidebar', 'tabPanels', 'tabRail', { maxOpen: 1 });
     this.sidebar.init();
     this.rightbar = new Sidebar('rightbar', 'rightPanels', 'rightRail', { maxOpen: 1 });
@@ -117,26 +125,36 @@ class DJVisualizerApp {
       // Selects use letters/digits for type-ahead; leave those alone.
       if (t.tagName === 'SELECT') return;
 
+      // Panels (D-52): Ctrl+1/2/3 = Audio / Assets / Output. Alt+1/2/3 does
+      // the same, because many browsers keep Ctrl+digit for switching tabs.
+      const digit = e.code.replace('Numpad', 'Digit');
+      const panelKeys = { Digit1: 'audio', Digit2: 'assets', Digit3: 'output' };
+      if ((e.ctrlKey || e.metaKey || e.altKey) && panelKeys[digit]) {
+        e.preventDefault();
+        this.sidebar.toggle(panelKeys[digit]);
+        return;
+      }
+      // Leave every other browser shortcut alone (Ctrl+R, Ctrl+F, …).
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+      // Shift+A: Auto-Editor (edit controls), right sidebar.
+      if (e.shiftKey && e.code === 'KeyA') {
+        e.preventDefault();
+        this.rightbar.toggle('autoedit');
+        return;
+      }
+
+      // 1–9 and 0: visualization modes in menu order; 0 = Clip Auto-Editor.
+      if (!e.shiftKey && DJVisualizerApp.MODE_KEYS[digit]) {
+        e.preventDefault();
+        this.switchVisualizationMode(DJVisualizerApp.MODE_KEYS[digit]);
+        return;
+      }
+
       switch(e.code) {
         case 'KeyF':
           e.preventDefault();
           this.toggleFullscreen();
-          break;
-        case 'Digit1':
-          e.preventDefault();
-          this.switchVisualizationMode('spectrum');
-          break;
-        case 'Digit2':
-          e.preventDefault();
-          this.switchVisualizationMode('particles');
-          break;
-        case 'Digit3':
-          e.preventDefault();
-          this.switchVisualizationMode('rings');
-          break;
-        case 'Digit4':
-          e.preventDefault();
-          this.switchVisualizationMode('waves');
           break;
         case 'KeyR':
           e.preventDefault();
