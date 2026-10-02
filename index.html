@@ -33,202 +33,185 @@
         <button class="btn btn-ghost btn-icon" id="helpBtn" type="button" title="Keyboard shortcuts (?)">?</button>
       </header>
 
-      <!-- Sidebar Controls -->
-      <aside class="sidebar">
-        <section class="control-section">
-          <h3><span class="sec-num">01</span>Audio</h3>
-          <div class="seg source-toggle-group" role="radiogroup" aria-label="Audio source">
-            <label class="source-toggle">
-              <input type="radio" name="audioSource" value="mic" id="audioSourceMic" checked>
-              <span>Live input</span>
-            </label>
-            <label class="source-toggle">
-              <input type="radio" name="audioSource" value="file" id="audioSourceFile">
-              <span>Track file</span>
-            </label>
-          </div>
+      <!-- Sidebar: modular tabs. app/sidebar.js builds the rail from the
+           .side-panel sections below; adding a tab = adding a section. -->
+      <aside class="sidebar" id="sidebar">
+        <nav class="tab-rail" id="tabRail" aria-label="Sidebar sections"></nav>
+        <div class="tab-panels" id="tabPanels">
+          <section class="control-section side-panel" id="panel-audio" data-tab="audio" data-num="01" data-label="Audio">
+            <h3><span class="sec-num">01</span>Audio</h3>
+            <div class="seg source-toggle-group" role="radiogroup" aria-label="Audio source">
+              <label class="source-toggle">
+                <input type="radio" name="audioSource" value="mic" id="audioSourceMic" checked>
+                <span>Live input</span>
+              </label>
+              <label class="source-toggle">
+                <input type="radio" name="audioSource" value="file" id="audioSourceFile">
+                <span>Track file</span>
+              </label>
+            </div>
 
-          <div id="micSourceControls">
+            <div id="micSourceControls">
+              <div class="field">
+                <label for="audioInputSelect">Input device</label>
+                <select id="audioInputSelect">
+                  <option value="">Auto-select best device</option>
+                </select>
+              </div>
+            </div>
+
+            <div id="fileSourceControls" class="hidden">
+              <div class="field dropzone" id="audioDropZone">
+                <label for="audioFileUpload">Song / track</label>
+                <input type="file" id="audioFileUpload" accept="audio/*">
+                <span id="audioFileStatus" class="custom-media-status">No file selected</span>
+              </div>
+            </div>
+
+            <div class="btn-row">
+              <button id="start" class="btn btn-primary" type="button">Start Audio</button>
+              <button id="fullscreen" class="btn" type="button">Fullscreen</button>
+            </div>
+
+            <h4 class="sub-head">Visualization</h4>
             <div class="field">
-              <label for="audioInputSelect">Input device</label>
-              <select id="audioInputSelect">
-                <option value="">Auto-select best device</option>
+              <label for="visualMode">Mode</label>
+              <select id="visualMode">
+                <option value="spectrum">Spectrum Bars</option>
+                <option value="particles">Floating Particles</option>
+                <option value="rings">Frequency Rings</option>
+                <option value="waves">Wave Forms</option>
+                <option value="mandala">Mandala</option>
+                <option value="tunnel">Tunnel Vision</option>
+                <option value="galaxy">Galaxy</option>
+                <option value="polygons">Polygon Collage</option>
+                <option value="layers">Media Layers</option>
+                <option value="clips">Clip Auto-Editor</option>
               </select>
             </div>
-          </div>
+          </section>
 
-          <div id="fileSourceControls" class="hidden">
-            <div class="field dropzone" id="audioDropZone">
-              <label for="audioFileUpload">Song / track</label>
-              <input type="file" id="audioFileUpload" accept="audio/*">
-              <span id="audioFileStatus" class="custom-media-status">No file selected</span>
-            </div>
-          </div>
-
-          <div class="btn-row">
-            <button id="start" class="btn btn-primary" type="button">Start Audio</button>
-            <button id="fullscreen" class="btn" type="button">Fullscreen</button>
-          </div>
-        </section>
-
-        <section class="control-section">
-          <h3><span class="sec-num">02</span>Visualization</h3>
-          <div class="field">
-            <label for="visualMode">Mode</label>
-            <select id="visualMode">
-              <option value="spectrum">Spectrum Bars</option>
-              <option value="particles">Floating Particles</option>
-              <option value="rings">Frequency Rings</option>
-              <option value="waves">Wave Forms</option>
-              <option value="mandala">Mandala</option>
-              <option value="tunnel">Tunnel Vision</option>
-              <option value="galaxy">Galaxy</option>
-              <option value="polygons">Polygon Collage</option>
-              <option value="layers">Media Layers</option>
-              <option value="clips">Clip Auto-Editor</option>
-            </select>
-          </div>
-        </section>
-
-        <section class="control-section">
-          <h3><span class="sec-num">03</span>EQ</h3>
-          <div class="mixer">
-            <div class="strip bass">
-              <div class="strip-head"><span class="chip"></span>Bass</div>
-              <div class="frequency-info"><div class="freq-band bass"><div class="freq-fill bass-fill"></div></div></div>
-              <span class="freq-range">20–250Hz</span>
-              <div class="slider-group">
-                <input type="range" id="bassGain" min="0.1" max="3" step="0.1" value="1" aria-label="Bass sensitivity">
-                <span id="bassValue">1.0</span>
+          <section class="control-section side-panel" id="panel-eq" data-tab="eq" data-num="02" data-label="EQ">
+            <h3><span class="sec-num">02</span>EQ</h3>
+            <div class="mixer">
+              <div class="strip bass">
+                <div class="strip-head"><span class="chip"></span>Bass</div>
+                <div class="frequency-info"><div class="freq-band bass"><div class="freq-fill bass-fill"></div></div></div>
+                <span class="freq-range">20–250Hz</span>
+                <div class="slider-group">
+                  <input type="range" id="bassGain" min="0.1" max="3" step="0.1" value="1" aria-label="Bass sensitivity">
+                  <span id="bassValue">1.0</span>
+                </div>
+              </div>
+              <div class="strip mid">
+                <div class="strip-head"><span class="chip"></span>Mid</div>
+                <div class="frequency-info"><div class="freq-band mid"><div class="freq-fill mid-fill"></div></div></div>
+                <span class="freq-range">250–4kHz</span>
+                <div class="slider-group">
+                  <input type="range" id="midGain" min="0.1" max="3" step="0.1" value="1" aria-label="Mid sensitivity">
+                  <span id="midValue">1.0</span>
+                </div>
+              </div>
+              <div class="strip high">
+                <div class="strip-head"><span class="chip"></span>High</div>
+                <div class="frequency-info"><div class="freq-band high"><div class="freq-fill high-fill"></div></div></div>
+                <span class="freq-range">4k–20kHz</span>
+                <div class="slider-group">
+                  <input type="range" id="highGain" min="0.1" max="3" step="0.1" value="1" aria-label="High sensitivity">
+                  <span id="highValue">1.0</span>
+                </div>
               </div>
             </div>
-            <div class="strip mid">
-              <div class="strip-head"><span class="chip"></span>Mid</div>
-              <div class="frequency-info"><div class="freq-band mid"><div class="freq-fill mid-fill"></div></div></div>
-              <span class="freq-range">250–4kHz</span>
-              <div class="slider-group">
-                <input type="range" id="midGain" min="0.1" max="3" step="0.1" value="1" aria-label="Mid sensitivity">
-                <span id="midValue">1.0</span>
+            <p class="hint">Level meters (top) and sensitivity (fader). <kbd>R</kbd> resets.</p>
+          </section>
+
+          <section class="control-section side-panel" id="customMediaSection" data-tab="assets" data-num="03" data-label="Assets">
+            <h3><span class="sec-num">03</span>Media Layers</h3>
+
+            <div class="layer-upload-group dropzone">
+              <div class="layer-head">
+                <label class="layer-label">Background</label>
+              </div>
+              <input type="file" class="layer-file-input" id="layerUpload-background" accept="image/*,video/*">
+              <span class="custom-media-status" id="layerStatus-background">No file selected</span>
+            </div>
+
+            <div class="layer-upload-group dropzone band-bass">
+              <div class="layer-head">
+                <label class="layer-label layer-toggle">
+                  <input type="checkbox" id="layerEnabled-bass" checked>
+                  <span class="chip"></span>Bass
+                </label>
+              </div>
+              <input type="file" class="layer-file-input" id="layerUpload-bass" accept="image/*,video/*">
+              <span class="custom-media-status" id="layerStatus-bass">No file selected</span>
+              <div class="layer-controls">
+                <select id="layerJustify-bass" aria-label="Bass justify">
+                  <option value="left">Left</option>
+                  <option value="center" selected>Center</option>
+                  <option value="right">Right</option>
+                </select>
+                <select id="layerStack-bass" aria-label="Bass stack">
+                  <option value="top">Top</option>
+                  <option value="middle" selected>Middle</option>
+                  <option value="bottom">Bottom</option>
+                </select>
               </div>
             </div>
-            <div class="strip high">
-              <div class="strip-head"><span class="chip"></span>High</div>
-              <div class="frequency-info"><div class="freq-band high"><div class="freq-fill high-fill"></div></div></div>
-              <span class="freq-range">4k–20kHz</span>
-              <div class="slider-group">
-                <input type="range" id="highGain" min="0.1" max="3" step="0.1" value="1" aria-label="High sensitivity">
-                <span id="highValue">1.0</span>
+
+            <div class="layer-upload-group dropzone band-mid">
+              <div class="layer-head">
+                <label class="layer-label layer-toggle">
+                  <input type="checkbox" id="layerEnabled-mid">
+                  <span class="chip"></span>Mid
+                </label>
+              </div>
+              <input type="file" class="layer-file-input" id="layerUpload-mid" accept="image/*,video/*">
+              <span class="custom-media-status" id="layerStatus-mid">No file selected</span>
+              <div class="layer-controls">
+                <select id="layerJustify-mid" aria-label="Mid justify">
+                  <option value="left">Left</option>
+                  <option value="center" selected>Center</option>
+                  <option value="right">Right</option>
+                </select>
+                <select id="layerStack-mid" aria-label="Mid stack">
+                  <option value="top" selected>Top</option>
+                  <option value="middle">Middle</option>
+                  <option value="bottom">Bottom</option>
+                </select>
               </div>
             </div>
-          </div>
-          <p class="hint">Level meters (top) and sensitivity (fader). <kbd>R</kbd> resets.</p>
-        </section>
 
-        <section class="control-section">
-          <h3><span class="sec-num">04</span>Status</h3>
-          <div class="status-info">
-            <div class="status-item">
-              <span class="status-label">Device</span>
-              <span id="deviceStatus">No device selected</span>
+            <div class="layer-upload-group dropzone band-high">
+              <div class="layer-head">
+                <label class="layer-label layer-toggle">
+                  <input type="checkbox" id="layerEnabled-high">
+                  <span class="chip"></span>High
+                </label>
+              </div>
+              <input type="file" class="layer-file-input" id="layerUpload-high" accept="image/*,video/*">
+              <span class="custom-media-status" id="layerStatus-high">No file selected</span>
+              <div class="layer-controls">
+                <select id="layerJustify-high" aria-label="High justify">
+                  <option value="left">Left</option>
+                  <option value="center" selected>Center</option>
+                  <option value="right">Right</option>
+                </select>
+                <select id="layerStack-high" aria-label="High stack">
+                  <option value="top">Top</option>
+                  <option value="middle">Middle</option>
+                  <option value="bottom" selected>Bottom</option>
+                </select>
+              </div>
             </div>
-            <div class="status-item">
-              <span class="status-label">BPM</span>
-              <span id="bpmCounter">--</span>
-              <div class="beat-indicator" id="beatIndicator"></div>
-            </div>
-            <div class="status-item">
-              <span class="status-label">FPS</span>
-              <span id="fpsCounter">--</span>
-            </div>
-          </div>
-        </section>
+          </section>
 
-        <section class="control-section" id="customMediaSection">
-          <h3><span class="sec-num">05</span>Media Layers</h3>
-
-          <div class="layer-upload-group dropzone">
-            <div class="layer-head">
-              <label class="layer-label">Background</label>
-            </div>
-            <input type="file" class="layer-file-input" id="layerUpload-background" accept="image/*,video/*">
-            <span class="custom-media-status" id="layerStatus-background">No file selected</span>
-          </div>
-
-          <div class="layer-upload-group dropzone band-bass">
-            <div class="layer-head">
-              <label class="layer-label layer-toggle">
-                <input type="checkbox" id="layerEnabled-bass" checked>
-                <span class="chip"></span>Bass
-              </label>
-            </div>
-            <input type="file" class="layer-file-input" id="layerUpload-bass" accept="image/*,video/*">
-            <span class="custom-media-status" id="layerStatus-bass">No file selected</span>
-            <div class="layer-controls">
-              <select id="layerJustify-bass" aria-label="Bass justify">
-                <option value="left">Left</option>
-                <option value="center" selected>Center</option>
-                <option value="right">Right</option>
-              </select>
-              <select id="layerStack-bass" aria-label="Bass stack">
-                <option value="top">Top</option>
-                <option value="middle" selected>Middle</option>
-                <option value="bottom">Bottom</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="layer-upload-group dropzone band-mid">
-            <div class="layer-head">
-              <label class="layer-label layer-toggle">
-                <input type="checkbox" id="layerEnabled-mid">
-                <span class="chip"></span>Mid
-              </label>
-            </div>
-            <input type="file" class="layer-file-input" id="layerUpload-mid" accept="image/*,video/*">
-            <span class="custom-media-status" id="layerStatus-mid">No file selected</span>
-            <div class="layer-controls">
-              <select id="layerJustify-mid" aria-label="Mid justify">
-                <option value="left">Left</option>
-                <option value="center" selected>Center</option>
-                <option value="right">Right</option>
-              </select>
-              <select id="layerStack-mid" aria-label="Mid stack">
-                <option value="top" selected>Top</option>
-                <option value="middle">Middle</option>
-                <option value="bottom">Bottom</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="layer-upload-group dropzone band-high">
-            <div class="layer-head">
-              <label class="layer-label layer-toggle">
-                <input type="checkbox" id="layerEnabled-high">
-                <span class="chip"></span>High
-              </label>
-            </div>
-            <input type="file" class="layer-file-input" id="layerUpload-high" accept="image/*,video/*">
-            <span class="custom-media-status" id="layerStatus-high">No file selected</span>
-            <div class="layer-controls">
-              <select id="layerJustify-high" aria-label="High justify">
-                <option value="left">Left</option>
-                <option value="center" selected>Center</option>
-                <option value="right">Right</option>
-              </select>
-              <select id="layerStack-high" aria-label="High stack">
-                <option value="top">Top</option>
-                <option value="middle">Middle</option>
-                <option value="bottom" selected>Bottom</option>
-              </select>
-            </div>
-          </div>
-        </section>
-
-        <section class="control-section">
-          <h3><span class="sec-num">06</span>Output</h3>
-          <button id="popOutOutput" class="btn btn-block" type="button">Pop Out Output Window</button>
-          <p class="hint">Drag the pop-out to your projector and fullscreen it there. Canvas only &mdash; no controls.</p>
-        </section>
+          <section class="control-section side-panel" id="panel-output" data-tab="output" data-num="04" data-label="Output">
+            <h3><span class="sec-num">04</span>Output</h3>
+            <button id="popOutOutput" class="btn btn-block" type="button">Pop Out Output Window</button>
+            <p class="hint">Drag the pop-out to your projector and fullscreen it there. Canvas only &mdash; no controls.</p>
+          </section>
+        </div>
       </aside>
 
       <!-- Main workspace: viewport over editor -->
@@ -243,6 +226,22 @@
             <div id="p5-canvas"></div>
             <div class="viewport-hud" id="viewportHud" hidden></div>
             <div class="viewport-hint" id="viewportHint" hidden></div>
+            <!-- Status overlay (was the sidebar Status section; same IDs) -->
+            <div class="status-overlay" id="statusOverlay" aria-label="Status">
+              <div class="status-item">
+                <span class="status-label">Device</span>
+                <span id="deviceStatus">No device selected</span>
+              </div>
+              <div class="status-item">
+                <span class="status-label">BPM</span>
+                <span id="bpmCounter">--</span>
+                <div class="beat-indicator" id="beatIndicator"></div>
+              </div>
+              <div class="status-item">
+                <span class="status-label">FPS</span>
+                <span id="fpsCounter">--</span>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -386,6 +385,7 @@
     <script src="app/transitions.js"></script>
     <script src="app/clipEngine.js"></script>
     <script src="app/timelinePanel.js"></script>
+    <script src="app/sidebar.js"></script>
     <script src="app/app.js"></script>
   </body>
 </html>

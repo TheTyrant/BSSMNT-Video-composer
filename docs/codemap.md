@@ -22,6 +22,7 @@ app/
   clipEngine.js            Clip auto-editor: clip bin data, beat-locked switching, segment log
   voiceTrack.js            ⬜ v2.1 — voice-over record/import, volume, normalize (own audio chain)
   timelinePanel.js         Bottom editor UI: master timeline, clip lane, bin, properties, HUD
+  sidebar.js               Modular tab sidebar: rail built from .side-panel sections, collapse to rail
   app.js                   App controller: wiring, audio source modes, master clock, shortcuts
   output.js                Pop-out window renderer (mirrors control window state)
 test-assets/
@@ -34,7 +35,7 @@ netlify.toml · vercel.json Static deploy configs (vercel uses globs: *.html, ap
 **No build step.** Plain `<script>` tags, global classes, loaded in this order (order matters — later files reference earlier globals):
 
 ```
-p5 (CDN) → audioProcessor → visualizer → trackSource → musicalTime → transitions → clipEngine → timelinePanel → app
+p5 (CDN) → audioProcessor → visualizer → trackSource → musicalTime → transitions → clipEngine → timelinePanel → sidebar → app
 ```
 
 External runtime dependencies: p5.js 1.9.0 (cdnjs), p5.asciify (unpkg, currently unused), Google Fonts (Boldonse, Inter Tight, JetBrains Mono — falls back to system fonts offline).
@@ -178,10 +179,23 @@ Single 2D canvas redrawn ~30 fps. Row heights `ROWS = { ruler 28, master 72, cli
 | `updateHeader()` / `updateHud()` | LCD readouts, mode badge, summary; viewport HUD + hints |
 | `draw()` → `drawRuler` · `drawMaster` · `drawClips` · `drawTransitionMark` | Ruler, waveform + energy, beat/bar grid, segments, ghost cut markers, playhead |
 
+### 3.7b `app/sidebar.js` — `class Sidebar` — ✅ *(v2.1 step 3a)*
+Builds a rail button per `#tabPanels > .side-panel` (`data-tab`, `data-num`, `data-label`); one panel open at a time.
+
+| Function | Role |
+|---|---|
+| `init()` | Restore `{open, collapsed}` from localStorage (`djv.sidebar`, try/catch), build rail + « button |
+| `onTab(tab)` | Open a tab; clicking the open tab collapses to the rail |
+| `open(tab)` / `toggleCollapsed()` / `apply()` | Programmatic open (e.g. select an asset → 03 Assets), collapse, render + persist |
+
+Tabs: **01 Audio** (source, device, start/fullscreen, Visualization) · **02 EQ** · **03 Assets** · **04 Output**. The canvas follows the width change through the viewport `ResizeObserver` (D-21).
+
+**Status overlay** (step 3b): `#statusOverlay` in `.visualizer-container`, top-right, holds `deviceStatus` / `bpmCounter` / `beatIndicator` / `fpsCounter` (IDs unchanged). `#viewportHud` (top-left, clip on air) uses the same `.status-item` rows.
+
 ### 3.8 `app/app.js` — `class DJVisualizerApp` — ✅
 | Area | Functions |
 |---|---|
-| Boot | `init()` — DOM refs, listeners, shortcuts, `onDataUpdate` fan-out, `timeline.init()` |
+| Boot | `init()` — `Sidebar` first, then DOM refs, listeners, shortcuts, `onDataUpdate` fan-out, `timeline.init()` |
 | Devices | `checkAudioPermissions`, `populateAudioDevices`, `onDeviceSelectionChange`, `restartAudioWithNewDevice` |
 | Source modes | `setAudioSourceMode('mic'|'file')`, `loadAudioFile(file)`, `wireDropZone` |
 | Transport | `toggleAudio`, `startAudio`, `stopAudio`, `transportStop`, `setStartButton` |
@@ -246,8 +260,8 @@ Spec: [brief-v2.1.md](brief-v2.1.md). Decisions: D-31–D-46; open questions Q9�
 |---|---|---|
 | 2a ✅ | `clipEngine.js` (kept in the engine: `assets[]` + `clips` getter) | Asset list with the fields above; `addFiles()` accepts `video/*` and `image/*`; `setClipImportance(id, n)` / `moveClip(id, toIndex)` renumber the stack; `setClipStory(id, role)` enforces one asset per role; `setAssetLayer(id, slot)` calls `viz.loadLayerMedia(slot, file)` / `clearLayerMedia`. Emits `'clips'` |
 | 2b ✅ | `trackSource.js` | `load()` creates `this.musicGain` between analyser and destination; `setMusicLevel(v, rampSec?)`. `unload()` drops it |
-| 3a | `index.html`, `styles.css`, new `app/sidebar.js` | Tab rail + slide-out panels; sections registered as modules `{num, label, el}`; `open(tab)`, `toggleCollapsed()`; localStorage in try/catch. Order: 01 Audio (+ Visualization) · 02 EQ · 03 Assets · 04 Output |
-| 3b | `index.html`, `styles.css` | `.status-overlay` (top-right of `.viewport-stage`, semi-transparent) holding `deviceStatus` / `bpmCounter` / `beatIndicator` / `fpsCounter` (same IDs); `#viewportHud` restyled to match |
+| 3a ✅ | `index.html`, `styles.css`, new `app/sidebar.js` | Tab rail + slide-out panels; sections registered as modules `{num, label, el}`; `open(tab)`, `toggleCollapsed()`; localStorage in try/catch. Order: 01 Audio (+ Visualization) · 02 EQ · 03 Assets · 04 Output |
+| 3b ✅ | `index.html`, `styles.css` | `.status-overlay` (top-right of `.visualizer-container`, semi-transparent) holding `deviceStatus` / `bpmCounter` / `beatIndicator` / `fpsCounter` (same IDs); `#viewportHud` restyled to match |
 | 4a | `index.html`, `timelinePanel.js` (or `app/assetPanel.js`) | 03 Assets: drop zone + `<input accept="image/*,video/*" multiple>`, asset list with thumbs, `select(id)` (shared selection with the Action Editor) |
 | 4b | same | `renderProps(asset)`: fields shown per D-44 (kind, Use as, layer fields, band, Pace, Importance, Story Position, status, Remove) |
 | 4c | `visualizer.js` | Layer upload inputs removed; `init()` no longer binds `layerUpload-*`; layer controls bound from the properties panel. Check `output.js` still mirrors layers |

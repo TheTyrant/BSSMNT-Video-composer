@@ -32,6 +32,10 @@ class DJVisualizerApp {
   }
 
   async init() {
+    // Modular tab sidebar (v2.1, D-42)
+    this.sidebar = new Sidebar();
+    this.sidebar.init();
+
     // Initialize DOM elements
     this.startBtn = document.getElementById('start');
     this.fullscreenBtn = document.getElementById('fullscreen');
@@ -650,7 +654,7 @@ class DJVisualizerApp {
     
     if (currentTime - this.lastFrameTime >= 1000) {
       const fps = Math.round((this.frameCount * 1000) / (currentTime - this.lastFrameTime));
-      this.fpsCounter.textContent = `FPS: ${fps}`;
+      this.fpsCounter.textContent = `${fps}`;
       this.frameCount = 0;
       this.lastFrameTime = currentTime;
     }

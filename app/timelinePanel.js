@@ -475,18 +475,24 @@ class TimelinePanel {
     const inClips = this.app.visualizer.currentMode === 'clips';
     const now = inClips ? this.engine.nowShowing() : null;
     if (now) {
+      // Same row layout as the Status overlay (D-43).
       const tr = ClipTransitions.get(now.segment.transition);
       this.el.hud.innerHTML = '';
-      const add = (txt, inv) => {
-        const s = document.createElement('span');
-        s.textContent = txt;
-        if (inv) s.className = 'inv';
-        this.el.hud.appendChild(s);
+      const add = (label, value, cls) => {
+        const row = document.createElement('div');
+        row.className = 'status-item' + (cls ? ` ${cls}` : '');
+        const l = document.createElement('span');
+        l.className = 'status-label';
+        l.textContent = label;
+        const v = document.createElement('span');
+        v.textContent = value;
+        row.append(l, v);
+        this.el.hud.appendChild(row);
       };
-      add(`▶ ${now.clip.name}`, true);
-      add(`IN ${fmtTime(now.segment.inPoint, true)}`);
-      add(`${tr.glyph} ${tr.label}${now.transition ? ' …' : ''}`);
-      add(`${now.segment.band}`);
+      add('On air', now.clip.name, 'on-air');
+      add('In', now.clip.kind === 'image' ? 'Still' : fmtTime(now.segment.inPoint, true));
+      add('Cut', `${tr.glyph} ${tr.label}${now.transition ? ' …' : ''}`);
+      add('Band', now.segment.band);
       this.el.hud.hidden = false;
     } else {
       this.el.hud.hidden = true;

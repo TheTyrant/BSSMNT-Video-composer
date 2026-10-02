@@ -284,7 +284,7 @@ Everything in this section is **Proposed**. Each entry becomes *Accepted* (or is
 ### D-41 · Voice lane on the timeline
 - **Decision:** A **Voice** row below the clip lane shows the voice waveform at its offset, using the same peaks approach as `loadTrackWaveform` (D-14). `TimelinePanel.ROWS` gains `voice`, and the matching `.ch-voice` height goes in CSS (D-15 invariant). The row is only drawn when a voice track exists.
 
-### D-42 · Modular tab sidebar *(Omar, 2026-10-02)*
+### D-42 · Modular tab sidebar *(Accepted — built in step 3a)*
 - **Decision:** Each sidebar section becomes a **tab** that slides its panel open. The whole sidebar collapses to a **tabs-only rail** (number + short label) and expands again; the open tab and collapsed state are remembered in localStorage (try/catch, per D-21 practice). New order:
   - **01 Audio:** source, device, start and fullscreen, plus **Visualization** (mode select) folded in.
   - **02 EQ:** the three channel strips, in their own slide-out.
@@ -293,11 +293,12 @@ Everything in this section is **Proposed**. Each entry becomes *Accepted* (or is
   Sections are built as modules, so adding or reordering a tab is a one-place change.
 - **Why:** More room for the viewport and the editor. "Blender growth, Canva complexity": panels can be added later without the sidebar growing into a scroll.
 - **Consequences:** Element IDs inside the sections stay the same (invariant 3), so `app.js` and `visualizer.js` wiring is untouched. The p5 canvas must resize when the sidebar collapses; the existing `ResizeObserver` (D-21) covers that.
+- **As built:** clicking the open tab also collapses to the rail (as well as the « button); clicking any tab while collapsed slides its panel out. The topbar brand no longer tracks the sidebar width. **Verified:** canvas 1287 → 1539 px on collapse; tab and collapsed state survive a reload.
 
-### D-43 · Status becomes a viewport overlay *(Omar, 2026-10-02)*
+### D-43 · Status becomes a viewport overlay *(Accepted — built in step 3b; per-asset status lands in step 4b)*
 - **Decision:** The **Status** section (Device, BPM + beat indicator, FPS) leaves the sidebar and becomes a **semi-transparent overlay in the top-right of the viewport**, styled like the old sidebar Status rows. Its IDs (`deviceStatus`, `bpmCounter`, `beatIndicator`, `fpsCounter`) move with it. The existing top-left `#viewportHud` (clip now showing) stays, restyled to match. Per-asset status (type, duration, resolution, decoded / ERR, ON AIR, layer or clip role) shows **under the selected asset** in 03 Assets.
 - **Why:** Status is something you read while watching the picture, so it belongs on the picture. Asset status belongs with the asset.
-- **Consequences:** The overlay is in the control window only; the pop-out stays canvas-only.
+- **Consequences:** The overlay is in the control window only; the pop-out stays canvas-only. FPS now reads as a bare number, since its row is labelled (same as BPM, D-20).
 
 ### D-44 · 03 Assets = the real asset bin, with per-item properties *(Omar, 2026-10-02)*
 - **Decision:** 03 Assets has a single drop zone + chooser for **images and video**, and a list of every asset with thumbnails. **Selecting** an asset shows its properties where the Bass/Mid/High upload slots used to be. The fields change with the item:

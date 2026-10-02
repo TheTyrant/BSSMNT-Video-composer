@@ -60,7 +60,7 @@ kbd {
 
 .app-container {
   display: grid;
-  grid-template-columns: var(--sidebar-w) 1fr;
+  grid-template-columns: auto 1fr;
   grid-template-rows: var(--topbar-h) 1fr;
   height: 100vh;
   width: 100vw;
@@ -80,7 +80,7 @@ kbd {
   display: flex;
   align-items: stretch;
   height: 100%;
-  width: var(--sidebar-w);
+  padding-right: 16px;
   border-right: 1px solid var(--ink);
 }
 /* Logo: BSS over MNT, stacked tight. Boldonse has tall line metrics, so
@@ -216,11 +216,66 @@ input[type="checkbox"] { accent-color: var(--ink); margin: 0; }
 
 /* ---------- Sidebar ------------------------------------------------------ */
 
+/* Modular tab sidebar (D-42): a tabs-only rail + one slide-out panel.
+   Collapsed = rail only. Panels are built from .side-panel sections. */
 .sidebar {
+  display: flex;
+  min-height: 0;
   background: var(--panel);
   border-right: 1px solid var(--ink);
+}
+.tab-rail {
+  width: 60px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--ink);
+  background: var(--surface);
+}
+.rail-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  height: 60px;
+  padding: 0;
+  border: none;
+  border-bottom: 1px solid var(--hair);
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+.rail-tab:hover { background: var(--steel); }
+.rail-tab.on { background: var(--ink); color: var(--paper); }
+.rail-num { font-family: var(--font-mono); font-size: 13px; font-weight: 700; }
+.rail-label { font-family: var(--font-mono); font-size: 8px; letter-spacing: 0.08em; text-transform: uppercase; }
+.rail-collapse {
+  margin-top: auto;
+  height: 36px;
+  border: none;
+  border-top: 1px solid var(--ink);
+  background: transparent;
+  font-size: 14px;
+  cursor: pointer;
+}
+.rail-collapse:hover { background: var(--ink); color: var(--paper); }
+.tab-panels {
+  width: calc(var(--sidebar-w) - 60px);
+  overflow-x: hidden;
   overflow-y: auto;
   min-height: 0;
+  transition: width 0.18s ease;
+}
+.side-panel { width: calc(var(--sidebar-w) - 60px); border-bottom: none; }
+.sidebar.collapsed .tab-panels { width: 0; }
+.sub-head {
+  margin: 18px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--hair);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
 }
 
 .control-section {
@@ -375,8 +430,23 @@ input[type="range"]::-moz-range-thumb {
   border-radius: 0;
 }
 
-/* Status */
-.status-info { display: flex; flex-direction: column; border: 1px solid var(--ink); background: var(--surface); }
+/* Status overlay (D-43): top-right of the viewport, semi-transparent,
+   styled like the old sidebar Status rows. #viewportHud matches it. */
+.status-overlay, .viewport-hud {
+  position: absolute;
+  top: 10px;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  width: 236px;
+  border: 1px solid var(--ink);
+  background: rgba(237, 234, 228, 0.82);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  color: var(--ink);
+  pointer-events: none;
+}
+.status-overlay { right: 10px; }
 .status-item {
   display: flex;
   align-items: center;
@@ -480,21 +550,8 @@ input[type="range"]::-moz-range-thumb {
 
 #p5-canvas { position: absolute; inset: 0; z-index: 2; }
 
-.viewport-hud {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  z-index: 3;
-  display: flex;
-  gap: 0;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  pointer-events: none;
-}
-.viewport-hud span { padding: 3px 7px; background: var(--paper); color: var(--ink); border: 1px solid var(--ink); margin-right: -1px; }
-.viewport-hud span.inv { background: var(--ink); color: var(--paper); border-color: var(--paper); }
+.viewport-hud { left: 10px; }
+.viewport-hud .status-item.on-air { background: var(--ink); color: var(--paper); }
 
 .viewport-hint {
   position: absolute;
