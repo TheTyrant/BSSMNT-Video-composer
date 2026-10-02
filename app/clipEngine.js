@@ -12,8 +12,9 @@
 class ClipEngine {
   constructor(visualizer) {
     this.viz = visualizer;
-    this.clips = [];
+    this.assets = [];        // every imported image/video: one typed list (v2.1, D-44)
     this.nextClipId = 1;
+    this.selectedId = null;  // selection shared by 03 Assets and the Action Editor
 
     this.settings = {
       timingMode: 'auto',      // 'auto' | 'manual'
@@ -62,23 +63,68 @@ class ClipEngine {
   on(fn) { this.listeners.add(fn); return () => this.listeners.delete(fn); }
   emit(type, detail) { this.listeners.forEach(fn => fn(type, detail)); }
 
-  // ---- clips -----------------------------------------------------------
+  // ---- assets ----------------------------------------------------------
+  //
+  // One entry per imported file. Defaults reproduce v2: a new asset is an
+  // auto-edit clip at the bottom of the stack, Global pace, any band, no
+  // Media Layer, no story role.
+
+  // Assets used as auto-edit clips, in stack (Importance) order.
+  get clips() {
+    return this.assets.filter(a => a.asClip).sort((a, b) => a.importance - b.importance);
+  }
 
   addFiles(fileList) {
     Array.from(fileList)
-      .filter(f => f.type.startsWith('video/'))
-      .forEach(f => this.addClip(f));
+      .filter(f => f.type.startsWith('video/') || f.type.startsWith('image/'))
+      .forEach(f => this.addAsset(f));
   }
 
-  addClip(file) {
+  addAsset(file) {
     const p = this.viz.p5Instance;
     if (!p) return;
-    const url = URL.createObjectURL(file);
-    const clip = {
-      id: this.nextClipId++, name: file.name.replace(/\.[^.]+$/, ''), file, url,
-      media: null, el: null, duration: 0, band: 'any', thumb: null, lastPos: 0, ready: false,
-      pace: 'global',   // 'global' or a MusicalTime.AUTO_PACES key -- how long this clip holds
+    const kind = file.type.startsWith('image/') ? 'image' : 'video';
+    const asset = {
+      id: this.nextClipId++, name: file.name.replace(/\.[^.]+$/, ''), file,
+      url: URL.createObjectURL(file), kind,
+      media: null, el: null, duration: 0, width: 0, height: 0, thumb: null,
+      lastPos: 0, ready: false, error: null,
+      asClip: true,              // "Use as: Auto-edit clip"
+      layer: null,               // "Use as: Media Layer" slot -> visualizer.layers
+      band: 'any',
+      pace: 'global',            // 'global' or a MusicalTime.AUTO_PACES key -- how long this clip holds
+      importance: this.clips.length + 1,   // = position in the Action Editor stack
+      story: 'none',             // 'none' | 'hook' | 'result' | 'cta' (Story Mode only)
+      storyHold: 3,              // seconds an image story block holds (Q9)
     };
+    this.assets.push(asset);
+    if (kind === 'image') this.loadImageAsset(asset);
+    else this.loadVideoAsset(asset);
+    this.emit('clips');
+    return asset;
+  }
+
+  loadImageAsset(asset) {
+    this.viz.p5Instance.loadImage(asset.url, (img) => {
+      asset.media = img;
+      asset.width = img.width;
+      asset.height = img.height;
+      asset.ready = true;
+      const c = document.createElement('canvas');
+      c.width = 160;
+      c.height = Math.max(1, Math.round(160 * img.height / (img.width || 1)));
+      c.getContext('2d').drawImage(img.canvas, 0, 0, c.width, c.height);
+      asset.thumb = c;
+      this.emit('clips');
+    }, () => {
+      asset.error = 'Can’t decode this file in this browser';
+      this.emit('clips');
+    });
+  }
+
+  loadVideoAsset(clip) {
+    const p = this.viz.p5Instance;
+    const url = clip.url;
     const media = p.createVideo([url], () => {
       // Some files (e.g. MediaRecorder WebM) report Infinity until probed;
       // makeThumb() resolves the real duration in that case.
@@ -100,12 +146,13 @@ class ClipEngine {
     media.elt.muted = true;
     media.elt.loop = true;
     media.elt.playsInline = true;
+    media.elt.addEventListener('loadedmetadata', () => {
+      clip.width = media.elt.videoWidth;
+      clip.height = media.elt.videoHeight;
+    }, { once: true });
     clip.media = media;
     clip.el = media.elt;
-    this.clips.push(clip);
     this.makeThumb(clip);
-    this.emit('clips');
-    return clip;
   }
 
   // Poster frame (and, if needed, the real duration) from a separate
@@ -138,32 +185,86 @@ class ClipEngine {
     };
   }
 
-  removeClip(id) {
-    const clip = this.clips.find(c => c.id === id);
+  removeAsset(id) {
+    const clip = this.clipById(id);
     if (!clip) return;
     if (this.current && this.current.clip === clip) this.current = null;
     if (this.outgoing && this.outgoing.clip === clip) { this.outgoing = null; this.transition = null; }
     if (this.pending && this.pending.clip === clip) this.pending = null;
-    clip.media.remove();
+    if (clip.layer) this.viz.clearLayerMedia(clip.layer);
+    if (clip.kind === 'video' && clip.media) clip.media.remove();
     URL.revokeObjectURL(clip.url);
-    this.clips = this.clips.filter(c => c !== clip);
+    this.assets = this.assets.filter(c => c !== clip);
+    if (this.selectedId === id) this.selectedId = null;
+    this.renumber();
     this.emit('clips');
   }
 
   setClipBand(id, band) {
-    const clip = this.clips.find(c => c.id === id);
+    const clip = this.clipById(id);
     if (clip) { clip.band = band; this.emit('clips'); }
   }
 
   setClipPace(id, pace) {
-    const clip = this.clips.find(c => c.id === id);
+    const clip = this.clipById(id);
     if (clip) { clip.pace = pace; this.emit('clips'); }
   }
 
-  clipById(id) { return this.clips.find(c => c.id === id); }
+  // "Use as: Auto-edit clip". Re-enabling puts the clip at the bottom of
+  // the stack, like a new upload.
+  setAssetAsClip(id, on) {
+    const a = this.clipById(id);
+    if (!a || a.asClip === on) return;
+    a.asClip = on;
+    if (on) a.importance = Infinity;
+    this.renumber();
+    this.emit('clips');
+  }
+
+  // Importance = position in the Action Editor stack (1 = top, D-32).
+  // Moving a clip renumbers the whole stack so positions stay 1..N.
+  moveClip(id, toIndex) {
+    const stack = this.clips;
+    const from = stack.findIndex(c => c.id === id);
+    if (from < 0) return;
+    const [clip] = stack.splice(from, 1);
+    stack.splice(Math.max(0, Math.min(stack.length, toIndex)), 0, clip);
+    stack.forEach((c, i) => { c.importance = i + 1; });
+    this.emit('clips');
+  }
+
+  setClipImportance(id, n) { this.moveClip(id, Math.round(n) - 1); }
+
+  renumber() {
+    this.clips.forEach((c, i) => { c.importance = i + 1; });
+  }
+
+  // "Use as: Media Layer". Drives the existing layer engine
+  // (DJVisualizer.loadLayerMedia / clearLayerMedia) unchanged, so layers
+  // look and react exactly as before. One asset per slot: taking a slot
+  // that's in use releases it from the other asset.
+  setAssetLayer(id, slot) {
+    const a = this.clipById(id);
+    if (!a || a.layer === slot) return;
+    if (a.layer) { this.viz.clearLayerMedia(a.layer); a.layer = null; }
+    if (slot) {
+      const holder = this.assets.find(x => x.layer === slot);
+      if (holder) holder.layer = null;
+      this.viz.loadLayerMedia(slot, a.file);
+      a.layer = slot;
+    }
+    this.emit('clips');
+  }
+
+  select(id) {
+    this.selectedId = id;
+    this.emit('select', id);
+  }
+
+  clipById(id) { return this.assets.find(c => c.id === id); }
 
   pauseAll() {
-    (this.clips || []).forEach(c => { if (c.el && !c.el.paused) c.el.pause(); });
+    (this.assets || []).forEach(c => { if (c.el && !c.el.paused) c.el.pause(); });
   }
 
   // ---- timing ----------------------------------------------------------
@@ -284,7 +385,8 @@ class ClipEngine {
   }
 
   choose() {
-    const clips = this.clips.filter(c => c.ready);
+    // Images join the pool in step 5d (D-46).
+    const clips = this.clips.filter(c => c.ready && c.kind === 'video');
     if (clips.length === 0) return null;
     const currentClip = this.current && this.current.clip;
     const s = this.settings;

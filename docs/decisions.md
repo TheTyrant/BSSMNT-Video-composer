@@ -249,9 +249,10 @@ Everything in this section is **Proposed**. Each entry becomes *Accepted* (or is
 - **Context:** A live set has no known end, so CTA and Result can't be placed "at the end" automatically.
 - **Decision:** In live mode, Hook plays automatically on Start. **Result** and **CTA** are fired by two transport buttons ("Result", "End with CTA"), each once. In track mode, all three are placed automatically.
 
-### D-36 · Music bus: one gain node *after* the analyser
+### D-36 · Music bus: one gain node *after* the analyser *(Accepted — built in step 2b)*
 - **Decision:** `TrackSource` routes `source → analyser → musicGain → speakers` (today it's `analyser → speakers`). Music mute (voice-only) and story fades both drive `musicGain`.
 - **Why:** The analyser still sees the full-level track, so BPM, bands and cuts keep running while the music is faded or muted. This is "the existing audio architecture" the brief asks for: one extra node in the current graph, not a new audio system. `audioProcessor.js` is untouched.
+- **Verified:** with the bus at 0 on a real track, bass/mid levels, BPM and cutting carried on unchanged (5 cuts during a 5 s mute).
 - **Consequences:** Applies in **track mode** only. In mic/live mode, BSSMNT doesn't play the music (it comes from the DJ's own rig), so there's nothing to mute or fade. The controls say so instead of silently doing nothing.
 
 ### D-37 · Auto Fade Music = scheduled ramps around each block *(pending Q12)*

@@ -95,9 +95,10 @@ Plays an uploaded track through the frozen processor by assigning `audioContext 
 
 | Member | Role |
 |---|---|
-| `load(file)` | `<audio>` + MediaElementSource → analyser (**config mirrors `startAudio()` — keep in sync**) → speakers |
+| `load(file)` | `<audio>` + MediaElementSource → analyser (**config mirrors `startAudio()` — keep in sync**) → `musicGain` → speakers |
+| `setMusicLevel(v, rampSec)` / `musicGain` / `musicLevel` | Music bus after the analyser (v2.1 step 2b, D-36). Level survives reloads; mute and story fades use it |
 | `play()` / `pause()` / `seek(s)` | Transport |
-| `unload()` | Pause element, `processor.stop()`, revoke object URL |
+| `unload()` | Pause element, `processor.stop()`, revoke object URL, drop `musicGain` |
 | `isLoaded` / `isPlaying` / `currentTime` / `duration` | State getters |
 
 ### 3.3 `app/visualizer.js` — `class DJVisualizer` — ✅
@@ -136,13 +137,16 @@ Plays an uploaded track through the frozen processor by assigning `audioContext 
 Blend length is converted with live BPM and capped at 0.9 × switch interval (in `ClipEngine.cut`).
 
 ### 3.6 `app/clipEngine.js` — `class ClipEngine` — ✅
-State: `clips[]` (each with `band` and `pace`), `nextCutPos` / `segStartPos` / `holdBeats` (cut schedule, in beats), `settings`, `bandTransitions`, `segments[]` (`{clipId, start, end, inPoint, transition, band, beat, blendSec}`), `beats[]` (`{time, index}`), `current`, `outgoing`, `pending`, `transition`.
+State: `assets[]` (every imported image/video, fields in §4.0), `clips` (getter: assets with `asClip`, sorted by `importance`), `selectedId`, `nextCutPos` / `segStartPos` / `holdBeats` (cut schedule, in beats), `settings`, `bandTransitions`, `segments[]` (`{clipId, start, end, inPoint, transition, band, beat, blendSec}`), `beats[]` (`{time, index}`), `current`, `outgoing`, `pending`, `transition`.
 
 | Function | Role |
 |---|---|
-| `addFiles(list)` / `addClip(file)` | Video only. p5 `createVideo`, muted/looping/hidden |
+| `addFiles(list)` / `addAsset(file)` | `video/*` and `image/*`. `loadVideoAsset` (p5 `createVideo`, muted/looping/hidden) / `loadImageAsset` (p5 `loadImage` + thumb) |
 | `makeThumb(clip)` | Poster frame via separate `<video>`; also resolves `Infinity` durations (seek-to-end probe) |
-| `removeClip(id)` / `setClipBand(id, band)` / `clipById(id)` | Bin management; band tag = `any · bass · mid · high` |
+| `removeAsset(id)` / `setClipBand(id, band)` / `clipById(id)` | Asset management; band tag = `any · bass · mid · high`. Removing releases its Media Layer slot |
+| `setAssetAsClip(id, on)` / `moveClip(id, i)` / `setClipImportance(id, n)` / `renumber()` | "Use as: Auto-edit clip"; Importance = stack position 1..N |
+| `setAssetLayer(id, slot)` | "Use as: Media Layer": calls `viz.loadLayerMedia` / `clearLayerMedia`; one asset per slot |
+| `select(id)` | Shared selection (03 Assets + Action Editor); emits `select` |
 | `update(audioData)` | Per frame: `trackBands()`; first clip goes on screen immediately; on viz beat edges `beatIndex++`; cut when position reaches `nextCutPos`; pre-roll |
 | `intervalFor(clip, bpm)` | A clip's hold: its own `pace` if set, else the global interval |
 | `setClipPace(id, pace)` | Per-clip pace: `global` or a `MusicalTime.AUTO_PACES` key |
@@ -200,7 +204,7 @@ Tokens in `:root`: `--surface #EDEAE4 · --panel #E3DFD7 · --steel #D7DADC · -
 5. New transitions go through `ClipTransitions.register()`, never inline in the engine.
 6. *(v2.1)* Music fades and mutes happen **after** the analyser (`musicGain`), never before it, so analysis always sees the full-level track.
 7. *(v2.1)* The voice chain is never connected to the analyser or `musicGain`, and nothing in `clipEngine.js` references the voice track.
-8. *(v2.1)* Every new per-clip field has a default that reproduces v2 behaviour (`timing: 'global'`, `importance: 1`, `story: 'none'`).
+8. *(v2.1)* Every new per-clip field has a default that reproduces v2 behaviour (`pace: 'global'`, `asClip: true`, `layer: null`, `importance` = upload order, `story: 'none'`).
 
 ---
 
@@ -217,9 +221,9 @@ Spec: [brief-v2.1.md](brief-v2.1.md). Decisions: D-31–D-46; open questions Q9�
 ```
  track <audio> ─► MediaElementSource ─► analyser ─┬─► AudioProcessor loop (FROZEN, reads analyser)
    (TrackSource, ctx recreated per load)          └─► musicGain ─► speakers      ◄── mute · story fades
-                                                       (step 2c)
+                                                       (step 2b)
 
- voice <audio> ─► normGain ─► volumeGain ─► speakers       (VoiceTrack, own AudioContext, step 4a)
+ voice <audio> ─► normGain ─► volumeGain ─► speakers       (VoiceTrack, own AudioContext, step 6a)
    ▲ slaved to app.masterTime() − offset; never touches analyser / musicGain / ClipEngine
 ```
 
@@ -240,8 +244,8 @@ Spec: [brief-v2.1.md](brief-v2.1.md). Decisions: D-31–D-46; open questions Q9�
 
 | Step | Where | Functions / changes |
 |---|---|---|
-| 2a | `clipEngine.js` (or a small `app/assets.js` if it keeps the engine cleaner) | Asset list with the fields above; `addFiles()` accepts `video/*` and `image/*`; `setClipImportance(id, n)` / `moveClip(id, toIndex)` renumber the stack; `setClipStory(id, role)` enforces one asset per role; `setAssetLayer(id, slot)` calls `viz.loadLayerMedia(slot, file)` / `clearLayerMedia`. Emits `'clips'` |
-| 2b | `trackSource.js` | `load()` creates `this.musicGain` between analyser and destination; `setMusicLevel(v, rampSec?)`. `unload()` drops it |
+| 2a ✅ | `clipEngine.js` (kept in the engine: `assets[]` + `clips` getter) | Asset list with the fields above; `addFiles()` accepts `video/*` and `image/*`; `setClipImportance(id, n)` / `moveClip(id, toIndex)` renumber the stack; `setClipStory(id, role)` enforces one asset per role; `setAssetLayer(id, slot)` calls `viz.loadLayerMedia(slot, file)` / `clearLayerMedia`. Emits `'clips'` |
+| 2b ✅ | `trackSource.js` | `load()` creates `this.musicGain` between analyser and destination; `setMusicLevel(v, rampSec?)`. `unload()` drops it |
 | 3a | `index.html`, `styles.css`, new `app/sidebar.js` | Tab rail + slide-out panels; sections registered as modules `{num, label, el}`; `open(tab)`, `toggleCollapsed()`; localStorage in try/catch. Order: 01 Audio (+ Visualization) · 02 EQ · 03 Assets · 04 Output |
 | 3b | `index.html`, `styles.css` | `.status-overlay` (top-right of `.viewport-stage`, semi-transparent) holding `deviceStatus` / `bpmCounter` / `beatIndicator` / `fpsCounter` (same IDs); `#viewportHud` restyled to match |
 | 4a | `index.html`, `timelinePanel.js` (or `app/assetPanel.js`) | 03 Assets: drop zone + `<input accept="image/*,video/*" multiple>`, asset list with thumbs, `select(id)` (shared selection with the Action Editor) |

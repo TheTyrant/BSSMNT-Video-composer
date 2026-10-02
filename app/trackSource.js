@@ -10,6 +10,8 @@ class TrackSource {
     this.audio = null;      // HTMLAudioElement for the loaded track
     this.url = null;
     this.file = null;
+    this.musicGain = null;  // created per load (the AudioContext is recreated each time)
+    this.musicLevel = 1;    // last level asked for; survives reloads
   }
 
   get isLoaded() { return !!this.audio; }
@@ -45,7 +47,13 @@ class TrackSource {
 
     p.sourceNode.connect(p.analyserNode);
     // Unlike mic input, route to the speakers -- the track should be heard.
-    p.analyserNode.connect(p.audioContext.destination);
+    // Music bus (v2.1, D-36): mute and story fades act on this gain, which
+    // sits AFTER the analyser, so BPM / bands / cuts always see the
+    // full-level track.
+    this.musicGain = p.audioContext.createGain();
+    this.musicGain.gain.value = this.musicLevel;
+    p.analyserNode.connect(this.musicGain);
+    this.musicGain.connect(p.audioContext.destination);
 
     p.dataArray = new Uint8Array(p.analyserNode.frequencyBinCount);
     p.timeDataArray = new Uint8Array(p.analyserNode.fftSize);
@@ -58,6 +66,18 @@ class TrackSource {
     this.url = url;
     this.file = file;
     return audio;
+  }
+
+  // Music level 0..1 on the bus after the analyser. rampSec > 0 glides
+  // there (setTargetAtTime), otherwise it's set immediately.
+  setMusicLevel(v, rampSec = 0) {
+    this.musicLevel = v;
+    if (!this.musicGain) return;
+    const ctx = this.processor.audioContext;
+    const g = this.musicGain.gain;
+    if (!ctx || rampSec <= 0) { g.value = v; return; }
+    g.cancelScheduledValues(ctx.currentTime);
+    g.setTargetAtTime(v, ctx.currentTime, rampSec / 3);
   }
 
   play() { return this.audio ? this.audio.play() : Promise.resolve(); }
@@ -77,6 +97,7 @@ class TrackSource {
       this.audio = null;
       this.processor.stop();
     }
+    this.musicGain = null;
     if (this.url) {
       URL.revokeObjectURL(this.url);
       this.url = null;

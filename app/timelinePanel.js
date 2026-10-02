@@ -300,7 +300,7 @@ class TimelinePanel {
       rm.textContent = '✕';
       rm.title = 'Remove clip';
       rm.setAttribute('aria-label', `Remove ${clip.name}`);
-      rm.addEventListener('click', () => this.engine.removeClip(clip.id));
+      rm.addEventListener('click', () => this.engine.removeAsset(clip.id));
       row.append(band, pace, rm);
 
       const bar = document.createElement('div');
