@@ -37,6 +37,7 @@
 
       local.file = sourceLayer.file;
       local.media = null;
+      if (local.bridge) { local.bridge.remove(); local.bridge = null; }
       if (!sourceLayer.file) return;
 
       const url = URL.createObjectURL(sourceLayer.file);
@@ -47,6 +48,9 @@
           video.loop();
         });
         local.media = video;
+        // Rotated phone video: this window needs its own 2D bridge (D-54).
+        const VO = window.opener && window.opener.VideoOrientation;
+        if (VO) VO.detect(sourceLayer.file).then((rot) => { if (rot && local.media === video) local.bridge = VO.bridge(p5Instance, video); });
       } else if (sourceLayer.type === 'image') {
         p5Instance.loadImage(url, (img) => { local.media = img; });
       }
@@ -109,10 +113,10 @@
         proxy.w = w;
         proxy.h = h;
         proxy.layers = {
-          background: { ...sourceViz.layers.background, media: localLayers.background.media },
-          bass: { ...sourceViz.layers.bass, media: localLayers.bass.media },
-          mid: { ...sourceViz.layers.mid, media: localLayers.mid.media },
-          high: { ...sourceViz.layers.high, media: localLayers.high.media }
+          background: { ...sourceViz.layers.background, media: localLayers.background.media, bridge: localLayers.background.bridge || null },
+          bass: { ...sourceViz.layers.bass, media: localLayers.bass.media, bridge: localLayers.bass.bridge || null },
+          mid: { ...sourceViz.layers.mid, media: localLayers.mid.media, bridge: localLayers.mid.bridge || null },
+          high: { ...sourceViz.layers.high, media: localLayers.high.media, bridge: localLayers.high.bridge || null }
         };
 
         // Calls sourceViz's own (control window's) draw method via the

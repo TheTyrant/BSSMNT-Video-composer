@@ -305,6 +305,32 @@ class DJVisualizerApp {
       : 'No voice track';
   }
 
+  // ---- Adding media (D-53, D-54) ------------------------------------------
+
+  // Files dropped on the timeline / Action Editor: add them, open 02 Assets
+  // with the first one selected so it's visibly "in the bin", and say what
+  // happened (including anything that couldn't be used).
+  addDroppedFiles(files) {
+    const { added, rejected } = this.clipEngine.addFiles(files);
+    if (added.length) {
+      this.clipEngine.select(added[0].id);
+      this.sidebar.open('assets');
+    }
+    this.notify(this.addedMessage(added, rejected));
+    return { added, rejected };
+  }
+
+  addedMessage(added, rejected) {
+    const parts = [];
+    if (added.length) parts.push(`Added ${added.length} file${added.length === 1 ? '' : 's'} to 02 Assets`);
+    if (rejected.length) parts.push(`Not a video or image: ${rejected.join(', ')}`);
+    return parts.join(' · ') || 'Nothing to add';
+  }
+
+  notify(text, ms = 4000) {
+    this.notice = { text, until: performance.now() + ms };
+  }
+
   // ---- EQ (D-51) ---------------------------------------------------------
 
   // Band sensitivity applies in Sensitivity and Blend; in Dynamic only the

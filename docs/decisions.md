@@ -243,6 +243,17 @@ The brief's four questions were not answered before the build. Rather than guess
 - **Decision:** the **whole 02 Assets panel** and the **whole bottom editor** (Clips lane, timeline, Action Editor) accept image and video files, highlighted while files are over them. Card reordering in the Action Editor stays an in-page drag and never adds files. A page-wide guard stops the browser from opening a dropped file anywhere else.
 - **Verified with real OS-style file drops (DevTools drag events):** Action Editor, Clips lane, drop zone, asset list and options area each added exactly one asset; a drop on the viewport added nothing and the page stayed; dragging a card still reorders.
 
+### D-54 · Timeline drops that reach the bin; rotated phone video *(Accepted — built)*
+**1. Dropping on the Action Editor / timeline didn't add files (Omar, tested in VS Code and a live browser).**
+- **Cause found in the code:** file drops on the bottom editor were ignored whenever a "card drag in progress" flag was set. That flag was cleared only by the card's `dragend`, which Chrome doesn't send if the Action Editor re-renders mid-drag (e.g. a thumbnail finishing). One missed `dragend` left every later timeline drop silently ignored; 02 Assets didn't check the flag, which matched what Omar saw. Separately, files whose MIME type the system leaves blank were filtered out without a word.
+- **Decision:** card drags carry their own data type (`application/x-bssmnt-card`) and file drops never depend on the flag; any `dragend` clears it. Files are recognised by MIME type or, if blank, by extension. A timeline drop (or the Action Editor **+**) opens **02 Assets with the first new file selected**, so it's visibly in the bin, and a notice says what was added and names anything that isn't a video or image.
+- **Verified with real OS-style file drops:** with the flag deliberately stuck, a drop on the Action Editor still added the file, opened 02 Assets and selected it; two files dropped on the Clips lane both landed; a non-media file was reported by name; card reordering still works.
+
+**2. Phone videos rotated and stretched.**
+- **Cause:** phones store portrait video as a landscape frame plus a "rotate 90°" flag (4 of 6 of Omar's phone clips checked: 1920×1080, rot 90). `<video>` and 2D canvas apply the flag; Chrome's hardware-decoded path into WebGL (which p5 draws with) can skip it, so the frame arrives sideways while its size reads as portrait: rotated and stretched. This test machine's headless Chrome takes the software path and applies the rotation, so the bug didn't reproduce here.
+- **Decision (`app/videoOrientation.js`):** the rotation is read from the file header (MP4/MOV `tkhd` matrix). Only videos with a rotation flag are drawn through a per-video 2D canvas copy (`drawImage` applies the rotation; long edge capped at 1280 px), used by clips, Media Layers and the pop-out. Unrotated video is untouched. Asset status shows the detected rotation.
+- **Verified:** rotation read as 90 for the phone clip and 0 for the WebMs; the bridge produces a 720×1280 portrait frame; the clip renders upright and in proportion as a clip and as a layer. **Needs Omar's confirmation on his GPU browser**, since the broken path can't be reproduced here.
+
 ### Q17 · Export *(open — in discussion with Omar)*
 Real-time capture vs. an offline builder. Offline is the goal (long-form edits can't take real time), and needs the Phase 1 plan model + offline song analysis first. To be decided before building.
 

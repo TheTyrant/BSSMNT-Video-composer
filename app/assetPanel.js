@@ -56,10 +56,9 @@ class AssetPanel {
   }
 
   addAndSelect(files) {
-    const before = this.engine.assets.length;
-    this.engine.addFiles(files);
-    const added = this.engine.assets[before];
-    if (added) this.engine.select(added.id);
+    const { added, rejected } = this.engine.addFiles(files);
+    if (added.length) this.engine.select(added[0].id);
+    this.app.notify(this.app.addedMessage(added, rejected));
   }
 
   render() {
@@ -247,6 +246,7 @@ class AssetPanel {
       ['Type', a.kind === 'image' ? 'Image' : 'Video'],
       ['Length', a.kind === 'image' ? 'Still' : (a.duration ? fmtTime(a.duration, true) : '…')],
       ['Size', a.width ? `${a.width}×${a.height}` : '…'],
+      ['Rotation', a.kind === 'video' ? (a.rotation ? `${a.rotation}° (corrected)` : 'None') : '—'],
       ['Decode', a.error ? 'ERR' : a.ready ? 'OK' : 'Loading…'],
       ['On air', onAir ? 'Yes' : 'No'],
       ['Role', roles.join(' · ') || 'Unused'],

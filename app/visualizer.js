@@ -252,17 +252,28 @@ class DJVisualizer {
     layer.url = url;
     const statusEl = document.getElementById(`layerStatus-${layerName}`);
 
-    if (file.type.startsWith('video/')) {
+    // Some systems report no MIME type for common video files; fall back
+    // to the extension (D-54).
+    const isVideo = file.type.startsWith('video/') || /\.(mp4|m4v|mov|webm|mkv|ogv|3gp|avi)$/i.test(file.name);
+    const isImage = file.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|avif)$/i.test(file.name);
+    if (isVideo) {
       layer.type = 'video';
       const video = this.p5Instance.createVideo([url], () => {
         video.volume(0);
         video.hide();
         video.loop();
         layer.media = video;
+        // Rotated phone video: draw through a 2D copy so the rotation flag
+        // is honoured on every GPU path (D-54).
+        VideoOrientation.detect(file).then((rot) => {
+          if (layer.media !== video) return;
+          layer.rotation = rot;
+          if (rot) layer.bridge = VideoOrientation.bridge(this.p5Instance, video);
+        });
         this.evaluateLayerSize(layerName);
         if (statusEl) statusEl.textContent = `Loaded: ${file.name}`;
       });
-    } else if (file.type.startsWith('image/')) {
+    } else if (isImage) {
       layer.type = 'image';
       this.p5Instance.loadImage(
         url,
@@ -286,6 +297,8 @@ class DJVisualizer {
 
   clearLayerMedia(layerName) {
     const layer = this.layers[layerName];
+    if (layer.bridge) { layer.bridge.remove(); layer.bridge = null; }
+    layer.rotation = 0;
     if (layer.type === 'video' && layer.media) {
       layer.media.stop();
       layer.media.remove();
@@ -1009,7 +1022,7 @@ class DJVisualizer {
 
     p.push();
     p.translate(x + offsetX, offsetY);
-    p.image(layer.media, -baseW / 2, -baseH / 2, baseW, baseH);
+    p.image(layer.bridge ? layer.bridge.frame() : layer.media, -baseW / 2, -baseH / 2, baseW, baseH);
     p.pop();
   }
 

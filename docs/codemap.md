@@ -26,6 +26,7 @@ app/
   sidebar.js               Tabs-only sidebars (left + right), up to 2 stacked panels, closed by default
   headerPickers.js         Header SRC / MODE dropdowns (mode icons) + activity light
   analysisEq.js            Dynamic EQ: analysis-only filter chain (source → filters → analyser), presets, Listen
+  videoOrientation.js      Reads rotation from MP4/MOV headers; 2D bridge so rotated phone video draws upright in WebGL
   eqPanel.js               02 Assets EQ: Sensitivity / Dynamic tabs, Use radios, EQ graph
   assetPanel.js            03 Assets: image/video bin, asset list, selected-asset properties + status
   app.js                   App controller: wiring, audio source modes, master clock, shortcuts

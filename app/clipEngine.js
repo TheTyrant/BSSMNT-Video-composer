@@ -78,16 +78,32 @@ class ClipEngine {
     return this.assets.filter(a => a.asClip).sort((a, b) => a.importance - b.importance);
   }
 
-  addFiles(fileList) {
-    Array.from(fileList)
-      .filter(f => f.type.startsWith('video/') || f.type.startsWith('image/'))
-      .forEach(f => this.addAsset(f));
+  // Video or image by MIME type, or by extension when the system reports
+  // none (common on Windows for some video files). null = not usable.
+  static kindOf(f) {
+    if (f.type.startsWith('video/')) return 'video';
+    if (f.type.startsWith('image/')) return 'image';
+    if (/.(mp4|m4v|mov|webm|mkv|ogv|3gp|avi)$/i.test(f.name)) return 'video';
+    if (/.(png|jpe?g|gif|webp|bmp|avif)$/i.test(f.name)) return 'image';
+    return null;
   }
 
-  addAsset(file) {
+  // Returns { added, rejected } so callers can say what happened instead
+  // of silently skipping files.
+  addFiles(fileList) {
+    const added = [], rejected = [];
+    Array.from(fileList || []).forEach(f => {
+      const kind = ClipEngine.kindOf(f);
+      const a = kind ? this.addAsset(f, kind) : null;
+      if (a) added.push(a); else rejected.push(f.name);
+    });
+    this.emit('added', { added, rejected });
+    return { added, rejected };
+  }
+
+  addAsset(file, kind = ClipEngine.kindOf(file) || 'video') {
     const p = this.viz.p5Instance;
     if (!p) return;
-    const kind = file.type.startsWith('image/') ? 'image' : 'video';
     const asset = {
       id: this.nextClipId++, name: file.name.replace(/\.[^.]+$/, ''), file,
       url: URL.createObjectURL(file), kind,
@@ -155,6 +171,13 @@ class ClipEngine {
       clip.height = media.elt.videoHeight;
     }, { once: true });
     clip.media = media;
+    // Rotated phone video: draw through a 2D copy (D-54).
+    clip.rotation = 0;
+    VideoOrientation.detect(clip.file).then((rot) => {
+      clip.rotation = rot;
+      if (rot) clip.bridge = VideoOrientation.bridge(p, media);
+      this.emit('clips');
+    });
     clip.el = media.elt;
     this.makeThumb(clip);
   }
@@ -196,6 +219,7 @@ class ClipEngine {
     if (this.outgoing && this.outgoing.clip === clip) { this.outgoing = null; this.transition = null; }
     if (this.pending && this.pending.clip === clip) this.pending = null;
     if (clip.layer) this.viz.clearLayerMedia(clip.layer);
+    if (clip.bridge) clip.bridge.remove();
     if (clip.kind === 'video' && clip.media) clip.media.remove();
     URL.revokeObjectURL(clip.url);
     this.assets = this.assets.filter(c => c !== clip);
@@ -713,7 +737,7 @@ class ClipEngine {
       p.push();
       p.translate(offsetX, 0);
       p.tint(255, Math.max(0, Math.min(1, alpha)) * 255);
-      p.image(clip.media, -w / 2, -h / 2, w, h);
+      p.image(clip.bridge ? clip.bridge.frame() : clip.media, -w / 2, -h / 2, w, h);
       p.pop();
     };
 

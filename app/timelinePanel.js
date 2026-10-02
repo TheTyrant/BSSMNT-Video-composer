@@ -274,15 +274,21 @@ class TimelinePanel {
 
   initBin() {
     this.el.upload.addEventListener('change', (e) => {
-      this.engine.addFiles(e.target.files);
+      this.app.addDroppedFiles(e.target.files);
       e.target.value = '';
     });
     const bin = this.el.bin;
     this.dragId = null;
 
+    // A card drag carries its own data type, so it can never be mistaken
+    // for a file drop (and a missed "dragend" can't block file drops).
+    const CARD = 'application/x-bssmnt-card';
+    const isCard = (e) => e.dataTransfer && Array.from(e.dataTransfer.types || []).includes(CARD);
+    window.addEventListener('dragend', () => { this.dragId = null; this.showInsert(-1); });
+
     // Reordering cards (an in-page drag) is handled on the Action Editor row.
     bin.addEventListener('dragover', (e) => {
-      if (this.dragId == null) return;
+      if (!isCard(e)) return;
       e.preventDefault();
       this.showInsert(this.insertIndexAt(e.clientX));
     });
@@ -290,10 +296,11 @@ class TimelinePanel {
       if (!bin.contains(e.relatedTarget)) this.showInsert(-1);
     });
     bin.addEventListener('drop', (e) => {
-      if (this.dragId == null) return;
+      if (!isCard(e)) return;
       e.preventDefault();
       e.stopPropagation();
-      this.reorderTo(this.dragId, this.insertIndexAt(e.clientX));
+      const id = Number(e.dataTransfer.getData(CARD)) || this.dragId;
+      if (id != null) this.reorderTo(id, this.insertIndexAt(e.clientX));
       this.dragId = null;
       this.showInsert(-1);
     });
@@ -303,7 +310,7 @@ class TimelinePanel {
     const editor = document.getElementById('editorPanel');
     const hasFiles = (e) => e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files');
     editor.addEventListener('dragover', (e) => {
-      if (this.dragId != null || !hasFiles(e)) return;
+      if (isCard(e) || !hasFiles(e)) return;
       e.preventDefault();
       e.dataTransfer.dropEffect = 'copy';
       bin.classList.add('drag-over');
@@ -313,12 +320,12 @@ class TimelinePanel {
       if (!editor.contains(e.relatedTarget)) { bin.classList.remove('drag-over'); editor.classList.remove('drag-over-panel'); }
     });
     editor.addEventListener('drop', (e) => {
-      if (this.dragId != null || !hasFiles(e)) return;
+      if (isCard(e) || !hasFiles(e)) return;
       e.preventDefault();
       e.stopPropagation();
       bin.classList.remove('drag-over');
       editor.classList.remove('drag-over-panel');
-      this.engine.addFiles(e.dataTransfer.files);
+      this.app.addDroppedFiles(e.dataTransfer.files);
     });
   }
 
@@ -350,6 +357,7 @@ class TimelinePanel {
   }
 
   renderBin() {
+    const CARD_TYPE = 'application/x-bssmnt-card';
     const cards = this.el.binCards;
     const clips = this.engine.stack;
     const focusedId = document.activeElement && document.activeElement.closest && document.activeElement.closest('.bin-card')
@@ -425,6 +433,7 @@ class TimelinePanel {
       card.addEventListener('dragstart', (e) => {
         this.dragId = clip.id;
         e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData(CARD_TYPE, String(clip.id));
         e.dataTransfer.setData('text/plain', String(clip.id));
         card.classList.add('dragging');
       });
@@ -633,7 +642,8 @@ class TimelinePanel {
       'waiting-bpm': 'Listening for tempo…',
       'running': `${st.clipPace ? `Clip pace ${MusicalTime.AUTO_PACES[st.clipPace].label}: holding` : 'Cutting every'} ${MusicalTime.describeBeats(st.intervalBeats)} · ${(st.intervalMs / 1000).toFixed(2)}s · ${this.engine.segments.length} cuts`,
     };
-    this.el.summary.textContent = st.story
+    const notice = this.app.notice && performance.now() < this.app.notice.until ? this.app.notice.text : null;
+    this.el.summary.textContent = notice ? notice : st.story
       ? `Story block: ${({ hook: 'HOOK', result: 'RESULT / CLIMAX', cta: 'CTA' })[st.story]} · automation paused`
       : messages[st.state];
 
