@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Boldonse&family=Inter+Tight:wght@400;500;600;800&family=JetBrains+Mono:wght@400;500;700&display=swap">
 
     <!-- External Styles -->
-    <link rel="stylesheet" href="styles/styles.css?v=2.2.0">
+    <link rel="stylesheet" href="styles/styles.css?v=2.2.2">
 
     <!-- External Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
@@ -144,21 +144,23 @@
           <section class="control-section side-panel" id="customMediaSection" data-tab="assets" data-num="02" data-label="Assets">
             <h3><span class="sec-num">02</span>Assets</h3>
 
-            <!-- Main EQ + live spectrum: an ANALYSIS EQ. It shapes what the beat
-                 and band analysis hears; the sound and exports are untouched. -->
+            <!-- EQ (D-51): two views on one tab swap. Sensitivity = the band
+                 faders (simple); Dynamic = an analysis EQ curve (advanced). The
+                 "Use" radios pick what is applied: either one, or Blend (both). -->
+            <h4 class="sub-head sub-head-first">EQ</h4>
             <div class="eq-block" id="eqBlock">
-              <div class="eq-head">
-                <span class="prop-label">Main EQ &middot; analysis</span>
-                <select id="eqPreset" aria-label="EQ preset"></select>
+              <div class="seg seg-btns eq-tabs" role="tablist" aria-label="EQ view">
+                <button type="button" role="tab" id="eqTabSens" data-v="sensitivity" aria-controls="eqPaneSens" title="Simple">Sensitivity</button>
+                <button type="button" role="tab" id="eqTabDyn" data-v="dynamic" aria-controls="eqPaneDyn" title="Advanced">Dynamic</button>
               </div>
-              <canvas id="eqCanvas" class="eq-canvas" tabindex="0" aria-label="Analysis EQ. Drag a point to move it, scroll to change its width, double-click to reset it."></canvas>
-              <div class="eq-tools">
-                <label class="voice-check" title="Hear what the analysis hears"><input type="checkbox" id="eqListen"> <span>Listen</span></label>
-                <span class="eq-readout" id="eqReadout">Flat</span>
-                <button class="btn" id="eqReset" type="button">Flat</button>
+              <div class="eq-use" role="radiogroup" aria-label="EQ applied">
+                <span class="prop-label">Use</span>
+                <label title="Simple: band faders only"><input type="radio" name="eqMode" value="sensitivity" checked> <span>Sensitivity</span></label>
+                <label title="Advanced: EQ curve only"><input type="radio" name="eqMode" value="dynamic"> <span>Dynamic</span></label>
+                <label title="Both together, for extra control"><input type="radio" name="eqMode" value="blend"> <span>Blend</span></label>
               </div>
-              <p class="hint" id="eqHint">Shapes what the beat and band analysis hears, so cuts can lock to the part you pick (e.g. Kick focus). Your sound and exports aren&rsquo;t changed. Turn on Listen to hear it.</p>
-              <h4 class="sub-head">Band sensitivity</h4>
+
+              <div class="eq-pane" id="eqPaneSens" role="tabpanel" aria-labelledby="eqTabSens">
             <div class="mixer">
               <div class="strip bass">
                 <div class="strip-head"><span class="chip"></span>Bass</div>
@@ -189,17 +191,33 @@
               </div>
             </div>
               <p class="hint">Level meters (top) and sensitivity (fader). <kbd>R</kbd> resets.</p>
+              </div>
+
+              <div class="eq-pane" id="eqPaneDyn" role="tabpanel" aria-labelledby="eqTabDyn" hidden>
+                <div class="eq-head">
+                  <label class="prop-label" for="eqPreset">Preset</label>
+                  <select id="eqPreset"></select>
+                </div>
+                <canvas id="eqCanvas" class="eq-canvas" aria-label="Analysis EQ. Drag a point to move it, scroll on it to change its width, double-click to reset it."></canvas>
+                <div class="eq-tools">
+                  <label class="voice-check" title="Hear what the analysis hears (track file only)"><input type="checkbox" id="eqListen"> <span>Listen</span></label>
+                  <span class="eq-readout" id="eqReadout">Flat</span>
+                  <button class="btn" id="eqReset" type="button">Flat</button>
+                </div>
+                <p class="hint" id="eqHint">Shapes what the beat and band analysis hears, so band reactions and band-driven cuts follow the part you pick (try Kick emphasis). Your sound and exports aren&rsquo;t changed. Listen lets you hear it.</p>
+              </div>
             </div>
 
             <h4 class="sub-head">Assets</h4>
-            <!-- One bin for images and video (D-44). Selecting an asset shows
-                 its options below, where the Bass/Mid/High slots used to be. -->
+            <!-- One bin for images and video (D-44). -->
             <label class="asset-drop dropzone" id="assetDrop" title="Drop images or video here, or click to choose">
               <input type="file" id="assetUpload" accept="image/*,video/*" multiple>
               <span class="bin-add-plus">+</span>
               <span>Drop images or video<br>or choose files</span>
             </label>
             <div class="asset-list" id="assetList" role="listbox" aria-label="Assets"></div>
+
+            <h4 class="sub-head">Asset timing</h4>
             <div class="asset-props" id="assetProps"></div>
           </section>
 
@@ -401,17 +419,19 @@
     </div>
 
     <!-- Application Modules -->
-    <script src="app/audioProcessor.js?v=2.2.0"></script>
-    <script src="app/visualizer.js?v=2.2.0"></script>
-    <script src="app/trackSource.js?v=2.2.0"></script>
-    <script src="app/voiceTrack.js?v=2.2.0"></script>
-    <script src="app/musicalTime.js?v=2.2.0"></script>
-    <script src="app/transitions.js?v=2.2.0"></script>
-    <script src="app/clipEngine.js?v=2.2.0"></script>
-    <script src="app/timelinePanel.js?v=2.2.0"></script>
-    <script src="app/sidebar.js?v=2.2.0"></script>
-    <script src="app/headerPickers.js?v=2.2.0"></script>
-    <script src="app/assetPanel.js?v=2.2.0"></script>
-    <script src="app/app.js?v=2.2.0"></script>
+    <script src="app/audioProcessor.js?v=2.2.2"></script>
+    <script src="app/visualizer.js?v=2.2.2"></script>
+    <script src="app/trackSource.js?v=2.2.2"></script>
+    <script src="app/analysisEq.js?v=2.2.2"></script>
+    <script src="app/voiceTrack.js?v=2.2.2"></script>
+    <script src="app/musicalTime.js?v=2.2.2"></script>
+    <script src="app/transitions.js?v=2.2.2"></script>
+    <script src="app/clipEngine.js?v=2.2.2"></script>
+    <script src="app/timelinePanel.js?v=2.2.2"></script>
+    <script src="app/sidebar.js?v=2.2.2"></script>
+    <script src="app/headerPickers.js?v=2.2.2"></script>
+    <script src="app/assetPanel.js?v=2.2.2"></script>
+    <script src="app/eqPanel.js?v=2.2.2"></script>
+    <script src="app/app.js?v=2.2.2"></script>
   </body>
 </html>

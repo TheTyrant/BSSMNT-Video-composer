@@ -18,6 +18,11 @@ class DJVisualizerApp {
 
     // Voice Over: its own chain, follows the master timeline (D-38)
     this.voice = new VoiceTrack(this);
+
+    // EQ (D-51): Use = 'sensitivity' (band faders, today's behaviour),
+    // 'dynamic' (analysis EQ curve) or 'blend' (both).
+    this.eq = new AnalysisEQ();
+    this.eqMode = 'sensitivity';
     this.musicMuted = false;
 
     // Clip auto-editor + bottom timeline panel
@@ -40,7 +45,7 @@ class DJVisualizerApp {
     // Modular tab sidebar (v2.1, D-42)
     // Left tabs (stack up to 2 panels) and the right Auto-Editor sidebar.
     // Both start closed and only span the viewport row (D-48).
-    this.sidebar = new Sidebar('sidebar', 'tabPanels', 'tabRail', { maxOpen: 2 });
+    this.sidebar = new Sidebar('sidebar', 'tabPanels', 'tabRail', { maxOpen: 1 });
     this.sidebar.init();
     this.rightbar = new Sidebar('rightbar', 'rightPanels', 'rightRail', { maxOpen: 1 });
     this.rightbar.init();
@@ -157,9 +162,9 @@ class DJVisualizerApp {
       // Apply gain adjustments
       const adjustedData = {
         ...data,
-        bass: data.bass * this.bassGain,
-        mid: data.mid * this.midGain,
-        high: data.high * this.highGain
+        bass: data.bass * this.sensitivity('bass'),
+        mid: data.mid * this.sensitivity('mid'),
+        high: data.high * this.sensitivity('high')
       };
       this.visualizer.updateAudioData(adjustedData);
       console.log(`Received BPM data: ${data.bpm}`);
@@ -190,6 +195,10 @@ class DJVisualizerApp {
     // 03 Assets: asset bin + selected-asset properties (v2.1, D-44)
     this.assetPanel = new AssetPanel(this);
     this.assetPanel.init();
+
+    // EQ section of 02 Assets: Sensitivity / Dynamic tabs + Use radios
+    this.eqPanel = new EqPanel(this);
+    this.eqPanel.init();
 
     this.setupVoice();
 
@@ -270,6 +279,33 @@ class DJVisualizerApp {
     ui.status.textContent = v.recording ? `Recording from ${fmtTime(v.recordStart, true)}…`
       : v.isLoaded ? `${v.name} · ${fmtTime(v.duration, true)} · starts ${fmtTime(v.offset, true)}`
       : 'No voice track';
+  }
+
+  // ---- EQ (D-51) ---------------------------------------------------------
+
+  // Band sensitivity applies in Sensitivity and Blend; in Dynamic only the
+  // EQ curve shapes the analysis, so the faders count as 1.0.
+  sensitivity(band) {
+    if (this.eqMode === 'dynamic') return 1;
+    return this[band + 'Gain'];
+  }
+
+  setEqMode(mode) {
+    this.eqMode = mode;
+    this.eq.setEnabled(mode !== 'sensitivity');
+  }
+
+  // Splice the Dynamic EQ into the current analysis graph (built by the
+  // frozen AudioProcessor or by TrackSource; neither file's logic changes).
+  attachEq() {
+    const p = this.audioProcessor;
+    if (!p.audioContext || !p.sourceNode || !p.analyserNode) return;
+    const track = this.trackSource.isLoaded;
+    this.eq.attach({
+      ctx: p.audioContext, source: p.sourceNode, analyser: p.analyserNode,
+      dry: track ? this.trackSource.dryGain : null,
+      monitor: track ? this.trackSource.musicGain : null,
+    });
   }
 
   // Music mute and (step 7) story fades act on the music bus after the
@@ -424,6 +460,7 @@ class DJVisualizerApp {
       
       // Start with new device
       await this.audioProcessor.startAudio(this.selectedDeviceId);
+      this.attachEq();
       this.visualizer.start();
       
       console.log('Audio restarted with new device');
@@ -501,6 +538,7 @@ class DJVisualizerApp {
     this.audioFileStatus.textContent = `Loading: ${file.name}...`;
     try {
       await this.trackSource.load(file);
+      this.attachEq();
       this.audioFileStatus.textContent = `Loaded: ${file.name}`;
       this.resetSession();
       this.timeline.loadTrackWaveform(file);
@@ -569,6 +607,7 @@ class DJVisualizerApp {
       
       // Use selected device or let the system auto-select
       await this.audioProcessor.startAudio(this.selectedDeviceId);
+      this.attachEq();
       this.visualizer.start();
       this.isRunning = true;
       this.setStartButton('Stop', true);
@@ -620,6 +659,7 @@ class DJVisualizerApp {
   stopAudio() {
     // Track mode owns an <audio> element the processor doesn't know about;
     // unload() tears that down and then calls audioProcessor.stop().
+    this.eq.detach();
     if (this.trackSource.isLoaded) this.trackSource.unload();
     else this.audioProcessor.stop();
     this.visualizer.stop();

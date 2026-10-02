@@ -50,9 +50,17 @@ class TrackSource {
     // Music bus (v2.1, D-36): mute and story fades act on this gain, which
     // sits AFTER the analyser, so BPM / bands / cuts always see the
     // full-level track.
+    //
+    // v2.2 (D-51): what you hear goes source → dryGain → musicGain →
+    // speakers, separate from the analysis path (source → analyser). An
+    // AnalyserNode doesn't need an output to work (the mic path never had
+    // one). That split lets the Dynamic EQ shape only what the analysis
+    // hears; with the EQ flat both paths carry the identical signal.
     this.musicGain = p.audioContext.createGain();
     this.musicGain.gain.value = this.musicLevel;
-    p.analyserNode.connect(this.musicGain);
+    this.dryGain = p.audioContext.createGain();
+    p.sourceNode.connect(this.dryGain);
+    this.dryGain.connect(this.musicGain);
     this.musicGain.connect(p.audioContext.destination);
 
     p.dataArray = new Uint8Array(p.analyserNode.frequencyBinCount);
@@ -98,6 +106,7 @@ class TrackSource {
       this.processor.stop();
     }
     this.musicGain = null;
+    this.dryGain = null;
     if (this.url) {
       URL.revokeObjectURL(this.url);
       this.url = null;

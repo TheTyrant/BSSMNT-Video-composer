@@ -25,6 +25,8 @@ app/
   timelinePanel.js         Bottom editor UI: master timeline, clip lane, bin, properties, HUD
   sidebar.js               Tabs-only sidebars (left + right), up to 2 stacked panels, closed by default
   headerPickers.js         Header SRC / MODE dropdowns (mode icons) + activity light
+  analysisEq.js            Dynamic EQ: analysis-only filter chain (source → filters → analyser), presets, Listen
+  eqPanel.js               02 Assets EQ: Sensitivity / Dynamic tabs, Use radios, EQ graph
   assetPanel.js            03 Assets: image/video bin, asset list, selected-asset properties + status
   app.js                   App controller: wiring, audio source modes, master clock, shortcuts
   output.js                Pop-out window renderer (mirrors control window state)
@@ -38,7 +40,7 @@ netlify.toml · vercel.json Static deploy configs (vercel uses globs: *.html, ap
 **No build step.** Plain `<script>` tags, global classes, loaded in this order (order matters — later files reference earlier globals):
 
 ```
-p5 (CDN) → audioProcessor → visualizer → trackSource → voiceTrack → musicalTime → transitions → clipEngine → timelinePanel → sidebar → headerPickers → assetPanel → app
+p5 (CDN) → audioProcessor → visualizer → trackSource → voiceTrack → musicalTime → transitions → clipEngine → timelinePanel → sidebar → headerPickers → assetPanel → eqPanel → app (analysisEq loads after trackSource)
 ```
 
 External runtime dependencies: p5.js 1.9.0 (cdnjs), p5.asciify (unpkg, currently unused), Google Fonts (Boldonse, Inter Tight, JetBrains Mono — falls back to system fonts offline).
