@@ -38,8 +38,12 @@ class DJVisualizerApp {
 
   async init() {
     // Modular tab sidebar (v2.1, D-42)
-    this.sidebar = new Sidebar();
+    // Left tabs (stack up to 2 panels) and the right Auto-Editor sidebar.
+    // Both start closed and only span the viewport row (D-48).
+    this.sidebar = new Sidebar('sidebar', 'tabPanels', 'tabRail', { maxOpen: 2 });
     this.sidebar.init();
+    this.rightbar = new Sidebar('rightbar', 'rightPanels', 'rightRail', { maxOpen: 1 });
+    this.rightbar.init();
 
     // Initialize DOM elements
     this.startBtn = document.getElementById('start');
@@ -179,6 +183,10 @@ class DJVisualizerApp {
 
     this.timeline.init();
 
+    // Header quick pickers: SRC / MODE dropdowns + activity light (D-50)
+    this.headerPickers = new HeaderPickers(this);
+    this.headerPickers.init();
+
     // 03 Assets: asset bin + selected-asset properties (v2.1, D-44)
     this.assetPanel = new AssetPanel(this);
     this.assetPanel.init();
@@ -201,7 +209,7 @@ class DJVisualizerApp {
       status: $('voiceStatus'), controls: $('voiceControls'), volume: $('voiceVolume'),
       volumeValue: $('voiceVolumeValue'), normalize: $('voiceNormalize'), offset: $('voiceOffset'),
       download: $('voiceDownload'), remove: $('voiceRemove'), recBadge: $('recBadge'),
-      musicMute: $('musicMute'), musicHint: $('musicHint'),
+      muteMaster: $('muteMaster'), muteVoice: $('muteVoice'),
     };
     const ui = this.voiceUI;
     const fail = (e) => { console.error(e); alert('Voice: ' + (e.message || e)); };
@@ -227,9 +235,16 @@ class DJVisualizerApp {
       if (v.recording) ui.recBadge.textContent = `REC ${fmtTime(v.recordElapsed(), false)}`;
     }, 200);
 
-    ui.musicMute.addEventListener('change', () => {
-      this.musicMuted = ui.musicMute.checked;
+    // Track mutes live on the timeline tracks (D-49). A muted track is
+    // silent now and will be left out of exports.
+    ui.muteMaster.addEventListener('click', () => {
+      this.musicMuted = !this.musicMuted;
+      ui.muteMaster.setAttribute('aria-pressed', String(this.musicMuted));
       this.applyMusicLevel();
+    });
+    ui.muteVoice.addEventListener('click', () => {
+      v.setMuted(!v.muted);
+      ui.muteVoice.setAttribute('aria-pressed', String(v.muted));
     });
     this.updateVoiceUI();
     this.updateMusicUI();
@@ -287,8 +302,8 @@ class DJVisualizerApp {
 
   updateMusicUI() {
     const live = this.audioSourceMode !== 'file';
-    this.voiceUI.musicMute.disabled = live;
-    this.voiceUI.musicHint.textContent = live
+    this.voiceUI.muteMaster.disabled = live;
+    this.voiceUI.muteMaster.title = live
       ? 'Live input: the music plays from your own rig, so BSSMNT has nothing to mute.'
       : 'Mutes the track for a voice-only result. BPM and cuts keep following the music.';
   }

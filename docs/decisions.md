@@ -197,6 +197,32 @@ The brief's four questions were not answered before the build. Rather than guess
 - **Consequences:** Mixing paces (especially triple time) can move cuts off bar lines; that is the user's choice. Ghost markers show the next cut exactly and later ones at the global interval, since later clips aren't chosen yet. D-09 (re-sync without an extra cut) still applies: if the on-screen clip's hold changes, the next cut is rescheduled from that shot's start.
 - **Status:** Accepted as the v2.1 per-clip timing (D-31): the Pace lexicon stays. In v2.1 the control moves from the bin card into the asset properties panel (D-44).
 
+## K. v2.2 — workspace rework *(Omar, 2026-10-02; in progress)*
+
+### D-48 · Tabs-only sidebars; full-width timeline; Auto-Editor on the right *(Accepted — built)*
+- **Decision:** The sidebars no longer run the full height or carry a rail. Each is **just its tabs**, floating at the sidebar's inner edge over the viewport, with no arrow/collapse buttons. Closed, a sidebar takes **zero width**; open, it is one panel wide and only in the viewport row. The **timeline runs the full window width** underneath, so slide-outs never take timeline space.
+  - **Left tabs:** 01 Audio · 02 Assets · 03 Output (the 02 EQ tab is gone: the EQ moves into Assets, D-51). Up to **two panels stack**; opening a third closes the **top** one. A second click on a tab closes it.
+  - **Right tab:** **AE · Auto-Editor** (moved out of the timeline area), same behaviour, one panel.
+  - **All panels start closed** on every load (nothing persisted).
+- **Why:** Omar: the sidebar "doesn't need the full tab rail, just the tabs", and the timeline must not be squeezed by slide-outs.
+- **As built:** clip HUD and Status overlay moved in 62 px so the floating tabs don't cover them. CSS/JS links carry a `?v=` version so a reload can never mix old and new files (the cause of the "squeezed timeline" seen mid-change).
+- **Verified:** closed → sidebars 0 px, viewport and timeline 1600/1600 px; Audio + Auto-Edit open → timeline still 1600 px; third tab closes the top panel; second click closes. Full v2.1 regression (16 checks) passes on this layout.
+
+### D-49 · Mute lives on the tracks *(Accepted — built; export exclusion pending export)*
+- **Decision:** The Music block left 01 Audio. **Master** and **Voice** track headers each have an **M** button. A muted track is silent now and will be **left out of exports**. Master mute is disabled in live mode (BSSMNT doesn't play the music there, D-36).
+- **Verified:** M on Master → music bus 0 with BPM/bands still reading; M on Voice → voice gain 0, unmute restores.
+
+### D-50 · Header quick pickers *(Accepted — built)*
+- **Decision:** The header keeps its original readouts (`SRC LIVE`, `MODE Spectrum Bars`), no borders, with the same **▾ caret** to the right of each value. Clicking opens a dropdown: SRC = Live input / Track file (switching slides out **01 Audio**); MODE = every mode **with its own icon**. The same controls stay in 01 Audio. A **red activity light** next to SRC is on while audio with signal is coming in, with a ring on beats.
+- **Verified:** mode menu lists 10 modes with icons and drives `#visualMode`; switching source either way opens 01 Audio; the light follows the live signal.
+
+### D-51 · Main EQ (analysis) inside 02 Assets *(in progress)*
+- **Decision (Omar):** the EQ shapes **what the beat and band analysis hears** (so cuts can lock to e.g. the kick), with a **Listen** toggle to hear it; the sound and exports are untouched. It lives at the top of **02 Assets** with the live spectrum, above the asset list; each selected asset gets its own **dynamic EQ** (the range it reacts to) in its options. Band sensitivity faders/meters move under the Main EQ.
+- **Status:** layout in place; the interactive EQ and per-asset dynamic EQ are being built next.
+
+### Q17 · Export *(open — in discussion with Omar)*
+Real-time capture vs. an offline builder. Offline is the goal (long-form edits can't take real time), and needs the Phase 1 plan model + offline song analysis first. To be decided before building.
+
 ## I. Known carry-overs (pre-existing on `main`, not changed)
 - Placeholder text drawn with `p.text()` in WebGL mode doesn't render, because no font is loaded (affects the Media Layers "Upload images…" prompt). v2 uses a DOM overlay for its own hints.
 - `visualizer.js` has duplicate `drawAudioWaves` / `drawMandala` / `drawTunnel` definitions (the later ones win), plus unused snake-game code.

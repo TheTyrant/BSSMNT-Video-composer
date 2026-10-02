@@ -1,27 +1,31 @@
-// Modular tab sidebar (v2.1, D-42).
+// Modular tab sidebars (v2.1 D-42, reworked in v2.2 D-48).
 //
-// Every `.side-panel` section inside #tabPanels is a tab: its data-num /
-// data-label become a rail button, and only the open tab's panel shows.
+// Each `.side-panel` section inside a sidebar's panel column is a tab: its
+// data-num / data-label become a rail button. Sidebars only span the
+// viewport row, so slide-outs never take space from the timeline.
+//
+//  - Everything starts closed (tabs-only rail).
+//  - Clicking a tab opens its panel; clicking it again closes it.
+//  - Up to `maxOpen` panels stack top-to-bottom in the order they were
+//    opened. Opening one more closes the TOP (oldest) panel.
+//  - No rail or arrow buttons: just the tabs, floating at the sidebar's
+//    inner edge. Closed, a sidebar takes no width at all.
 // Adding or reordering a tab is a one-place change in index.html.
-// Clicking the open tab (or the « button) collapses the sidebar to the
-// tabs-only rail; clicking any tab while collapsed slides its panel out.
-// The open tab and collapsed state are remembered per browser.
 class Sidebar {
-  constructor() {
-    this.KEY = 'djv.sidebar';
-    this.root = document.getElementById('sidebar');
-    this.rail = document.getElementById('tabRail');
-    this.panels = Array.from(document.querySelectorAll('#tabPanels > .side-panel'));
+  constructor(rootId, panelsId, railId, { maxOpen = 2 } = {}) {
+    this.root = document.getElementById(rootId);
+    this.rail = document.getElementById(railId);
+    this.panels = Array.from(document.querySelectorAll(`#${panelsId} > .side-panel`));
+    this.maxOpen = maxOpen;
+    this.openTabs = [];        // top first
+    this.lastOpen = [];
     this.buttons = new Map();
-    this.state = { open: this.panels[0] && this.panels[0].dataset.tab, collapsed: false };
+    this.listeners = new Set();
   }
 
-  init() {
-    try {
-      const saved = JSON.parse(localStorage.getItem(this.KEY) || 'null');
-      if (saved && this.panels.some(p => p.dataset.tab === saved.open)) this.state = saved;
-    } catch (e) { /* storage unavailable: use defaults */ }
+  on(fn) { this.listeners.add(fn); }
 
+  init() {
     this.panels.forEach(panel => {
       const tab = panel.dataset.tab;
       const b = document.createElement('button');
@@ -30,52 +34,63 @@ class Sidebar {
       b.id = `tab-${tab}`;
       b.setAttribute('aria-controls', panel.id);
       b.innerHTML = `<span class="rail-num">${panel.dataset.num}</span><span class="rail-label">${panel.dataset.label}</span>`;
-      b.addEventListener('click', () => this.onTab(tab));
+      b.addEventListener('click', () => this.toggle(tab));
       this.rail.appendChild(b);
       this.buttons.set(tab, b);
     });
-
-    const collapse = document.createElement('button');
-    collapse.type = 'button';
-    collapse.className = 'rail-collapse';
-    collapse.id = 'sidebarCollapse';
-    collapse.addEventListener('click', () => this.toggleCollapsed());
-    this.rail.appendChild(collapse);
-    this.collapseBtn = collapse;
-
     this.apply();
   }
 
-  onTab(tab) {
-    if (this.state.open === tab && !this.state.collapsed) this.state.collapsed = true;
-    else { this.state.open = tab; this.state.collapsed = false; }
+  isOpen(tab) { return this.openTabs.includes(tab); }
+
+  toggle(tab) {
+    if (this.isOpen(tab)) this.openTabs = this.openTabs.filter(t => t !== tab);
+    else this.push(tab);
     this.apply();
   }
 
+  // Programmatic open (e.g. selecting an asset opens 02 Assets). Leaves the
+  // panel where it is if it's already open.
   open(tab) {
-    this.state.open = tab;
-    this.state.collapsed = false;
+    if (!this.isOpen(tab)) this.push(tab);
+    this.apply();
+  }
+
+  push(tab) {
+    this.openTabs.push(tab);
+    while (this.openTabs.length > this.maxOpen) this.openTabs.shift();   // close the top panel
+  }
+
+  closeAll() {
+    if (this.openTabs.length) this.lastOpen = this.openTabs.slice();
+    this.openTabs = [];
     this.apply();
   }
 
   toggleCollapsed() {
-    this.state.collapsed = !this.state.collapsed;
-    this.apply();
+    if (this.openTabs.length) this.closeAll();
+    else {
+      this.openTabs = (this.lastOpen.length ? this.lastOpen : [this.panels[0].dataset.tab]).slice(-this.maxOpen);
+      this.apply();
+    }
   }
 
   apply() {
-    const { open, collapsed } = this.state;
-    this.root.classList.toggle('collapsed', collapsed);
-    this.panels.forEach(p => { p.hidden = p.dataset.tab !== open; });
+    const open = this.openTabs;
+    this.root.classList.toggle('collapsed', open.length === 0);
+    this.root.classList.toggle('stacked', open.length > 1);
+    this.panels.forEach(p => {
+      const i = open.indexOf(p.dataset.tab);
+      p.hidden = i < 0;
+      p.style.order = i < 0 ? '' : String(i);
+    });
     this.buttons.forEach((b, tab) => {
-      const on = tab === open && !collapsed;
+      const on = open.includes(tab);
+      const name = b.querySelector('.rail-label').textContent;
       b.classList.toggle('on', on);
       b.setAttribute('aria-expanded', String(on));
-      b.title = on ? `Collapse ${b.textContent.slice(2)}` : `Open ${b.textContent.slice(2)}`;
+      b.title = on ? `Close ${name}` : `Open ${name}`;
     });
-    this.collapseBtn.textContent = collapsed ? '»' : '«';
-    this.collapseBtn.title = collapsed ? 'Expand sidebar' : 'Collapse to tabs';
-    this.collapseBtn.setAttribute('aria-label', this.collapseBtn.title);
-    try { localStorage.setItem(this.KEY, JSON.stringify(this.state)); } catch (e) { /* ignore */ }
+    this.listeners.forEach(fn => fn(open.slice()));
   }
 }

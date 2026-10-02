@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Boldonse&family=Inter+Tight:wght@400;500;600;800&family=JetBrains+Mono:wght@400;500;700&display=swap">
 
     <!-- External Styles -->
-    <link rel="stylesheet" href="styles/styles.css">
+    <link rel="stylesheet" href="styles/styles.css?v=2.2.0">
 
     <!-- External Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
@@ -27,8 +27,23 @@
           <span class="brand-ver">v2</span>
         </div>
         <div class="topbar-readouts">
-          <span class="readout"><span class="readout-k">SRC</span><span id="topSource">MIC</span></span>
-          <span class="readout"><span class="readout-k">MODE</span><span id="topMode">Spectrum Bars</span></span>
+          <!-- Original readouts; click the value (or the caret) for a quick
+               dropdown. Same controls live in 01 Audio. -->
+          <div class="readout hdr-pick" id="srcPick">
+            <span class="readout-k">SRC</span>
+            <span class="activity-light" id="srcLight" title="Lights up when audio is coming in"></span>
+            <button type="button" class="hdr-btn" id="srcBtn" aria-haspopup="listbox" aria-expanded="false" aria-controls="srcMenu" aria-label="Audio source">
+              <span id="topSource">LIVE</span><span class="caret" aria-hidden="true">&#x25BE;</span>
+            </button>
+            <ul class="hdr-menu" id="srcMenu" role="listbox" aria-label="Audio source" hidden></ul>
+          </div>
+          <div class="readout hdr-pick" id="modePick">
+            <span class="readout-k">MODE</span>
+            <button type="button" class="hdr-btn" id="modeBtn" aria-haspopup="listbox" aria-expanded="false" aria-controls="modeMenu" aria-label="Visualization mode">
+              <span id="topMode">Spectrum Bars</span><span class="caret" aria-hidden="true">&#x25BE;</span>
+            </button>
+            <ul class="hdr-menu" id="modeMenu" role="listbox" aria-label="Visualization mode" hidden></ul>
+          </div>
         </div>
         <button class="btn btn-ghost btn-icon" id="helpBtn" type="button" title="Keyboard shortcuts (?)">?</button>
       </header>
@@ -124,13 +139,26 @@
               <p class="hint" id="voiceHint">Recording over the music? Use headphones so the speakers don’t bleed into the take.</p>
             </div>
 
-            <h4 class="sub-head">Music</h4>
-            <label class="voice-check"><input type="checkbox" id="musicMute"> <span>Mute music (voice only)</span></label>
-            <p class="hint" id="musicHint"></p>
           </section>
 
-          <section class="control-section side-panel" id="panel-eq" data-tab="eq" data-num="02" data-label="EQ">
-            <h3><span class="sec-num">02</span>EQ</h3>
+          <section class="control-section side-panel" id="customMediaSection" data-tab="assets" data-num="02" data-label="Assets">
+            <h3><span class="sec-num">02</span>Assets</h3>
+
+            <!-- Main EQ + live spectrum: an ANALYSIS EQ. It shapes what the beat
+                 and band analysis hears; the sound and exports are untouched. -->
+            <div class="eq-block" id="eqBlock">
+              <div class="eq-head">
+                <span class="prop-label">Main EQ &middot; analysis</span>
+                <select id="eqPreset" aria-label="EQ preset"></select>
+              </div>
+              <canvas id="eqCanvas" class="eq-canvas" tabindex="0" aria-label="Analysis EQ. Drag a point to move it, scroll to change its width, double-click to reset it."></canvas>
+              <div class="eq-tools">
+                <label class="voice-check" title="Hear what the analysis hears"><input type="checkbox" id="eqListen"> <span>Listen</span></label>
+                <span class="eq-readout" id="eqReadout">Flat</span>
+                <button class="btn" id="eqReset" type="button">Flat</button>
+              </div>
+              <p class="hint" id="eqHint">Shapes what the beat and band analysis hears, so cuts can lock to the part you pick (e.g. Kick focus). Your sound and exports aren&rsquo;t changed. Turn on Listen to hear it.</p>
+              <h4 class="sub-head">Band sensitivity</h4>
             <div class="mixer">
               <div class="strip bass">
                 <div class="strip-head"><span class="chip"></span>Bass</div>
@@ -160,11 +188,10 @@
                 </div>
               </div>
             </div>
-            <p class="hint">Level meters (top) and sensitivity (fader). <kbd>R</kbd> resets.</p>
-          </section>
+              <p class="hint">Level meters (top) and sensitivity (fader). <kbd>R</kbd> resets.</p>
+            </div>
 
-          <section class="control-section side-panel" id="customMediaSection" data-tab="assets" data-num="03" data-label="Assets">
-            <h3><span class="sec-num">03</span>Assets</h3>
+            <h4 class="sub-head">Assets</h4>
             <!-- One bin for images and video (D-44). Selecting an asset shows
                  its options below, where the Bass/Mid/High slots used to be. -->
             <label class="asset-drop dropzone" id="assetDrop" title="Drop images or video here, or click to choose">
@@ -176,8 +203,8 @@
             <div class="asset-props" id="assetProps"></div>
           </section>
 
-          <section class="control-section side-panel" id="panel-output" data-tab="output" data-num="04" data-label="Output">
-            <h3><span class="sec-num">04</span>Output</h3>
+          <section class="control-section side-panel" id="panel-output" data-tab="output" data-num="03" data-label="Output">
+            <h3><span class="sec-num">03</span>Output</h3>
             <button id="popOutOutput" class="btn btn-block" type="button">Pop Out Output Window</button>
             <p class="hint">Drag the pop-out to your projector and fullscreen it there. Canvas only &mdash; no controls.</p>
           </section>
@@ -187,10 +214,10 @@
       <!-- Main workspace: viewport over editor -->
       <main class="main-content">
         <section class="viewport">
-          <div class="area-header">
+          <!-- /?<div class="area-header">
             <span class="area-title">Viewport</span>
             <span class="area-sub" id="viewportModeLabel">Spectrum Bars</span>
-          </div>
+          </div>?/ -->
           <div class="visualizer-container">
             <div id="spectrum-visualizer"></div>
             <div id="p5-canvas"></div>
@@ -214,7 +241,88 @@
             </div>
           </div>
         </section>
+      </main>
 
+      <!-- Right sidebar: Auto-Editor (collapsible, like the left one) -->
+      <aside class="sidebar sidebar-right" id="rightbar">
+        <div class="tab-panels" id="rightPanels">
+          <section class="control-section side-panel editor-props" id="panel-autoedit" data-tab="autoedit" data-num="AE" data-label="Auto-Edit">
+            <h3>Auto-Editor</h3>
+                <div class="prop">
+                  <div class="prop-label">Switch timing</div>
+                  <div class="seg seg-btns" id="propTimingMode">
+                    <button type="button" data-v="auto">Auto</button>
+                    <button type="button" data-v="manual">Manual</button>
+                  </div>
+                </div>
+
+                <div class="prop" data-show-timing="auto">
+                  <label class="prop-label" for="propAutoPace">Pace</label>
+                  <select id="propAutoPace"></select>
+                </div>
+
+                <div class="prop" data-show-timing="manual">
+                  <div class="prop-label">Every</div>
+                  <div class="stepper">
+                    <button type="button" id="propCountDec" aria-label="Fewer">&minus;</button>
+                    <input type="number" id="propCount" min="1" max="64" step="1" value="2" aria-label="Count">
+                    <button type="button" id="propCountInc" aria-label="More">+</button>
+                  </div>
+                  <div class="seg seg-btns seg-units" id="propUnit"></div>
+                  <div class="seg seg-btns seg-quick" id="propQuick" title="Single / double / triple / quad time"></div>
+                </div>
+
+                <div class="prop-readout" id="propReadout">&mdash;</div>
+
+                <div class="prop">
+                  <label class="prop-label" for="propOrder">Clip order</label>
+                  <select id="propOrder">
+                    <option value="sequential">Sequential</option>
+                    <option value="random">Random</option>
+                    <option value="band">By dominant band</option>
+                  </select>
+                </div>
+
+                <div class="prop">
+                  <label class="prop-label" for="propTransition">Transition</label>
+                  <select id="propTransition"></select>
+                  <div class="band-map" id="propBandMap"></div>
+                </div>
+
+                <div class="prop">
+                  <label class="prop-label" for="propInPoint">In-point</label>
+                  <select id="propInPoint">
+                    <option value="random">Random point</option>
+                    <option value="resume">Resume where it left off</option>
+                    <option value="start">From the start</option>
+                  </select>
+                </div>
+
+                <label class="prop prop-check">
+                  <input type="checkbox" id="propOverlay">
+                  <span>Overlay Media Layers</span>
+                </label>
+
+                <!-- Story Mode (D-33–D-37): off = Free Mode, unchanged automation -->
+                <div class="prop prop-story">
+                  <div class="prop-label">Story Mode</div>
+                  <div class="seg seg-btns" id="propStoryMode">
+                    <button type="button" data-v="off">Free</button>
+                    <button type="button" data-v="on">Story</button>
+                  </div>
+                  <label class="prop-check" id="propStoryFadeRow">
+                    <input type="checkbox" id="propStoryFade">
+                    <span>Auto Fade Music to Story Blocks</span>
+                  </label>
+                  <p class="hint" id="propStoryHint"></p>
+                </div>
+          </section>
+        </div>
+        <nav class="tab-rail" id="rightRail" aria-label="Right sidebar"></nav>
+      </aside>
+
+      <!-- Bottom: timeline + Action Editor, full width under both sidebars -->
+      <div class="bottom-area">
         <div class="area-split" id="panelSplitter" role="separator" aria-orientation="horizontal" title="Drag to resize"></div>
 
         <section class="editor" id="editorPanel">
@@ -241,16 +349,16 @@
             <div class="editor-main">
               <div class="channels">
                 <div class="ch ch-ruler"></div>
-                <div class="ch ch-master"><span class="ch-name">Master</span><span class="ch-sub" id="chMasterSub">Live input</span></div>
+                <div class="ch ch-master"><div class="ch-row"><span class="ch-name">Master</span><button class="ch-mute" id="muteMaster" type="button" aria-pressed="false" title="Mute the music (left out of exports)">M</button></div><span class="ch-sub" id="chMasterSub">Live input</span></div>
                 <div class="ch ch-clips"><span class="ch-name">Clips</span><span class="ch-sub">Auto-edit</span></div>
-                <div class="ch ch-voice" id="chVoice" hidden><span class="ch-name">Voice</span><span class="ch-sub" id="chVoiceSub">—</span></div>
+                <div class="ch ch-voice" id="chVoice" hidden><div class="ch-row"><span class="ch-name">Voice</span><button class="ch-mute" id="muteVoice" type="button" aria-pressed="false" title="Mute the voice (left out of exports)">M</button></div><span class="ch-sub" id="chVoiceSub">—</span></div>
               </div>
               <div class="lanes" id="timelineLanes">
                 <canvas id="timelineCanvas"></canvas>
               </div>
               <div class="ch ch-bin"><span class="ch-name">Action</span><span class="ch-sub" id="binCount">0 clips</span><span class="ch-sub ch-hint">Drag to reorder.<br>Top = most important</span></div>
               <div class="clip-bin dropzone" id="clipBin">
-                <label class="bin-add" title="Add images or video (also in 03 Assets)">
+                <label class="bin-add" title="Add images or video (also in 02 Assets)">
                   <input type="file" id="clipUpload" accept="image/*,video/*" multiple>
                   <span class="bin-add-plus">+</span>
                   <span>Add clips</span>
@@ -258,82 +366,9 @@
                 <div class="bin-cards" id="binCards" role="listbox" aria-label="Action Editor stack"></div>
               </div>
             </div>
-
-            <aside class="editor-props">
-              <div class="props-title">Auto-Editor</div>
-
-              <div class="prop">
-                <div class="prop-label">Switch timing</div>
-                <div class="seg seg-btns" id="propTimingMode">
-                  <button type="button" data-v="auto">Auto</button>
-                  <button type="button" data-v="manual">Manual</button>
-                </div>
-              </div>
-
-              <div class="prop" data-show-timing="auto">
-                <label class="prop-label" for="propAutoPace">Pace</label>
-                <select id="propAutoPace"></select>
-              </div>
-
-              <div class="prop" data-show-timing="manual">
-                <div class="prop-label">Every</div>
-                <div class="stepper">
-                  <button type="button" id="propCountDec" aria-label="Fewer">&minus;</button>
-                  <input type="number" id="propCount" min="1" max="64" step="1" value="2" aria-label="Count">
-                  <button type="button" id="propCountInc" aria-label="More">+</button>
-                </div>
-                <div class="seg seg-btns seg-units" id="propUnit"></div>
-                <div class="seg seg-btns seg-quick" id="propQuick" title="Single / double / triple / quad time"></div>
-              </div>
-
-              <div class="prop-readout" id="propReadout">&mdash;</div>
-
-              <div class="prop">
-                <label class="prop-label" for="propOrder">Clip order</label>
-                <select id="propOrder">
-                  <option value="sequential">Sequential</option>
-                  <option value="random">Random</option>
-                  <option value="band">By dominant band</option>
-                </select>
-              </div>
-
-              <div class="prop">
-                <label class="prop-label" for="propTransition">Transition</label>
-                <select id="propTransition"></select>
-                <div class="band-map" id="propBandMap"></div>
-              </div>
-
-              <div class="prop">
-                <label class="prop-label" for="propInPoint">In-point</label>
-                <select id="propInPoint">
-                  <option value="random">Random point</option>
-                  <option value="resume">Resume where it left off</option>
-                  <option value="start">From the start</option>
-                </select>
-              </div>
-
-              <label class="prop prop-check">
-                <input type="checkbox" id="propOverlay">
-                <span>Overlay Media Layers</span>
-              </label>
-
-              <!-- Story Mode (D-33–D-37): off = Free Mode, unchanged automation -->
-              <div class="prop prop-story">
-                <div class="prop-label">Story Mode</div>
-                <div class="seg seg-btns" id="propStoryMode">
-                  <button type="button" data-v="off">Free</button>
-                  <button type="button" data-v="on">Story</button>
-                </div>
-                <label class="prop-check" id="propStoryFadeRow">
-                  <input type="checkbox" id="propStoryFade">
-                  <span>Auto Fade Music to Story Blocks</span>
-                </label>
-                <p class="hint" id="propStoryHint"></p>
-              </div>
-            </aside>
           </div>
         </section>
-      </main>
+      </div>
     </div>
 
     <!-- Help Overlay -->
@@ -366,16 +401,17 @@
     </div>
 
     <!-- Application Modules -->
-    <script src="app/audioProcessor.js"></script>
-    <script src="app/visualizer.js"></script>
-    <script src="app/trackSource.js"></script>
-    <script src="app/voiceTrack.js"></script>
-    <script src="app/musicalTime.js"></script>
-    <script src="app/transitions.js"></script>
-    <script src="app/clipEngine.js"></script>
-    <script src="app/timelinePanel.js"></script>
-    <script src="app/sidebar.js"></script>
-    <script src="app/assetPanel.js"></script>
-    <script src="app/app.js"></script>
+    <script src="app/audioProcessor.js?v=2.2.0"></script>
+    <script src="app/visualizer.js?v=2.2.0"></script>
+    <script src="app/trackSource.js?v=2.2.0"></script>
+    <script src="app/voiceTrack.js?v=2.2.0"></script>
+    <script src="app/musicalTime.js?v=2.2.0"></script>
+    <script src="app/transitions.js?v=2.2.0"></script>
+    <script src="app/clipEngine.js?v=2.2.0"></script>
+    <script src="app/timelinePanel.js?v=2.2.0"></script>
+    <script src="app/sidebar.js?v=2.2.0"></script>
+    <script src="app/headerPickers.js?v=2.2.0"></script>
+    <script src="app/assetPanel.js?v=2.2.0"></script>
+    <script src="app/app.js?v=2.2.0"></script>
   </body>
 </html>

@@ -28,6 +28,7 @@
 
   --topbar-h:  40px;
   --sidebar-w: 312px;
+  --panel-w: 300px;
   --editor-h:  340px;
 }
 
@@ -60,8 +61,10 @@ kbd {
 
 .app-container {
   display: grid;
-  grid-template-columns: auto 1fr;
-  grid-template-rows: var(--topbar-h) 1fr;
+  /* Row 2: left tabs | viewport | right Auto-Editor. Row 3: timeline,
+     full width, so slide-outs never take timeline space (D-48). */
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-rows: var(--topbar-h) minmax(0, 1fr) auto;
   height: 100vh;
   width: 100vw;
 }
@@ -119,6 +122,32 @@ kbd {
 .topbar-readouts { display: flex; gap: 20px; flex: 1; }
 .readout { display: flex; gap: 8px; align-items: baseline; font-family: var(--font-mono); font-size: 11px; }
 .readout-k { color: var(--ink-3); font-size: 10px; letter-spacing: 0.08em; }
+/* Header quick pickers (D-50): the original readouts, no borders, with a
+   caret on the right of the value. Menus drop down below. */
+.readout.hdr-pick { position: relative; align-items: center; }
+.hdr-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: auto; padding: 0; border: none; background: transparent;
+  font: inherit; color: var(--ink); cursor: pointer;
+}
+.hdr-btn:hover #topSource, .hdr-btn:hover #topMode { text-decoration: underline; text-underline-offset: 3px; }
+.hdr-btn:focus-visible { outline: 2px solid var(--high); outline-offset: 3px; }
+.hdr-btn .caret { font-size: 10px; line-height: 1; color: var(--ink-2); }
+.hdr-menu {
+  position: absolute; top: calc(100% + 10px); left: 0; z-index: 50;
+  min-width: 200px; margin: 0; padding: 4px 0; list-style: none;
+  background: var(--paper); border: 1px solid var(--ink); box-shadow: 4px 4px 0 var(--ink);
+}
+.hdr-menu li {
+  display: flex; align-items: center; gap: 10px; padding: 6px 12px;
+  font-family: var(--font-mono); font-size: 11px; cursor: pointer; white-space: nowrap;
+}
+.hdr-menu li:hover, .hdr-menu li:focus { background: var(--steel); outline: none; }
+.hdr-menu li[aria-selected="true"] { background: var(--ink); color: var(--paper); }
+.mode-icon { flex: none; }
+.activity-light { width: 8px; height: 8px; border-radius: 50%; border: 1px solid var(--live); background: transparent; flex: none; transition: background 0.08s, box-shadow 0.08s; }
+.activity-light.on { background: var(--live); }
+.activity-light.beat { box-shadow: 0 0 0 3px rgba(229, 50, 45, 0.3); }
 
 /* ---------- Buttons & inputs -------------------------------------------- */
 
@@ -216,58 +245,64 @@ input[type="checkbox"] { accent-color: var(--ink); margin: 0; }
 
 /* ---------- Sidebar ------------------------------------------------------ */
 
-/* Modular tab sidebar (D-42): a tabs-only rail + one slide-out panel.
-   Collapsed = rail only. Panels are built from .side-panel sections. */
+/* Modular tab sidebars (D-42, D-48): just the tabs, floating at each
+   sidebar's inner edge over the viewport. No rail, no arrow buttons.
+   Closed, a sidebar takes no width; open, it is one panel wide (two
+   panels stack inside it). A tab closes its panel on a second click. */
 .sidebar {
+  position: relative;
+  z-index: 10;
   display: flex;
   min-height: 0;
   background: var(--panel);
   border-right: 1px solid var(--ink);
 }
+.sidebar.collapsed { border-left: none; border-right: none; }
 .tab-rail {
-  width: 60px;
-  flex: none;
+  position: absolute;
+  top: 34px;
+  left: 100%;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid var(--ink);
-  background: var(--surface);
+  gap: 4px;
+  padding-left: 6px;
 }
+.sidebar-right .tab-rail { left: auto; right: 100%; padding-left: 0; padding-right: 6px; }
 .rail-tab {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  height: 60px;
+  gap: 1px;
+  width: 46px;
+  height: 46px;
   padding: 0;
-  border: none;
-  border-bottom: 1px solid var(--hair);
-  background: transparent;
+  border: 1px solid var(--ink);
+  background: var(--surface);
   color: var(--ink);
   cursor: pointer;
 }
-.rail-tab:hover { background: var(--steel); }
+.rail-tab:hover { background: var(--paper); }
 .rail-tab.on { background: var(--ink); color: var(--paper); }
-.rail-num { font-family: var(--font-mono); font-size: 13px; font-weight: 700; }
-.rail-label { font-family: var(--font-mono); font-size: 8px; letter-spacing: 0.08em; text-transform: uppercase; }
-.rail-collapse {
-  margin-top: auto;
-  height: 36px;
-  border: none;
-  border-top: 1px solid var(--ink);
-  background: transparent;
-  font-size: 14px;
-  cursor: pointer;
-}
-.rail-collapse:hover { background: var(--ink); color: var(--paper); }
+.rail-tab:focus-visible { outline: 2px solid var(--high); outline-offset: 2px; }
+.rail-num { font-family: var(--font-mono); font-size: 12px; font-weight: 700; }
+.rail-label { font-family: var(--font-mono); font-size: 7px; letter-spacing: 0.06em; text-transform: uppercase; }
+#sidebar { grid-column: 1; grid-row: 2; }
+.main-content { grid-column: 2; grid-row: 2; }
+.sidebar-right { grid-column: 3; grid-row: 2; border-right: none; border-left: 1px solid var(--ink); }
+.bottom-area { grid-column: 1 / -1; grid-row: 3; display: flex; flex-direction: column; min-width: 0; }
 .tab-panels {
-  width: calc(var(--sidebar-w) - 60px);
-  overflow-x: hidden;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  width: var(--panel-w);
+  overflow: hidden;
   min-height: 0;
   transition: width 0.18s ease;
 }
-.side-panel { width: calc(var(--sidebar-w) - 60px); border-bottom: none; }
+/* Up to two panels stack, each scrolling on its own. */
+.side-panel { width: var(--panel-w); flex: 1 1 0; min-height: 0; overflow-y: auto; overflow-x: hidden; border-bottom: none; }
+.sidebar.stacked .side-panel:not([hidden]) + .side-panel:not([hidden]),
+.sidebar.stacked .side-panel:not([hidden]) ~ .side-panel:not([hidden]) { border-top: 2px solid var(--ink); }
 .sidebar.collapsed .tab-panels { width: 0; }
 .sub-head {
   margin: 18px 0 0;
@@ -446,7 +481,7 @@ input[type="range"]::-moz-range-thumb {
   color: var(--ink);
   pointer-events: none;
 }
-.status-overlay { right: 10px; }
+.status-overlay { right: 62px; }   /* clears the right sidebar's tabs */
 .status-item {
   display: flex;
   align-items: center;
@@ -658,7 +693,7 @@ input[type="range"]::-moz-range-thumb {
 
 #p5-canvas { position: absolute; inset: 0; z-index: 2; }
 
-.viewport-hud { left: 10px; }
+.viewport-hud { left: 62px; }      /* clears the left sidebar's tabs */
 .viewport-hud .status-item.on-air { background: var(--ink); color: var(--paper); }
 .status-item.on-air .status-label { color: rgba(255, 255, 255, 0.65); }
 
@@ -755,7 +790,7 @@ input[type="range"]::-moz-range-thumb {
 .editor-body {
   flex: 1;
   display: grid;
-  grid-template-columns: 1fr 272px;
+  grid-template-columns: minmax(0, 1fr);
   min-height: 0;
 }
 
@@ -784,6 +819,15 @@ input[type="range"]::-moz-range-thumb {
 .ch-clips:has(+ .ch-voice:not([hidden])) { border-bottom: 1px solid var(--hair); }
 .ch-bin { background: var(--panel); border-right: 1px solid var(--ink); border-bottom: none; justify-content: flex-start; padding-top: 10px; }
 .ch-name { font-weight: 800; font-size: 12px; text-transform: uppercase; }
+.ch-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+/* Track mute (D-49) */
+.ch-mute {
+  width: 22px; height: 18px; padding: 0; border: 1px solid var(--ink); background: var(--paper);
+  font-family: var(--font-mono); font-size: 10px; font-weight: 700; cursor: pointer;
+}
+.ch-mute:hover:not(:disabled) { background: var(--steel); }
+.ch-mute[aria-pressed="true"] { background: var(--live); border-color: var(--live); color: var(--paper); }
+.ch-mute:disabled { opacity: 0.35; cursor: default; }
 .ch-sub { font-family: var(--font-mono); font-size: 9px; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.06em; }
 
 .lanes { position: relative; min-width: 0; border-bottom: 1px solid var(--ink); overflow: hidden; }
@@ -903,13 +947,8 @@ input[type="range"]::-moz-range-thumb {
 .bin-card[data-band="mid"] .bin-band-bar { background: var(--mid); }
 .bin-card[data-band="high"] .bin-band-bar { background: var(--high); }
 
-/* Properties column (Blender-style N panel) */
-.editor-props {
-  background: var(--panel);
-  overflow-y: auto;
-  padding: 0 12px 12px;
-  min-height: 0;
-}
+/* Auto-Editor: right sidebar panel (Blender-style N panel) */
+.editor-props { background: var(--panel); }
 .props-title {
   position: sticky;
   top: 0;
@@ -990,8 +1029,6 @@ input[type="range"]::-moz-range-thumb {
 /* ---------- Narrow screens ---------------------------------------------- */
 
 @media (max-width: 900px) {
-  :root { --sidebar-w: 260px; }
-  .editor-body { grid-template-columns: 1fr; }
-  .editor-props { display: none; }
+  :root { --sidebar-w: 260px; --panel-w: 240px; }
   .topbar-readouts { display: none; }
 }

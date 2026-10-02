@@ -23,7 +23,8 @@ app/
   clipEngine.js            Clip auto-editor: clip bin data, beat-locked switching, segment log
   voiceTrack.js            ⬜ v2.1 — voice-over record/import, volume, normalize (own audio chain)
   timelinePanel.js         Bottom editor UI: master timeline, clip lane, bin, properties, HUD
-  sidebar.js               Modular tab sidebar: rail built from .side-panel sections, collapse to rail
+  sidebar.js               Tabs-only sidebars (left + right), up to 2 stacked panels, closed by default
+  headerPickers.js         Header SRC / MODE dropdowns (mode icons) + activity light
   assetPanel.js            03 Assets: image/video bin, asset list, selected-asset properties + status
   app.js                   App controller: wiring, audio source modes, master clock, shortcuts
   output.js                Pop-out window renderer (mirrors control window state)
@@ -37,7 +38,7 @@ netlify.toml · vercel.json Static deploy configs (vercel uses globs: *.html, ap
 **No build step.** Plain `<script>` tags, global classes, loaded in this order (order matters — later files reference earlier globals):
 
 ```
-p5 (CDN) → audioProcessor → visualizer → trackSource → voiceTrack → musicalTime → transitions → clipEngine → timelinePanel → sidebar → assetPanel → app
+p5 (CDN) → audioProcessor → visualizer → trackSource → voiceTrack → musicalTime → transitions → clipEngine → timelinePanel → sidebar → headerPickers → assetPanel → app
 ```
 
 External runtime dependencies: p5.js 1.9.0 (cdnjs), p5.asciify (unpkg, currently unused), Google Fonts (Boldonse, Inter Tight, JetBrains Mono — falls back to system fonts offline).
@@ -206,7 +207,10 @@ Single 2D canvas redrawn ~30 fps. Row heights `ROWS = { ruler 28, master 72, cli
 | `draw()` → `drawRuler` · `drawMaster` · `drawClips` (+ `drawStoryBlock`, dashed outlines of upcoming story blocks) · `drawVoice` · `drawTransitionMark` |
 | `storyHint()` / `storyCard(a, label)` | Story Mode panel text; fixed Hook / Result / CTA markers at the ends of the Action Editor | Ruler, waveform + energy, beat/bar grid, segments, ghost cut markers, playhead |
 
-### 3.7b `app/sidebar.js` — `class Sidebar` — ✅ *(v2.1 step 3a)*
+### 3.7b `app/sidebar.js` — `class Sidebar` — ✅ *(v2.1 step 3a; reworked v2.2, D-48)*
+**v2.2:** `new Sidebar(rootId, panelsId, railId, {maxOpen})` — left (`sidebar`, max 2 stacked) and right (`rightbar`, Auto-Editor, max 1). Tabs only (no rail, no arrows), all closed on load; `toggle(tab)` (second click closes), `open(tab)`, `closeAll()`; opening past `maxOpen` closes the top panel. Layout: grid row 2 = left | viewport | right, row 3 = `.bottom-area` (timeline) full width.
+
+*v2.1 notes below are superseded where they conflict.*
 Builds a rail button per `#tabPanels > .side-panel` (`data-tab`, `data-num`, `data-label`); one panel open at a time.
 
 | Function | Role |

@@ -20,6 +20,7 @@ class VoiceTrack {
     this.duration = 0;
     this.volume = 1;          // 0–1.5
     this.normalize = false;
+    this.muted = false;       // track mute (left out of exports)
     this.stats = null;        // { loud, peak } linear, from analyze()
     this.peaks = null;        // Float32Array min/max pairs for the voice lane
     this.recorder = null;
@@ -166,13 +167,14 @@ class VoiceTrack {
   // ---- level -----------------------------------------------------------
 
   setVolume(v) { this.volume = v; this.applyGains(); }
+  setMuted(on) { this.muted = on; this.applyGains(); this.emit('mute'); }
   setNormalize(on) { this.normalize = on; this.applyGains(); }
   setOffset(s) { this.offset = Math.max(0, s); this.emit('load'); }
 
   applyGains() {
     if (!this.ctx) return;
     this.normGain.gain.value = this.normalize && this.stats ? VoiceTrack.normGainFor(this.stats) : 1;
-    this.volumeGain.gain.value = this.volume;
+    this.volumeGain.gain.value = this.muted ? 0 : this.volume;
   }
 
   // Speech loudness = RMS over 50 ms windows, skipping near-silent ones

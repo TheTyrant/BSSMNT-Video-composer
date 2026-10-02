@@ -53,8 +53,8 @@ class TimelinePanel {
     const modeSelect = document.getElementById('visualMode');
     const onMode = () => {
       const label = modeSelect.selectedOptions[0].textContent;
-      this.el.topMode.textContent = label;
-      this.el.viewportMode.textContent = label;
+      if (this.el.topMode) this.el.topMode.textContent = label;
+      if (this.el.viewportMode) this.el.viewportMode.textContent = label;
     };
     modeSelect.addEventListener('change', onMode);
     onMode();
@@ -217,7 +217,7 @@ class TimelinePanel {
     const where = this.app.isTrackMode()
       ? 'Hook → automated content → Result → CTA, placed on the song.'
       : 'Live: Hook plays on Start; fire Result and CTA from the transport. Music fades need a track file.';
-    return `${where} Set positions in 03 Assets. ${set}`;
+    return `${where} Set positions in 02 Assets. ${set}`;
   }
 
   segButtons(container, _unused, onPick) {
@@ -595,7 +595,7 @@ class TimelinePanel {
     this.el.badge.textContent = track ? `TRACK ${fmtTime(this.app.trackSource.duration, false)}` : 'LIVE';
     this.el.badge.className = `badge ${track ? 'track' : 'live'}`;
     this.el.masterSub.textContent = track ? 'Track file' : 'Live session';
-    this.el.topSource.textContent = track ? 'TRACK' : 'LIVE';
+    if (this.el.topSource) this.el.topSource.textContent = this.app.audioSourceMode === 'file' ? 'TRACK' : 'LIVE';
     this.canvas.classList.toggle('no-seek', !track);
 
     const playing = this.app.timelineRolling() || (track ? this.app.trackSource.isPlaying : this.app.isRunning);
