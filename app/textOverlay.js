@@ -98,14 +98,15 @@ class TextOverlay {
 
   // Draw every item visible at time t into a 2D context of size W×H.
   // preview: an item id to show even outside its time (while editing).
-  render(ctx, W, H, t, preview = null) {
+  // live = false (export): Show now items sit at their master time.
+  render(ctx, W, H, t, preview = null, live = true) {
     ctx.clearRect(0, 0, W, H);
     let drawn = 0;
     for (const it of this.items) {
       let win = this.windowOf(it);
       let tt = t;
       // Show now runs on the wall clock, so it plays even while the live clock is stopped.
-      if (it.firedWall != null && !this.app.isTrackMode()) { tt = performance.now() / 1000; win = [it.firedWall, it.firedWall + (win[1] - win[0])]; }
+      if (live && it.firedWall != null && !this.app.isTrackMode()) { tt = performance.now() / 1000; win = [it.firedWall, it.firedWall + (win[1] - win[0])]; }
       let p = null;
       if (win && tt >= win[0] && tt < win[1]) p = (tt - win[0]) / (win[1] - win[0]);
       else if (it.id === preview) p = it.anim === 'roll' ? 0.35 : 0.5;

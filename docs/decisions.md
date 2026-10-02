@@ -312,6 +312,21 @@ The brief's four questions were not answered before the build. Rather than guess
 - **Not built (by request):** the rest of the overlay system (visual modes over video) — roadmap only.
 - **Verified:** title drawn inside its time and not outside; credits roll upward over the last 15 s; lane drag retimes (lock becomes At time); panel edits; save → reopen; pop-out shows the title; live Show now; fade icons revealed by the checkbox; fade levels per shape; existing regression, project and position suites.
 
+
+### D-61 · Offline renderer and a fully offline app *(Accepted — built; v2.3 steps 3–4)*
+- **Offline (Omar):** the app needs no internet. p5, Mediabunny, fflate and the fonts (Boldonse, Inter Tight, JetBrains Mono; latin + latin-ext) live in `vendor/` with their licences. The unused p5.asciify tag (a version that never existed, so it always failed) is removed. **Start BSS MNT.bat** runs `serve.js` (Node, no installs, this computer only) and opens the app; opening `index.html` from disk isn't enough, because browsers block the module files that saving and exporting use.
+- **Export (03 Output › Export video):** size (1080p, 720p, 4K, 1080×1920, 1080×1080), range (whole timeline / played part only), 30 or 60 fps, quality (Standard / High / Max) → **MP4, H.264 + AAC**, written straight to the file picked in the save dialog (Chrome / Edge), with progress, speed, time left and cancel.
+- **How it renders** (the D-55 design): it replays the session record, it doesn't re-analyse.
+  - **Visual modes:** the app's own drawing code on a private p5 canvas at the export size, fed the recorded analysis frame by frame. Trail-based modes step at the live 60 Hz, so a 30 fps export looks like what was on screen. Randomness stays random (no seeding, as agreed).
+  - **Spectrum Bars:** a canvas version, 64 bars (the on-screen 256 bars, two by two).
+  - **Clips:** the cut list (which clip, in-point, transition, blend length) replayed with frame-accurate decoding (Mediabunny / WebCodecs; rotation from the file). Regular clips loop, story clips play once, as live.
+  - **Media Layers:** the same layer settings; layer videos loop on the master time (live they loop on their own clock).
+  - **Text:** drawn with the same `TextOverlay.render()`.
+  - **Audio:** mixed offline in 10 s chunks — track (with per-clip Auto Fade), voice (offset, volume, normalize), story-clip sound; **muted tracks are left out**.
+- **Limits:** parts of the timeline never played have no recorded motion and are shown still (the panel warns; the fast pass, step 5, will fill them). Live mode: the input sound isn't recorded, so a live export carries voice and clip sound only. WebM output and the Firefox / Safari fallbacks are not built (step 6).
+- **Speed (this machine's GPU):** 3.1–4.6× real time at 720p for clips, Galaxy and Spectrum Bars, including encode.
+- **Verified** (with all internet requests blocked): fonts, p5 and project zip load locally; panel export of the played part writes a valid 1280×720 H.264 + AAC MP4 of the right length; cuts land as recorded (hook = red clip, then green clip); title on screen 0–4 s and gone after; music silent under the hook with Auto Fade and back after; muted master → silent audio; Galaxy and Spectrum Bars export.
+
 ## I. Known carry-overs (pre-existing on `main`, not changed)
 - Placeholder text drawn with `p.text()` in WebGL mode doesn't render, because no font is loaded (affects the Media Layers "Upload images…" prompt). v2 uses a DOM overlay for its own hints.
 - `visualizer.js` has duplicate `drawAudioWaves` / `drawMandala` / `drawTunnel` definitions (the later ones win), plus unused snake-game code.

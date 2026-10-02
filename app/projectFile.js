@@ -15,7 +15,7 @@ class ProjectFile {
   static FORMAT = 'bssmnt-project';
   static VERSION = 1;
   static MIME = 'application/x-bssmnt';
-  static FFLATE = 'https://cdn.jsdelivr.net/npm/fflate@0.8.2/esm/browser.js';
+  static FFLATE = new URL('vendor/fflate.mjs', document.baseURI).href;   // local copy: works offline
 
   constructor(app) {
     this.app = app;

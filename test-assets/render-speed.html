@@ -22,7 +22,7 @@
     #stage { position: fixed; right: 12px; bottom: 12px; width: 320px; height: 180px; border: 1px solid #1A1A1A; background: #000; overflow: hidden; }
     #stage canvas { width: 320px !important; height: 180px !important; }
   </style>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+  <script src="../vendor/p5.min.js"></script>
   <script src="../app/visualizer.js"></script>
 </head>
 <body>
@@ -50,7 +50,7 @@
 
 <script type="module">
 import { Input, ALL_FORMATS, BlobSource, CanvasSink, Output, Mp4OutputFormat, BufferTarget, CanvasSource, Quality }
-  from 'https://cdn.jsdelivr.net/npm/mediabunny@1.61.0/+esm';
+  from '../vendor/mediabunny.min.mjs';
 
 const $ = (id) => document.getElementById(id);
 const FPS = 30;

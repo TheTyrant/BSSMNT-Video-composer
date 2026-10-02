@@ -69,7 +69,7 @@
       document.body.appendChild(textCanvas);
       const link = document.createElement('link');
       link.rel = 'stylesheet';
-      link.href = 'https://fonts.googleapis.com/css2?family=Boldonse&family=Inter+Tight:wght@400;500;600;800&family=JetBrains+Mono:wght@400;700&display=swap';
+      link.href = 'vendor/fonts/fonts.css';
       document.head.appendChild(link);
     }
     const dpr = window.devicePixelRatio || 1;

@@ -1086,3 +1086,14 @@ select option:disabled { color: var(--ink-3); }
   :root { --sidebar-w: 260px; --panel-w: 240px; }
   .topbar-readouts { display: none; }
 }
+
+/* Export video (03 Output, D-61) */
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.export-block select { height: 30px; border: 1px solid var(--ink); background: var(--paper); color: var(--ink); font: 12px var(--font-ui); padding: 0 6px; }
+.export-block #exportStart { margin-top: 10px; }
+.export-warnings { margin: 6px 0 0; padding-left: 16px; font-size: 11px; line-height: 1.4; color: var(--live); }
+.export-warnings:empty { display: none; }
+.export-progress { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.export-bar { height: 10px; border: 1px solid var(--ink); background: var(--paper); }
+.export-bar > div { height: 100%; width: 0; background: var(--ink); transition: width 0.2s linear; }
+.export-result { color: var(--ink); font-weight: 600; }

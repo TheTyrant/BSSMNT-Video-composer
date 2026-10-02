@@ -37,16 +37,13 @@ To see the app in action yourself, clone the repo and follow the instructions be
 	 npm install
 	 ```
 
-### Running Locally
-You can open `index.html` directly in your browser, or use a local server for best results:
+### Running Locally (works offline)
+Everything the app needs is in this folder (`vendor/` holds the libraries and fonts), so no internet connection is needed.
 
-```sh
-# Using Python 3.x
-python3 -m http.server
-# or with Node.js
-npx serve .
-```
-Then visit `http://localhost:8000` (or the port shown in your terminal).
+- **Windows:** double-click **Start BSS MNT.bat** — it starts a small server on this computer and opens the app in your browser.
+- **Any system with Node.js:** `node serve.js`, then open `http://127.0.0.1:8765`.
+
+Use Chrome or Edge (video export and project files need them). Opening `index.html` straight from disk is not enough: browsers block the module files that saving projects and exporting video use.
 
 ## Project Structure
 ```

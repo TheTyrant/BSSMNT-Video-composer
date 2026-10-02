@@ -33,6 +33,7 @@ class DJVisualizerApp {
     this.record = new SessionRecord();
     this.text = new TextOverlay(this);   // titles, credits, text (D-60)
     this.project = new ProjectFile(this);
+    this.renderer = new OfflineRenderer(this);   // offline export (D-61)
     this.eqMode = 'sensitivity';
     this.musicMuted = false;
 
@@ -262,6 +263,8 @@ class DJVisualizerApp {
     this.text.attach(document.querySelector('.visualizer-container'));
     this.textPanel = new TextPanel(this);
     this.textPanel.init();
+    this.exportPanel = new ExportPanel(this);
+    this.exportPanel.init();
     this.text.on((type) => { if (type === 'change') this.project.markDirty(); });
 
     // EQ section of 02 Assets: Sensitivity / Dynamic tabs + Use radios

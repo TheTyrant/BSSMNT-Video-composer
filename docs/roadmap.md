@@ -104,7 +104,7 @@ Supersedes parts of the v2.1 layout (the v2.1 table below describes it as it was
 
 ---
 
-## v2.3 — Offline export ⬜ *(next; design agreed 2026-10-02, decisions D-55)*
+## v2.3 — Offline export 🟡 *(renderer + Output panel built 2026-10-02, D-61; fast pass and fallbacks next)*
 
 **Goal:** export the finished video faster than real time, matching what was seen, with muted tracks left out.
 
@@ -112,16 +112,18 @@ Supersedes parts of the v2.1 layout (the v2.1 table below describes it as it was
 |---|---|
 | 1 🟡 | **Speed test** on real files: decode, draw each visual mode, encode at 1080p. *Built (`test-assets/render-speed.html`) and run here: 3.6–4.3× real time for the full clip pipeline; every mode faster than real time except Mandala (0.77×, fix: batch its lines). Still to run on Omar's machine.* |
 | 2 ✅ | **Session record + .mnt project files:** the cut list is kept across seeks with punch-in overwrite; per-frame analysis log; projects save/open as `.mnt` with linked media and reconnect (D-56, D-57) |
-| 3 | **Renderer (all visual modes):** frame loop at the export frame rate replaying the record through the existing drawing code (Spectrum Bars gets a canvas version); clips decoded frame-accurately (WebCodecs via Mediabunny, rotation from D-54); GPU encode; audio mixdown with mutes, fades, voice and story sound; streamed to disk with progress, time left and cancel |
-| 4 | **Output panel:** format (MP4 H.264+AAC / WebM), size (16:9, 9:16, 1:1 at 720p/1080p/4K), frame rate, quality, range |
+| 3 ✅ | **Renderer (all visual modes):** frame loop at the export frame rate replaying the record through the existing drawing code (Spectrum Bars gets a canvas version); clips decoded frame-accurately (WebCodecs via Mediabunny, rotation from D-54); GPU encode; audio mixdown with mutes, fades, voice and story sound; streamed to disk with progress, time left and cancel |
+| 4 ✅ | **Output panel:** MP4 H.264+AAC, size (16:9 720p/1080p/4K, 9:16, 1:1), frame rate, quality, range (whole / played part). *WebM not offered yet.* |
 | 5 | **Fast pass:** the same frozen analysis run over a track or recorded set at high speed, filling the record without real-time playback |
 | 6 | **Firefox / Safari fallbacks:** OPFS output + download, WebAssembly audio encoding where needed |
+
+**Runs offline:** all libraries and fonts are local (`vendor/`); **Start BSS MNT.bat** serves the app on this computer (D-61).
 
 **Text in exports:** the renderer draws text with the same `TextOverlay.render()` (D-60), so titles and credits come out as seen.
 
 **Exit criteria:**
 - [ ] An export matches the live session's cuts, in-points, transitions and audio-reactive motion.
-- [ ] Muted tracks are absent from the exported audio; unmuted voice and story sound are present and in sync.
+- [x] Muted tracks are absent from the exported audio; unmuted voice and story sound are present and in sync.
 - [ ] A 3-minute 1080p export finishes faster than real time on the target machine; a 2-hour project exports without running out of memory.
 - [ ] Every visual mode exports.
 

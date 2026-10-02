@@ -32,6 +32,8 @@ app/
   projectFile.js           .mnt project files: save / open / restore / reconnect (ZIP via fflate)
   textOverlay.js           Text model (titles, credits, text) + one render() for viewport, pop-out and renderer (D-60)
   textPanel.js             04 Text tab: add / edit / lock / style text items
+  renderer.js              OfflineRenderer: replays the session record into an MP4 (video + mixed audio), D-61
+  exportPanel.js           03 Output › Export video: settings, summary + warnings, progress, cancel
   eqPanel.js               02 Assets EQ: Sensitivity / Dynamic tabs, Use radios, EQ graph
   assetPanel.js            03 Assets: image/video bin, asset list, selected-asset properties + status
   app.js                   App controller: wiring, audio source modes, master clock, shortcuts
@@ -249,6 +251,17 @@ The 03 Assets tab. Drop zone + `#assetUpload` chooser (`image/*,video/*`, multip
 ### 3.7e `app/textPanel.js` — `class TextPanel` — ✅ *(D-60)*
 - 04 Text tab: add buttons, item list, properties (words, Lock & timing, Look, delete). Reuses AssetPanel's `group` / `select` helpers.
 - Per-locked-clip Auto Fade (D-59) lives in `assetPanel.fadeControls()`, `clipEngine.setClipFade()` and `app.storyFadeLevel()`.
+
+### 3.7f `app/renderer.js` — `class OfflineRenderer` — ✅ *(D-61)*
+- `plan()` → length, played range, recorded seconds, cuts, warnings. `export(opts, onProgress)` → save dialog (or memory), Mediabunny Output (MP4, StreamTarget to the file), frame loop, audio chunks, finalize. `cancel()`.
+- Video: `prepareScene()` builds a private p5 WEBGL canvas + a private `DJVisualizer` (page access stubbed); `renderFrame(t)` picks the recorded frame (60 Hz grid), draws the mode, clips (`segmentsAt` / `clipTime` / `drawClips` with the registered transitions), layers, Spectrum Bars (`drawSpectrum`), then text. `videoSource()` = forward-decoding frame reader that only seeks on a jump.
+- Audio: `prepareAudio(edl)` (track + fades, voice, story-clip sound; mutes respected) and `mixChunk(a, b)` (OfflineAudioContext per 10 s).
+
+### 3.7g `app/exportPanel.js` — `class ExportPanel` — ✅ *(D-61)*
+
+### 3.7h `vendor/`, `serve.js`, `Start BSS MNT.bat` — offline running *(D-61)*
+- `vendor/`: p5 1.9.0, Mediabunny 1.61 (`mediabunny.min.mjs`), fflate 0.8.2 (`fflate.mjs`), `fonts/` (+ `fonts.css`), `licenses/`.
+- `serve.js`: dependency-free static server on 127.0.0.1 (default port 8765). `Start BSS MNT.bat` starts it and opens the browser.
 
 ### 3.8 `app/app.js` — `class DJVisualizerApp` — ✅
 | Area | Functions |
