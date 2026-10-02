@@ -655,7 +655,7 @@ input[type="range"]::-moz-range-thumb {
 .bin-cards { display: flex; gap: 8px; }
 .bin-card {
   flex: none;
-  width: 132px;
+  width: 172px;
   display: flex;
   flex-direction: column;
   border: 1px solid var(--ink);
@@ -680,13 +680,17 @@ input[type="range"]::-moz-range-thumb {
 .bin-name { flex: 1; font-size: 11px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bin-dur { font-family: var(--font-mono); font-size: 9px; color: var(--ink-3); }
 .bin-row { display: flex; gap: 4px; padding: 3px 5px 5px; }
-.bin-row select { height: 20px; font-size: 10px; padding: 0 4px; }
+.bin-row select { height: 20px; font-size: 10px; padding: 0 2px; min-width: 0; flex: 1; }
+.bin-row select.is-set { background: var(--ink); color: var(--paper); }
 .bin-remove {
   width: 20px; height: 20px; flex: none;
   border: 1px solid var(--ink); background: transparent; cursor: pointer;
   font-size: 11px; line-height: 1; padding: 0;
 }
 .bin-remove:hover { background: var(--ink); color: var(--paper); }
+.bin-card.bin-error { border-color: var(--live); }
+.bin-card.bin-error .bin-thumb { background: repeating-linear-gradient(45deg, var(--ink) 0 6px, #2a2a2a 6px 12px); }
+.bin-card.bin-error .bin-dur { color: var(--live); font-weight: 700; }
 .bin-band-bar { height: 3px; background: transparent; }
 .bin-card[data-band="bass"] .bin-band-bar { background: var(--bass); }
 .bin-card[data-band="mid"] .bin-band-bar { background: var(--mid); }

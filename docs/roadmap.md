@@ -1,5 +1,7 @@
 # Roadmap — from DJ visualizer to assisted music-video creation
 
+**Product direction:** *"Blender growth model with Canva level complexity."* BSSMNT streamlines video production for **DJs, social media content creators and video hobbyists**. It aims for Blender's growth path: a serious editor that grows feature by feature, built on one consistent model. It keeps Canva's level of complexity: every feature has to be usable by someone who has never opened an NLE. When the two conflict, the simpler control wins, and the depth goes behind it (defaults first, detail on demand).
+
 **Where this is going:** an assisted music-video tool that works in two modes from one timeline:
 
 - **Production:** load a song and a bin of video clips and still images; the system places them along the song's structure; the creator refines the result and renders a finished video.
@@ -13,7 +15,7 @@ Module and function plans for each phase are in [codemap.md §4](codemap.md#4-pl
 
 ---
 
-## Phase 0 — v2: beat-locked clip auto-editor ✅ *(current)*
+## Phase 0 — v2: beat-locked clip auto-editor ✅
 
 What exists on the `v2` branch:
 - Light brutalist UI: sidebar, black viewport, and a bottom editor with a master timeline, clip lane, clip bin and Auto-Editor panel.
@@ -39,11 +41,58 @@ What exists on the `v2` branch:
 
 ---
 
-## Phase 1 — Systematic placement of video + stills along the song ⬜ *(next)*
+## v2.1 — Creator essentials 🟡 *(now)*
+
+**Spec:** [brief-v2.1.md](brief-v2.1.md) asks for three changes: **per-clip timing + Importance**, **Story Mode**, and **Voice record/import**. Omar then added the **workspace changes** below (2026-10-02, D-42–D-46). After that comes an aesthetic pass, and then the roadmap resumes at Phase 1.
+
+**Workspace changes added by Omar:**
+- **Per-clip timing keeps the existing Pace lexicon** (Global · Frantic · Driving · Relaxed · Phrase), the same values the main Auto-Editor cuts already use. No 4/4, 4/2 or other musical labels. Already built (D-30/D-31).
+- **Sidebar becomes modular tabs:** each section is a tab that slides its panel out, and the whole sidebar can collapse to a tabs-only rail. **01 Audio** (Visualization folds in here) · **02 EQ** · **03 Assets** · **04 Output**.
+- **Status leaves the sidebar** and becomes a semi-transparent overlay in the top-right of the viewport, styled like the old sidebar Status. Per-asset status shows under the selected asset.
+- **03 Assets (was Media Layers) becomes the real asset bin:** drag/drop or choose images and video. Selecting an asset shows *its* options where the Bass/Mid/High layer controls were. The options change with the item (image/video, auto-edit clip or Media Layer, story asset). Media Layers keeps working as an option on an asset.
+- **The bottom "Bin" becomes the Action Editor** (like Blender's): the auto-edit sequence as a stack. Selecting an item gives the same per-item options, and **dragging to reorder sets Importance to the item's place in the stack**.
+
+**Boundary:** no other new features. The master timeline and the existing beat clock stay the only source of timing. Every new control defaults to today's behaviour.
+
+Function-level plans are in [codemap.md §4.0](codemap.md#40-v21--creator-essentials-). Interpretations and open questions (Q9–Q16 still open) are in [decisions.md §J](decisions.md#j-v21--the-three-final-changes-proposed-2026-10-02).
+
+### Build order
+
+Steps are ordered by dependency. Each ends with a working app and a docs update.
+
+| Step | Group | What | Depends on |
+|---|---|---|---|
+| **0** | Housekeeping | Commit the test-round fixes (D-27–D-29) and per-clip Pace (D-30), so v2.1 starts from a clean tree | — |
+| **1** | Docs | This plan: brief saved, roadmap, codemap §4.0, decisions §J | — |
+| **2** | Foundation | **2a** Asset model: one list of typed assets (`kind: video/image`) with `role` (clip / layer), `band`, `pace` ✅, `importance`, `story` (defaults = today). **2b** Music bus: a gain node *after* the analyser in `TrackSource` | 0 |
+| **3** | Sidebar | **3a** Modular tab sidebar: 01 Audio (+ Visualization) · 02 EQ · 03 Assets · 04 Output, slide-out panels, collapsible to a tabs-only rail (state remembered). **3b** Status → semi-transparent viewport overlay (top-right); removed from the sidebar | 0 |
+| **4** | Asset bin | **4a** 03 Assets: drag/drop + chooser for images and video, asset list, selection. **4b** Selected-asset properties panel (replaces the Bass/Mid/High upload slots); options change per item; per-asset status under it. **4c** Media Layers become an asset option (background / bass / mid / high + enabled, justify, stack), driving the existing `loadLayerMedia` engine | 2a, 3a |
+| **5** | Action Editor + ① | **5a** The bottom Bin becomes the Action Editor: the auto-edit sequence as an ordered stack; selecting an item opens the same properties. **5b** Drag to reorder → Importance = place in the stack. **5c** Importance weights `choose()`; Sequential plays in stack order. **5d** Images play as auto-edit clips (hold = Pace). Per-clip Pace already done (D-30) | 4 |
+| **6** | ③ Voice | **6a** `VoiceTrack` on its own chain. **6b** Import. **6c** Record. **6d** Volume + Normalize. **6e** Music mute (uses 2b). **6f** Voice lane on the timeline | 2b |
+| **7** | ② Story Mode | **7a** Story Mode toggle + Story Position in asset properties. **7b** Story assets leave the automated pool; Hook / Result / CTA placement. **7c** Story blocks on the clip lane. **7d** Auto Fade Music (uses 2b) | 2b, 5 |
+| **8** | Verify + docs | End-to-end test of every Story combination, voice + music + mute, Importance reorder, sidebar collapse; update codemap/decisions; screenshots | 3–7 |
+| **9** | Aesthetics | Visual pass (separate brief) | 8 |
+
+The workspace (3–5) comes first because every per-item control from ①–③ lives in the asset properties panel. Voice (6) is independent. Story Mode (7) has the most open questions, so it goes last.
+
+### Exit criteria
+- [ ] With every new control at its default, cuts, clip order and audio are identical to v2.
+- [ ] Images and videos go into 03 Assets by drag/drop or chooser. Selecting one shows only the options that apply to it. Any asset can still drive a Media Layer exactly as before.
+- [ ] Sidebar tabs open and close their panels, the sidebar collapses to a tab rail and back, and Status reads correctly in the viewport overlay.
+- [ ] Each clip has a Pace and an Importance. Cuts stay on the master beat grid. Reordering the Action Editor stack updates Importance, and higher-Importance clips are chosen measurably more often.
+- [ ] In Story Mode, all four Hook / Result / CTA combinations in the brief place correctly, each story asset appears exactly once, and story assets never appear in the automated fill.
+- [ ] Auto Fade Music fades the music around each story block when on, and does nothing when off. BPM and bands keep tracking during a fade.
+- [ ] Voice can be recorded or imported, has its own volume and Normalize, and plays in sync on seek, pause and stop. Muting music leaves voice only.
+- [ ] Changing any clip's timing or Importance never changes the voice track.
+
+---
+
+## Phase 1 — Systematic placement of video + stills along the song ⬜ *(after v2.1)*
 
 **Goal:** drop video clips **and static images** into the bin as today, and have them **systematically placed along the time of the song**, as a plan you can see, edit and replay, not just a live recording.
 
 ### 1.1 Stills become first-class
+- *(v2.1 step 5d already lets images play as clips, holding for their Pace. Phase 1 adds motion and plan-driven durations.)*
 - The bin accepts images alongside video, as one typed asset list (video / image).
 - Stills get a duration from the placement plan, plus motion so they read as footage: Ken Burns, push-in, pan, and a beat "punch" on downbeats.
 - Thumbnails for both kinds; filmstrips for video.
@@ -67,6 +116,9 @@ What exists on the `v2` branch:
 - Deterministic with a seed: **Re-roll** produces a new plan, and the same seed produces the same plan.
 
 ### 1.4 The plan is the timeline
+
+> **Future build note (Omar, 2026-10-02): Importance becomes overlap.** Once clips sit on the Action Editor's line as placed blocks, Importance stops being only a stack rank and also works as **automatic crossfade**. Where two clips overlap on the action line, the overlap sets a fractional Importance (e.g. 1 vs 1.000…) that weights the blend between them. The more they overlap, the closer their weights and the longer the crossfade. Design this together with the plan model and the blend system (transitions registry, D-12).
+
 - The clip lane shows the plan before playback.
 - Edit it directly: drag to move, trim edges, split, swap asset, change transition, and **lock** a segment so re-rolls keep it.
 - Re-roll a selected range only.
@@ -165,7 +217,9 @@ What exists on the `v2` branch:
 ```
 Phase 0  v2 auto-editor (live, video-only, recorded timeline)          ✅
    │
-Phase 1  stills + song analysis + placement plan + editable timeline    ⬜  ← next
+v2.1     tab sidebar · asset bin · Action Editor (Importance) · Voice · Story Mode → aesthetics   🟡  ← now
+   │         (story anchors, music bus and voice lane carry into the plan model)
+Phase 1  stills + song analysis + placement plan + editable timeline    ⬜
    │         (the plan model unlocks everything below)
 Phase 2  bin organisation + inputs (MIDI/OSC/camera) + outputs (record, NLE hand-off, pop-out)
    │

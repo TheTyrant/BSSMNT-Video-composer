@@ -83,6 +83,10 @@ class DJVisualizer {
       if (this.currentMode === 'snake') {
         this.initializeSnake();
       }
+      // Swap surfaces immediately, not only on the next running frame --
+      // otherwise the p5 canvas can stay on top of the spectrum bars
+      // while audio is stopped.
+      this.applyModeSurface();
       // Note: layer videos loop continuously once loaded regardless of the
       // active mode (not paused when leaving 'layers' mode). Fine for a rough
       // demo; revisit if this becomes a real performance/battery concern.
@@ -433,13 +437,10 @@ class DJVisualizer {
     this.updateFrequencyDisplay();
     
     // Handle spectrum mode separately (HTML-based)
+    this.applyModeSurface();
     if (this.currentMode === 'spectrum') {
       this.updateSpectrumBars();
-      this.hideP5Canvas();
       return;
-    } else {
-      this.hideSpectrumBars();
-      this.showP5Canvas();
     }
     
     // Clear canvas and draw based on selected mode
@@ -1708,6 +1709,19 @@ class DJVisualizer {
       
       p.sphere(particle.size);
       p.pop();
+    }
+  }
+
+  // Spectrum mode draws HTML bars; every other mode draws on the p5 canvas.
+  // Previously only the hide half ran, so after leaving spectrum mode once
+  // the bars never came back.
+  applyModeSurface() {
+    if (this.currentMode === 'spectrum') {
+      this.showSpectrumBars();
+      this.hideP5Canvas();
+    } else {
+      this.hideSpectrumBars();
+      this.showP5Canvas();
     }
   }
 

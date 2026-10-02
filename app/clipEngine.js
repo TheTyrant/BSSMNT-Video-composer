@@ -48,8 +48,9 @@ class ClipEngine {
     this.beats = [];        // { time, index } -- beat grid as the engine saw it
     this.beatIndex = -1;
     this.lastSeenBeatTime = null;
-    this.lastSlot = null;
-    this.lastInterval = null;
+    this.nextCutPos = null;  // beat position of the next scheduled cut
+    this.segStartPos = null; // beat position the current shot started on
+    this.holdBeats = null;   // current shot's hold length (beats)
     this.current = null;    // { clip, segment }
     this.outgoing = null;
     this.pending = null;    // pre-rolled next clip { clip, inPoint }
@@ -76,12 +77,22 @@ class ClipEngine {
     const clip = {
       id: this.nextClipId++, name: file.name.replace(/\.[^.]+$/, ''), file, url,
       media: null, el: null, duration: 0, band: 'any', thumb: null, lastPos: 0, ready: false,
+      pace: 'global',   // 'global' or a MusicalTime.AUTO_PACES key -- how long this clip holds
     };
     const media = p.createVideo([url], () => {
       // Some files (e.g. MediaRecorder WebM) report Infinity until probed;
       // makeThumb() resolves the real duration in that case.
       if (isFinite(media.elt.duration)) clip.duration = media.elt.duration;
       clip.ready = true;
+      this.emit('clips');
+    });
+    // Unsupported codec/container (e.g. H.264 MP4 in VS Code's Simple
+    // Browser, which ships without proprietary codecs) never fires the
+    // ready callback -- flag it so the bin can say so instead of the clip
+    // silently never appearing.
+    media.elt.addEventListener('error', () => {
+      clip.error = 'Can’t decode this file in this browser';
+      clip.ready = false;
       this.emit('clips');
     });
     media.hide();
@@ -144,6 +155,11 @@ class ClipEngine {
     if (clip) { clip.band = band; this.emit('clips'); }
   }
 
+  setClipPace(id, pace) {
+    const clip = this.clips.find(c => c.id === id);
+    if (clip) { clip.pace = pace; this.emit('clips'); }
+  }
+
   clipById(id) { return this.clips.find(c => c.id === id); }
 
   pauseAll() {
@@ -152,23 +168,36 @@ class ClipEngine {
 
   // ---- timing ----------------------------------------------------------
 
+  // Global switch interval from the Auto-Editor panel.
   intervalBeats(bpm) {
     const s = this.settings;
     if (s.timingMode === 'auto') return MusicalTime.autoMultiplier(bpm, s.autoPace).beats;
     return MusicalTime.toBeats(s.manualCount, s.manualUnit);
   }
 
+  // How long a given clip holds once it's on screen: its own pace if set,
+  // otherwise the global interval. Per-clip pace wins over manual timing too.
+  intervalFor(clip, bpm) {
+    if (clip && clip.pace && clip.pace !== 'global') return MusicalTime.autoMultiplier(bpm, clip.pace).beats;
+    return this.intervalBeats(bpm);
+  }
+
   status() {
     const bpm = (this.viz.audioData && this.viz.audioData.bpm) || 0;
-    const beats = this.intervalBeats(bpm);
+    const curClip = this.current && this.current.clip;
+    const beats = this.intervalFor(curClip, bpm);
     let state = 'running';
     if (this.clips.length === 0) state = 'no-clips';
+    else if (!this.clips.some(c => c.ready) && this.clips.some(c => c.error)) state = 'unplayable';
     else if (!this.isAdvancing()) state = 'idle';
     else if (!(bpm > 0) || this.beatIndex < 0) state = 'waiting-bpm';
     return {
       state, bpm,
       intervalBeats: beats,
       intervalMs: MusicalTime.beatsToMs(beats, bpm),
+      globalBeats: this.intervalBeats(bpm),
+      clipPace: curClip && curClip.pace && curClip.pace !== 'global' ? curClip.pace : null,
+      nextCutPos: this.nextCutPos,
       autoLabel: MusicalTime.autoMultiplier(bpm, this.settings.autoPace).label,
       dominant: this.dominant,
       position: this.beatIndex >= 0 ? this.beatIndex + this.beatPhase() : -1,
@@ -186,6 +215,11 @@ class ClipEngine {
     if (!this.isAdvancing() || this.clips.length === 0) return;
 
     const bpm = audioData.bpm || 0;
+
+    // Put a clip on screen as soon as the timeline rolls; beat-locked
+    // cutting takes over once BPM locks (the first beat cuts).
+    if (!this.current) this.cut(bpm, null);
+
     if (!(bpm > 0)) return;
 
     // Beat edge from the visualizer's clock.
@@ -198,29 +232,36 @@ class ClipEngine {
     }
     if (this.beatIndex < 0) return;
 
-    const interval = this.intervalBeats(bpm);
     const pos = this.beatIndex + this.beatPhase();
-    const slot = Math.floor(pos / interval + 1e-6);
 
-    // Interval changed (user or auto-tempo): re-sync to the new grid
-    // without firing an extra cut; the next boundary cuts as normal.
-    if (interval !== this.lastInterval) {
-      const first = this.lastSlot == null;
-      this.lastInterval = interval;
-      if (!first) { this.lastSlot = slot; this.pending = null; return; }
+    // First beat after start / seek / tempo lock: cut on it and start
+    // scheduling from there.
+    if (this.nextCutPos == null) {
+      this.cut(bpm, Math.floor(pos));
+      return;
     }
 
-    if (slot !== this.lastSlot) {
-      this.lastSlot = slot;
-      this.cut(bpm, interval);
+    // Each cut schedules the next one from the segment's own start, using
+    // the on-screen clip's hold (its pace, or the global interval). If that
+    // hold changes mid-shot (panel edit, clip pace edit, auto multiplier
+    // stepping with tempo), reschedule without firing an extra cut.
+    const hold = this.intervalFor(this.current && this.current.clip, bpm);
+    if (hold !== this.holdBeats) {
+      this.holdBeats = hold;
+      const elapsed = pos - this.segStartPos;
+      this.nextCutPos = this.segStartPos + Math.max(1, Math.ceil(elapsed / hold + 1e-6)) * hold;
+    }
+
+    if (pos >= this.nextCutPos - 1e-6) {
+      this.cut(bpm, this.nextCutPos);
       return;
     }
 
     // Pre-roll: pick + seek the next clip up to one beat early so the
     // incoming frame is decoded by the time the cut lands.
-    const untilCut = (slot + 1) * interval - pos;
-    if (!this.pending && untilCut <= Math.min(1, interval / 2)) {
-      this.pending = this.prepare(this.choose(), interval, bpm);
+    const untilCut = this.nextCutPos - pos;
+    if (!this.pending && untilCut <= Math.min(1, hold / 2)) {
+      this.pending = this.prepare(this.choose(), bpm);
     }
   }
 
@@ -271,13 +312,13 @@ class ClipEngine {
     return pick;
   }
 
-  prepare(clip, intervalBeats, bpm) {
+  prepare(clip, bpm) {
     if (!clip) return null;
     const dur = clip.duration || (isFinite(clip.el.duration) ? clip.el.duration : 0);
     let inPoint = 0;
     if (this.settings.inPoint === 'resume') inPoint = clip.lastPos || 0;
     else if (this.settings.inPoint === 'random') {
-      const need = MusicalTime.beatsToMs(intervalBeats, bpm) / 1000;
+      const need = MusicalTime.beatsToMs(this.intervalFor(clip, bpm), bpm) / 1000;
       inPoint = Math.random() * Math.max(0, dur - need);
     }
     if (dur && inPoint >= dur) inPoint = 0;
@@ -288,11 +329,20 @@ class ClipEngine {
     return { clip, inPoint };
   }
 
-  cut(bpm, intervalBeats) {
-    const next = this.pending || this.prepare(this.choose(), intervalBeats, bpm);
+  // atPos: musical position (beats) this cut lands on, or null before the
+  // tempo has locked (the clip just goes on screen; no schedule yet).
+  cut(bpm, atPos) {
+    const next = this.pending || this.prepare(this.choose(), bpm);
     this.pending = null;
     if (!next) return;
     if (next.clip.el.paused) next.clip.el.play().catch(() => {});
+
+    const hold = this.intervalFor(next.clip, bpm);
+    if (atPos != null) {
+      this.segStartPos = atPos;
+      this.holdBeats = hold;
+      this.nextCutPos = atPos + hold;
+    }
 
     const now = this.clock();
     const band = this.dominant;
@@ -312,15 +362,16 @@ class ClipEngine {
     const segment = {
       clipId: next.clip.id, start: now, end: null, inPoint: next.inPoint,
       transition: def.id, band, beat: this.beatIndex,
+      pace: next.clip.pace, holdBeats: hold,
     };
     this.segments.push(segment);
     if (this.segments.length > 5000) this.segments.splice(0, 1000);
     this.current = { clip: next.clip, segment };
 
-    // Blend length scales with tempo; never longer than the switch interval.
+    // Blend length scales with tempo; never longer than the incoming shot.
     const lengthMs = Math.min(
       MusicalTime.beatsToMs(def.lengthBeats, bpm),
-      MusicalTime.beatsToMs(intervalBeats, bpm) * 0.9
+      MusicalTime.beatsToMs(hold, bpm) * 0.9
     );
     this.transition = lengthMs > 0 && this.outgoing ? { def, startMs: performance.now(), lengthMs } : null;
     segment.blendSec = this.transition ? lengthMs / 1000 : 0;
@@ -347,7 +398,9 @@ class ClipEngine {
     this.beats = this.beats.filter(b => b.time < seconds);
     this.beatIndex = this.beats.length ? this.beats[this.beats.length - 1].index : -1;
     this.lastSeenBeatTime = this.viz.lastBeatTime;
-    this.lastSlot = null;   // forces a cut on the next frame
+    this.nextCutPos = null;   // forces a cut on the next frame
+    this.segStartPos = null;
+    this.holdBeats = null;
     this.pending = null;
     this.emit('seek', seconds);
   }

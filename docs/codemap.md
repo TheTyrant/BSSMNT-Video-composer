@@ -20,13 +20,14 @@ app/
   musicalTime.js           Beats / bars / measures math, 4/4 constant, auto tempo multiplier
   transitions.js           Transition registry (jump cut, crossfade, blur)
   clipEngine.js            Clip auto-editor: clip bin data, beat-locked switching, segment log
+  voiceTrack.js            ⬜ v2.1 — voice-over record/import, volume, normalize (own audio chain)
   timelinePanel.js         Bottom editor UI: master timeline, clip lane, bin, properties, HUD
   app.js                   App controller: wiring, audio source modes, master clock, shortcuts
   output.js                Pop-out window renderer (mirrors control window state)
 test-assets/
   generate.html            Makes labelled test clips (WebM) + a 120 BPM test track (WAV) in-browser
 docs/
-  codemap.md · decisions.md · roadmap.md · screenshots/
+  codemap.md · decisions.md · roadmap.md · brief-v2.1.md (current spec) · screenshots/
 netlify.toml · vercel.json Static deploy configs (vercel uses globs: *.html, app/*.js, styles/*.css)
 ```
 
@@ -135,19 +136,21 @@ Plays an uploaded track through the frozen processor by assigning `audioContext 
 Blend length is converted with live BPM and capped at 0.9 × switch interval (in `ClipEngine.cut`).
 
 ### 3.6 `app/clipEngine.js` — `class ClipEngine` — ✅
-State: `clips[]`, `settings`, `bandTransitions`, `segments[]` (`{clipId, start, end, inPoint, transition, band, beat, blendSec}`), `beats[]` (`{time, index}`), `current`, `outgoing`, `pending`, `transition`.
+State: `clips[]` (each with `band` and `pace`), `nextCutPos` / `segStartPos` / `holdBeats` (cut schedule, in beats), `settings`, `bandTransitions`, `segments[]` (`{clipId, start, end, inPoint, transition, band, beat, blendSec}`), `beats[]` (`{time, index}`), `current`, `outgoing`, `pending`, `transition`.
 
 | Function | Role |
 |---|---|
 | `addFiles(list)` / `addClip(file)` | Video only. p5 `createVideo`, muted/looping/hidden |
 | `makeThumb(clip)` | Poster frame via separate `<video>`; also resolves `Infinity` durations (seek-to-end probe) |
 | `removeClip(id)` / `setClipBand(id, band)` / `clipById(id)` | Bin management; band tag = `any · bass · mid · high` |
-| `update(audioData)` | Per frame: `trackBands()`, detect viz beat edge → `beatIndex++`, compute position, cut on slot change, pre-roll |
+| `update(audioData)` | Per frame: `trackBands()`; first clip goes on screen immediately; on viz beat edges `beatIndex++`; cut when position reaches `nextCutPos`; pre-roll |
+| `intervalFor(clip, bpm)` | A clip's hold: its own `pace` if set, else the global interval |
+| `setClipPace(id, pace)` | Per-clip pace: `global` or a `MusicalTime.AUTO_PACES` key |
 | `intervalBeats(bpm)` | Auto (`autoMultiplier`) or manual (`toBeats(count, unit)`) |
 | `trackBands(d)` | Dominant band = highest ratio of value ÷ its own running average, with hysteresis |
 | `choose()` | Next clip: `sequential` · `random` · `band` (pool by tag → `any` → all) |
 | `prepare(clip, …)` | In-point (`random · resume · start`), seek, play |
-| `cut(bpm, interval)` | Close segment, open new, pick transition (`band` map or fixed), start blend |
+| `cut(bpm, atPos)` | Close segment, open new, schedule `nextCutPos = atPos + hold`, pick transition (`band` map or fixed), start blend |
 | `retire(clip)` | Save `lastPos`, pause unless current/pending |
 | `seekTo(s)` | Truncate segments/beats after `s`, force cut next frame |
 | `setActive(bool)` / `pauseAll()` / `reset()` | Lifecycle |
@@ -195,12 +198,72 @@ Tokens in `:root`: `--surface #EDEAE4 · --panel #E3DFD7 · --steel #D7DADC · -
 3. Element IDs used by `app.js` / `visualizer.js` are stable (see `index.html`).
 4. Timeline row heights in JS and CSS match.
 5. New transitions go through `ClipTransitions.register()`, never inline in the engine.
+6. *(v2.1)* Music fades and mutes happen **after** the analyser (`musicGain`), never before it, so analysis always sees the full-level track.
+7. *(v2.1)* The voice chain is never connected to the analyser or `musicGain`, and nothing in `clipEngine.js` references the voice track.
+8. *(v2.1)* Every new per-clip field has a default that reproduces v2 behaviour (`timing: 'global'`, `importance: 1`, `story: 'none'`).
 
 ---
 
 ## 4. Planned functions by roadmap phase
 
 Names below are proposed signatures, not existing code. Framework suggestions are **suggestions**, to be confirmed as decisions when adopted.
+
+### 4.0 v2.1 — Creator essentials 🟡
+
+Spec: [brief-v2.1.md](brief-v2.1.md). Decisions: D-31–D-46; open questions Q9–Q16 ([decisions.md §J](decisions.md#j-v21--the-three-final-changes-proposed-2026-10-02)). Step numbers match [roadmap.md › v2.1](roadmap.md#v21--creator-essentials--now). **No new libraries:** everything uses Web Audio, MediaRecorder and the existing p5 setup.
+
+**Audio graph after v2.1**
+
+```
+ track <audio> ─► MediaElementSource ─► analyser ─┬─► AudioProcessor loop (FROZEN, reads analyser)
+   (TrackSource, ctx recreated per load)          └─► musicGain ─► speakers      ◄── mute · story fades
+                                                       (step 2c)
+
+ voice <audio> ─► normGain ─► volumeGain ─► speakers       (VoiceTrack, own AudioContext, step 4a)
+   ▲ slaved to app.masterTime() − offset; never touches analyser / musicGain / ClipEngine
+```
+
+**Asset model after v2.1** (one entry per imported file; `ClipEngine.clips[]` becomes the assets used as clips)
+
+```
+{ id, name, file, url, media, el, duration, width, height, thumb, lastPos, ready, error,
+  kind:       'video' | 'image',                    // step 2a / 4a
+  asClip:     true,                                 // "Use as: Auto-edit clip" (D-44)
+  layer:      null | 'background'|'bass'|'mid'|'high', // "Use as: Media Layer" → visualizer.layers
+  band:       'any' | 'bass' | 'mid' | 'high',      // existing
+  pace:       'global' | AUTO_PACES key,            // ✅ built (D-30/D-31) — keep as is
+  importance: 1..N,                                 // = position in the Action Editor stack (D-32)
+  story:      'none' | 'hook' | 'result' | 'cta',   // ignored unless settings.storyMode
+  storyHold:  seconds                               // image story blocks only (Q9)
+}
+```
+
+| Step | Where | Functions / changes |
+|---|---|---|
+| 2a | `clipEngine.js` (or a small `app/assets.js` if it keeps the engine cleaner) | Asset list with the fields above; `addFiles()` accepts `video/*` and `image/*`; `setClipImportance(id, n)` / `moveClip(id, toIndex)` renumber the stack; `setClipStory(id, role)` enforces one asset per role; `setAssetLayer(id, slot)` calls `viz.loadLayerMedia(slot, file)` / `clearLayerMedia`. Emits `'clips'` |
+| 2b | `trackSource.js` | `load()` creates `this.musicGain` between analyser and destination; `setMusicLevel(v, rampSec?)`. `unload()` drops it |
+| 3a | `index.html`, `styles.css`, new `app/sidebar.js` | Tab rail + slide-out panels; sections registered as modules `{num, label, el}`; `open(tab)`, `toggleCollapsed()`; localStorage in try/catch. Order: 01 Audio (+ Visualization) · 02 EQ · 03 Assets · 04 Output |
+| 3b | `index.html`, `styles.css` | `.status-overlay` (top-right of `.viewport-stage`, semi-transparent) holding `deviceStatus` / `bpmCounter` / `beatIndicator` / `fpsCounter` (same IDs); `#viewportHud` restyled to match |
+| 4a | `index.html`, `timelinePanel.js` (or `app/assetPanel.js`) | 03 Assets: drop zone + `<input accept="image/*,video/*" multiple>`, asset list with thumbs, `select(id)` (shared selection with the Action Editor) |
+| 4b | same | `renderProps(asset)`: fields shown per D-44 (kind, Use as, layer fields, band, Pace, Importance, Story Position, status, Remove) |
+| 4c | `visualizer.js` | Layer upload inputs removed; `init()` no longer binds `layerUpload-*`; layer controls bound from the properties panel. Check `output.js` still mirrors layers |
+| 5a | `timelinePanel.js`, `index.html` | Bottom "Bin" → **Action Editor**: `renderStack()` (ordered by importance), card click → `select(id)`, file drop still adds assets |
+| 5b | `timelinePanel.js` | Drag-reorder (pointer events, keyboard alt+↑/↓ for accessibility) → `engine.moveClip(id, i)` |
+| 5c | `clipEngine.js` | `choose()` → `regularPool()` (ready, `asClip`, not story in Story Mode). Sequential = stack order; random/band = `weightedPick(pool)` with weight `N − importance + 1` (Q15) |
+| 5d | `clipEngine.js` | Images as clips: `drawClip` handles `p5.Image`; `prepare()`/`retire()` skip video calls for images; in-point ignored |
+| 6a | `app/voiceTrack.js` (new) — `class VoiceTrack` | `constructor(app)`, `load(blob|file, {offset})`, `unload()`, `syncTo(masterTime, playing)` (called from the app's frame loop; drift > 50 ms → seek), `setVolume(v)`, `setNormalize(on)`, `get duration/offset/isLoaded` |
+| 6b | `voiceTrack.js`, `index.html` | `importFile(file)`; **Voice** block inside the 01 Audio tab: import button, status line |
+| 6c | `voiceTrack.js` | `listMics()`, `startRecording(deviceId)` (getUserMedia echoCancellation/noiseSuppression + MediaRecorder), `stopRecording()` → `load(blob, {offset: recordStartMasterTime})`, `downloadTake()` (Q14); record indicator in transport bar |
+| 6d | `voiceTrack.js` | `analyze(buffer)` → `{rmsGated, peak}`; `normGainFor(stats)` → target ≈ −16 LUFS-eq, peak ≤ −1 dBFS; Volume slider 0–150 %, Normalize checkbox |
+| 6e | `app.js`, `index.html` | **Music** mute toggle → `trackSource.setMusicLevel(0/1)`; disabled with a hint in mic mode (D-36) |
+| 6f | `timelinePanel.js`, `styles.css`, `index.html` | `ROWS.voice`, `.ch-voice` channel header, `drawVoice()` (peaks at offset), `loadVoiceWaveform(buffer)` |
+| 6* | `app.js` | Owns `this.voice = new VoiceTrack(this)`; transport hooks (`startAudio`/`stopAudio`/`transportStop`/`seekMaster`) call `voice.syncTo(...)`; `destroy()` unloads it |
+| 7a | `clipEngine.js`, `timelinePanel.js`, `index.html` | `settings.storyMode`, `settings.storyFade`; Auto-Editor panel **"Story Mode"** block (toggle + Auto Fade Music checkbox); Story Position in asset properties (only in Story Mode); Pace/Importance hidden for story assets |
+| 7b | `clipEngine.js` | `storyPlan(songDur)` → `[{role, clip, start, end}]` per D-34 (track mode); `storyBlockAt(t)`; `update()` plays a block (not `choose()`) while `masterTime` is inside one, then `nextCutPos = null` to re-sync; segments carry `story: role`; live mode: `fireStory(role)` (Q11); `seekTo()` re-evaluates blocks |
+| 7c | `timelinePanel.js` | `drawClips()` renders story blocks (fixed, labelled HOOK / RESULT / CTA) and, in track mode, ghost outlines of upcoming blocks from `storyPlan()` |
+| 7d | `app.js` (+ `trackSource.setMusicLevel`) | `scheduleStoryFades()` — ramps on `musicGain` 1 bar before/after each block (`MusicalTime.toBeats(1,'bar')` at live BPM, 2 s fallback); rebuilt on play/seek/stop/plan change; mute overrides it |
+
+**Test focus (step 8):** all four story orderings from the brief, plus Story Mode off. Sidebar collapse/expand resizes the canvas. Media Layers driven from asset properties look identical to before. Reorder updates Importance. Story assets never appear in the fill. Importance histogram over ~200 cuts. Cuts stay on master beats with mixed timings. Voice in sync after seek, pause and stop, unaffected by any timing or Importance change. BPM reading unchanged while music is muted or faded.
 
 ### Phase 1 — Systematic placement of video + stills along the song ⬜
 
@@ -281,3 +344,8 @@ Suggested frameworks:
 | Change what the timeline draws | `timelinePanel.js` → `draw*()` |
 | Add a visual mode | `visualizer.js` → `draw()` switch + `<option>` in `index.html` |
 | Touch audio analysis | **Don't** — `audioProcessor.js` is frozen; add analysis in a separate module |
+| Change a clip's timing options *(v2.1)* | `musicalTime.js` → `CLIP_TIMINGS` |
+| Change how Importance weights picks *(v2.1)* | `clipEngine.js` → `weightedPick()` / `weightedRoundRobin()` |
+| Change where story blocks go *(v2.1)* | `clipEngine.js` → `storyPlan()` |
+| Fade / mute the music *(v2.1)* | `trackSource.js` → `musicGain` (after the analyser only) |
+| Anything voice *(v2.1)* | `voiceTrack.js` |

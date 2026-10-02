@@ -215,11 +215,14 @@ class TimelinePanel {
   updateReadout() {
     const st = this.engine.status();
     const s = this.engine.settings;
-    const secs = st.bpm > 0 ? (st.intervalMs / 1000).toFixed(2) + 's' : '— s (needs BPM)';
+    // Panel readout is the global setting; clips with their own pace say so
+    // on their bin card and in the header summary.
+    const globalMs = MusicalTime.beatsToMs(st.globalBeats, st.bpm);
+    const secs = st.bpm > 0 ? (globalMs / 1000).toFixed(2) + 's' : '— s (needs BPM)';
     const how = s.timingMode === 'auto'
       ? `AUTO · ${st.autoLabel.toUpperCase()}`
       : `MANUAL · ${s.manualCount} × ${MusicalTime.UNITS[s.manualUnit].long}`;
-    this.el.readout.innerHTML = `Cut every <b>${MusicalTime.describeBeats(st.intervalBeats)}</b> = ${secs}<br>${how}`;
+    this.el.readout.innerHTML = `Cut every <b>${MusicalTime.describeBeats(st.globalBeats)}</b> = ${secs}<br>${how}`;
   }
 
   // ---- clip bin --------------------------------------------------------
@@ -268,7 +271,11 @@ class TimelinePanel {
       name.title = clip.name;
       const dur = document.createElement('span');
       dur.className = 'bin-dur';
-      dur.textContent = clip.ready ? fmtTime(clip.duration, false) : '…';
+      dur.textContent = clip.error ? 'ERR' : clip.ready ? fmtTime(clip.duration, false) : '…';
+      if (clip.error) {
+        card.classList.add('bin-error');
+        card.title = `${clip.error}. Try Chrome/Edge, or convert to WebM (VP9) or H.264 MP4.`;
+      }
       meta.append(name, dur);
 
       const row = document.createElement('div');
@@ -279,6 +286,14 @@ class TimelinePanel {
       [['any', 'Any band'], ['bass', 'Bass'], ['mid', 'Mid'], ['high', 'High']].forEach(([v, l]) => band.add(new Option(l, v)));
       band.value = clip.band;
       band.addEventListener('change', () => this.engine.setClipBand(clip.id, band.value));
+      const pace = document.createElement('select');
+      pace.setAttribute('aria-label', `${clip.name} pace`);
+      pace.title = 'Pace — how long this clip holds on screen. Global follows the Auto-Editor panel; any other pace overrides it for this clip.';
+      pace.add(new Option('Global', 'global'));
+      Object.entries(MusicalTime.AUTO_PACES).forEach(([k, v]) => pace.add(new Option(v.label, k)));
+      pace.value = clip.pace;
+      pace.classList.toggle('is-set', clip.pace !== 'global');
+      pace.addEventListener('change', () => this.engine.setClipPace(clip.id, pace.value));
       const rm = document.createElement('button');
       rm.type = 'button';
       rm.className = 'bin-remove';
@@ -286,7 +301,7 @@ class TimelinePanel {
       rm.title = 'Remove clip';
       rm.setAttribute('aria-label', `Remove ${clip.name}`);
       rm.addEventListener('click', () => this.engine.removeClip(clip.id));
-      row.append(band, rm);
+      row.append(band, pace, rm);
 
       const bar = document.createElement('div');
       bar.className = 'bin-band-bar';
@@ -445,11 +460,12 @@ class TimelinePanel {
 
     const messages = {
       'no-clips': 'Add clips to the bin to start auto-editing',
+      'unplayable': 'This browser can’t decode these clips — open in Chrome/Edge or use WebM',
       'idle': this.app.visualizer.currentMode === 'clips'
         ? `${this.engine.clips.length} clips ready · press play`
         : 'Select “Clip Auto-Editor” mode to roll the clip timeline',
       'waiting-bpm': 'Listening for tempo…',
-      'running': `Cutting every ${MusicalTime.describeBeats(st.intervalBeats)} · ${(st.intervalMs / 1000).toFixed(2)}s · ${this.engine.segments.length} cuts`,
+      'running': `${st.clipPace ? `Clip pace ${MusicalTime.AUTO_PACES[st.clipPace].label}: holding` : 'Cutting every'} ${MusicalTime.describeBeats(st.intervalBeats)} · ${(st.intervalMs / 1000).toFixed(2)}s · ${this.engine.segments.length} cuts`,
     };
     this.el.summary.textContent = messages[st.state];
     this.updateReadout();
@@ -480,7 +496,8 @@ class TimelinePanel {
     if (inClips) {
       const st = this.engine.status().state;
       if (st === 'no-clips') hint = 'Drop video clips into the Bin below';
-      else if (st === 'waiting-bpm') hint = 'Listening for tempo…';
+      else if (st === 'unplayable') hint = 'Can’t decode these clips in this browser — open in Chrome or Edge';
+      else if (st === 'waiting-bpm' && !this.engine.current) hint = 'Listening for tempo…';
       else if (st === 'idle' && !this.engine.current) hint = 'Press play to start the auto-editor';
     }
     this.el.hint.textContent = hint;
@@ -677,15 +694,16 @@ class TimelinePanel {
       this.drawTransitionMark(ctx, C, seg, x0, x(seg.start + (seg.blendSec || 0)), top, bh);
     }
 
-    // Upcoming cut points (ghost markers), from the live beat clock
+    // Upcoming cut points (ghost markers), from the live beat clock. The
+    // next one is exact; later ones assume the global interval, since the
+    // clips (and their paces) haven't been picked yet.
     const st = this.engine.status();
-    if (st.state === 'running' && st.position >= 0 && st.bpm > 0) {
+    if (st.state === 'running' && st.position >= 0 && st.bpm > 0 && st.nextCutPos != null) {
       const beatSec = 60 / st.bpm;
-      const slot = Math.floor(st.position / st.intervalBeats + 1e-6);
       ctx.setLineDash([3, 3]);
       ctx.strokeStyle = 'rgba(26,26,26,0.45)';
-      for (let k = 1; k <= 24; k++) {
-        const t = now + ((slot + k) * st.intervalBeats - st.position) * beatSec;
+      for (let k = 0; k < 24; k++) {
+        const t = now + (st.nextCutPos + k * st.globalBeats - st.position) * beatSec;
         if (t > start + span) break;
         if (this.app.isTrackMode() && t > this.app.trackSource.duration) break;
         const gx = Math.round(x(t)) + 0.5;

@@ -79,15 +79,27 @@ class DJVisualizerApp {
     
     // Set up keyboard shortcuts for live performance
     document.addEventListener('keydown', (e) => {
-      // Prevent shortcuts when typing in inputs (or when Space would also
-      // activate a focused button/select)
-      if (['INPUT', 'SELECT', 'BUTTON'].includes(e.target.tagName)) return;
+      const t = e.target;
+      // Only real text entry blocks shortcuts. Sliders, checkboxes, file
+      // pickers, buttons and selects keep focus after a click, and Space
+      // must still mean play/stop there.
+      const typing = t.tagName === 'TEXTAREA' || t.isContentEditable ||
+        (t.tagName === 'INPUT' && !['range', 'checkbox', 'radio', 'file', 'button', 'submit'].includes(t.type));
+      if (typing) return;
+
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (e.repeat) return;
+        // Drop focus so the focused control isn't also activated on keyup.
+        if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
+        this.toggleAudio();
+        return;
+      }
+
+      // Selects use letters/digits for type-ahead; leave those alone.
+      if (t.tagName === 'SELECT') return;
 
       switch(e.code) {
-        case 'Space':
-          e.preventDefault();
-          this.toggleAudio();
-          break;
         case 'KeyF':
           e.preventDefault();
           this.toggleFullscreen();
