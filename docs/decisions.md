@@ -221,11 +221,13 @@ Everything in this section is **Proposed**. Each entry becomes *Accepted* (or is
 - **Why:** One vocabulary for the global cut rate and per-clip holds makes cleaner edits: a clip set to Driving cuts exactly like the main timeline does on Driving. The beat clock is still the only clock.
 - **Consequences:** Step 3a of the original plan (musical divisions) is dropped, and the per-clip timing control is done. What remains is moving it into the asset properties panel (D-44). Story assets don't show Pace (D-33).
 
-### D-32 · Importance = place in the Action Editor stack, used as a selection weight *(rewritten 2026-10-02)*
+### D-32 · Importance = place in the Action Editor stack, used as a selection weight *(Accepted — built in step 5)*
 - **Decision:** Importance is the clip's **position in the Action Editor stack** (D-45). The top clip is 1, the next is 2, and so on. Dragging a clip to a new position renumbers the stack. Importance can also be typed in the properties panel, which moves the clip to that position. It changes only *which clip is picked*:
   - **Sequential:** plays in stack order (1, 2, 3, …). That is today's sequential behaviour, with the order now user-controlled.
   - **Random / By band:** weighted, with higher rank picked more often. Proposed weight = `N − importance + 1` (Q15). Still never the same clip twice in a row; By band applies the same weighting within the band's pool.
 - **Why:** The brief's Importance is "weighting information for the automation". Omar wants it set by arranging the stack, the Canva-level way, instead of by typing numbers. Hold length stays with Pace, so screen time ≈ weight × hold.
+- **As built:** weight = `N − rank + 1` *within the pool being picked from* (so a band pool of 3 weighs 3:2:1). **By band** also changes: v2 rotated through the band's pool in order; v2.1 makes it a weighted pick, as this entry specifies. Typing Importance in the properties panel moves the clip to that place. **Verified:** Sequential cut order = stack order (A B C D Getty Logo, repeating); after reordering, 6000 Random picks by position = 1525 / 1322 / 1182 / 947 / 677 / 347; By band (pool of 3) = 1242 / 1101 / 657.
+- **⚠ Conflicts with the v2.1 rule "every new control defaults to today's behaviour"** (and exit criterion 1): with an untouched stack, Random and By band are no longer uniform/rotating. Built as Q15 proposes, flagged for Omar. Switching back to "uniform until the user reorders" is a one-line change in `weightedPick()`.
 - **Consequences:** New clips are added to the bottom of the stack, which is upload order, so Sequential matches v2. Random weighting does change from v2's uniform pick. Q15 asks whether it should stay uniform until the user reorders. Future: Importance becomes overlap-based crossfade on the action line (roadmap Phase 1.4 note).
 
 ### D-33 · Story assets leave the automated pool; Free Mode ignores positions
@@ -318,14 +320,16 @@ Everything in this section is **Proposed**. Each entry becomes *Accepted* (or is
   - The first asset of a new upload is selected automatically, so its options show at once.
 - **Verified (real files):** chooser + drag/drop; per-kind fields; Background / Bass / Mid layers render as before in the control window and the pop-out; enable + stack-swap through the panel; Remove releases the slot.
 
-### D-45 · The bottom Bin becomes the Action Editor *(Omar, 2026-10-02)*
+### D-45 · The bottom Bin becomes the Action Editor *(Accepted — built in step 5; story markers land in step 7c)*
 - **Decision:** The bottom "Bin" row becomes the **Action Editor** (Blender's Action Editor analogue). It shows the auto-edit sequence: every asset used as a clip, as an **ordered stack** of cards. Selecting a card selects that asset everywhere and shows the same properties (D-44). **Dragging a card to a new position sets its Importance to that position** (D-32). Story blocks (Story Mode on) appear as fixed Hook / Result / CTA markers at the ends, not in the stack. Adding media happens in 03 Assets; dropping files onto the Action Editor still works as a shortcut.
 - **Why:** It keeps the simplicity of the bin row while making it the place where the sequence is shaped. That's "more useful while maintaining simplicity".
+- **As built:** cards show the stack number, thumb, length ("Still" for images) and tags (kind, Pace if set, band if set, layer). Clicking a card selects it and opens 03 Assets. The per-card Band/Pace menus and ✕ moved to the asset properties panel (D-44). Keyboard: Alt+←/→ moves the focused card, Enter selects it. The stack is horizontal, so the codemap's Alt+↑/↓ became ←/→.
 - **Future:** see the roadmap Phase 1.4 note. On the action line, Importance becomes overlap-driven crossfade (fractional Importance, e.g. 1 vs 1.000…).
 
-### D-46 · Images play as auto-edit clips
+### D-46 · Images play as auto-edit clips *(Accepted — built in step 5d)*
 - **Decision:** An image used as a clip holds for its Pace like a video, with no motion (motion is Phase 1.1). It is drawn cover-fit through the same `drawClip` path and transitions. "Random in-point" and "resume" don't apply to images.
 - **Why:** The brief's "regular video/image clips". It reuses the image loading Media Layers already does.
+- **Verified:** an image on Relaxed held 8 beats while Global clips held 3, on the same beat grid; the viewport HUD shows "In: Still".
 
 ### Open questions (block the steps shown)
 
@@ -339,7 +343,7 @@ Everything in this section is **Proposed**. Each entry becomes *Accepted* (or is
 | **Q12** | Fade shape: fade to silence, or duck to a lower level? Length? | **Fade to silence, 1 bar out / 1 bar in**, a single on/off toggle | 7d |
 | **Q13** | Where does a voice track start? | **Recorded:** at the playhead when Record was pressed. **Imported:** at 0:00, with a start-offset nudge | 6b–6c |
 | **Q14** | A recorded take is lost on reload (nothing persists). Add a "Download take" button? | **Yes**, one button | 6c |
-| **Q15** | Is stack position 1 the *most* important (picked most often)? And should Random stay uniform until the user reorders? | **Yes, 1 = top = most weight** (`N − pos + 1`). Weighting is on from the start, since the stack is visible | 5c |
+| **Q15** | Is stack position 1 the *most* important (picked most often)? And should Random stay uniform until the user reorders? | **Yes, 1 = top = most weight** (`N − pos + 1`). Weighting is on from the start, since the stack is visible. ***Accepted** (built in step 5c) — but see the conflict noted in D-32* | 5c |
 | **Q16** | Can one asset be both an auto-edit clip and a Media Layer at once? | **Yes.** "Use as" is two independent switches. ***Accepted** (built in step 4)* | 4c |
 
 ### Not changing in v2.1 (boundary check)

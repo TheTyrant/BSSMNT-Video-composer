@@ -154,13 +154,15 @@ State: `assets[]` (every imported image/video, fields in §4.0), `clips` (getter
 | `setClipPace(id, pace)` | Per-clip pace: `global` or a `MusicalTime.AUTO_PACES` key |
 | `intervalBeats(bpm)` | Auto (`autoMultiplier`) or manual (`toBeats(count, unit)`) |
 | `trackBands(d)` | Dominant band = highest ratio of value ÷ its own running average, with hysteresis |
-| `choose()` | Next clip: `sequential` · `random` · `band` (pool by tag → `any` → all) |
-| `prepare(clip, …)` | In-point (`random · resume · start`), seek, play |
+| `regularPool()` | Ready assets used as clips, in stack order (story assets leave it in Story Mode, step 7) |
+| `choose()` | Next clip. **Sequential:** next one down the stack, wrapping. **Random / By band:** `weightedPick()` (band pool by tag → `any` → all) |
+| `weightedPick(pool, exclude)` | Weight = N − rank + 1 within the pool (top of the stack most often); never the current clip twice in a row |
+| `prepare(clip, bpm)` | In-point (`random · resume · start`), seek, play. Images: in-point 0, nothing to seek (D-46) |
 | `cut(bpm, atPos)` | Close segment, open new, schedule `nextCutPos = atPos + hold`, pick transition (`band` map or fixed), start blend |
 | `retire(clip)` | Save `lastPos`, pause unless current/pending |
 | `seekTo(s)` | Truncate segments/beats after `s`, force cut next frame |
 | `setActive(bool)` / `pauseAll()` / `reset()` | Lifecycle |
-| `draw(p)` | Cover-fit clip render, active transition render, optional Media Layers overlay |
+| `draw(p)` | Cover-fit clip render (video **and image** through the same `drawClip`), active transition render, optional Media Layers overlay |
 | `status()` / `nowShowing()` / `beatPhase()` | For UI |
 | `on(fn)` / `emit(type)` | Events: `clips · cut · beat · seek · reset` |
 
@@ -173,7 +175,8 @@ Single 2D canvas redrawn ~30 fps. Row heights `ROWS = { ruler 28, master 72, cli
 | `onAudioFrame(d)` / `resetSession()` | Band energy history (truncates on seek-back) |
 | `loadTrackWaveform(file)` | Separate decode (OfflineAudioContext) → 2400 min/max peaks. Drawing only |
 | `initProps()` / `syncProps()` / `updateReadout()` | Auto-Editor panel ↔ `engine.settings` |
-| `initBin()` / `renderBin()` / `markShowing()` | Bin cards, drag-drop, ON AIR badge (polled in `loop()`) |
+| `initBin()` / `renderBin()` / `markShowing()` | **Action Editor** (step 5): the auto-edit clips as an ordered stack (number = Importance), ON AIR badge (polled in `loop()`). Click → `engine.select()` + open 03 Assets. Files dropped here are still added as assets |
+| `insertIndexAt(x)` / `showInsert(slot)` / `reorderTo(id, slot)` | Drag-to-reorder (HTML5 drag events) → `engine.moveClip()`. Keyboard: Alt+←/→ on a focused card, Enter selects |
 | `initCanvasInteraction()` | Track mode: click/drag seek, wheel pan, Ctrl/Cmd+wheel zoom, dbl-click fit |
 | `initSplitter()` | Resizable editor height (localStorage, try/catch) |
 | `updateView()` | Track = fit/zoom window; Live = rolling 30 s window |
@@ -276,10 +279,10 @@ Spec: [brief-v2.1.md](brief-v2.1.md). Decisions: D-31–D-46; open questions Q9�
 | 4a ✅ | `index.html`, `app/assetPanel.js` | 03 Assets: drop zone + `<input accept="image/*,video/*" multiple>`, asset list with thumbs, `select(id)` (shared selection with the Action Editor) |
 | 4b ✅ | same | `renderProps(asset)`: fields shown per D-44 (kind, Use as, layer fields, band, Pace, Importance, Story Position, status, Remove) |
 | 4c ✅ | `index.html`, `assetPanel.js` | Layer upload slots removed from the HTML. `visualizer.js` needed **no change**: its `init()` already skips missing `layerUpload-*` / `layerEnabled-*` elements. Layer controls bound from the properties panel. Pop-out verified (it reads `visualizer.layers[slot].file`, which `loadLayerMedia` still sets) |
-| 5a | `timelinePanel.js`, `index.html` | Bottom "Bin" → **Action Editor**: `renderStack()` (ordered by importance), card click → `select(id)`, file drop still adds assets |
-| 5b | `timelinePanel.js` | Drag-reorder (pointer events, keyboard alt+↑/↓ for accessibility) → `engine.moveClip(id, i)` |
-| 5c | `clipEngine.js` | `choose()` → `regularPool()` (ready, `asClip`, not story in Story Mode). Sequential = stack order; random/band = `weightedPick(pool)` with weight `N − importance + 1` (Q15) |
-| 5d | `clipEngine.js` | Images as clips: `drawClip` handles `p5.Image`; `prepare()`/`retire()` skip video calls for images; in-point ignored |
+| 5a ✅ | `timelinePanel.js`, `index.html` | Bottom "Bin" → **Action Editor**: `renderStack()` (ordered by importance), card click → `select(id)`, file drop still adds assets |
+| 5b ✅ | `timelinePanel.js` | Drag-reorder (HTML5 drag events, keyboard Alt+←/→ since the stack is horizontal) → `engine.moveClip(id, i)` |
+| 5c ✅ | `clipEngine.js` | `choose()` → `regularPool()` (ready, `asClip`; story exclusion lands in 7b). Sequential = stack order; random/band = `weightedPick(pool)` with weight `N − rank + 1` within the pool (Q15) |
+| 5d ✅ | `clipEngine.js` | Images as clips: `drawClip` handles `p5.Image`; `prepare()`/`retire()` skip video calls for images; in-point ignored |
 | 6a | `app/voiceTrack.js` (new) — `class VoiceTrack` | `constructor(app)`, `load(blob|file, {offset})`, `unload()`, `syncTo(masterTime, playing)` (called from the app's frame loop; drift > 50 ms → seek), `setVolume(v)`, `setNormalize(on)`, `get duration/offset/isLoaded` |
 | 6b | `voiceTrack.js`, `index.html` | `importFile(file)`; **Voice** block inside the 01 Audio tab: import button, status line |
 | 6c | `voiceTrack.js` | `listMics()`, `startRecording(deviceId)` (getUserMedia echoCancellation/noiseSuppression + MediaRecorder), `stopRecording()` → `load(blob, {offset: recordStartMasterTime})`, `downloadTake()` (Q14); record indicator in transport bar |

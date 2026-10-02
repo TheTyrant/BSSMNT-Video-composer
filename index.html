@@ -206,14 +206,14 @@
               <div class="lanes" id="timelineLanes">
                 <canvas id="timelineCanvas"></canvas>
               </div>
-              <div class="ch ch-bin"><span class="ch-name">Bin</span><span class="ch-sub" id="binCount">0 clips</span></div>
+              <div class="ch ch-bin"><span class="ch-name">Action</span><span class="ch-sub" id="binCount">0 clips</span><span class="ch-sub ch-hint">Drag to reorder.<br>Top = most important</span></div>
               <div class="clip-bin dropzone" id="clipBin">
-                <label class="bin-add" title="Add video clips">
-                  <input type="file" id="clipUpload" accept="video/*" multiple>
+                <label class="bin-add" title="Add images or video (also in 03 Assets)">
+                  <input type="file" id="clipUpload" accept="image/*,video/*" multiple>
                   <span class="bin-add-plus">+</span>
                   <span>Add clips</span>
                 </label>
-                <div class="bin-cards" id="binCards"></div>
+                <div class="bin-cards" id="binCards" role="listbox" aria-label="Action Editor stack"></div>
               </div>
             </div>
 

@@ -40,7 +40,7 @@ class TimelinePanel {
     this.initSplitter();
 
     this.engine.on((type) => {
-      if (type === 'clips') this.renderBin();
+      if (type === 'clips' || type === 'select') this.renderBin();
     });
 
     const modeSelect = document.getElementById('visualMode');
@@ -225,7 +225,12 @@ class TimelinePanel {
     this.el.readout.innerHTML = `Cut every <b>${MusicalTime.describeBeats(st.globalBeats)}</b> = ${secs}<br>${how}`;
   }
 
-  // ---- clip bin --------------------------------------------------------
+  // ---- Action Editor (was the clip bin, D-45) ----------------------------
+  //
+  // The auto-edit clips as an ordered stack. Position = Importance
+  // (1 = top). Clicking a card selects the asset and opens its options in
+  // 03 Assets; dragging a card (or Alt+←/→) moves it in the stack. Files
+  // dropped here are still added as assets (shortcut).
 
   initBin() {
     this.el.upload.addEventListener('change', (e) => {
@@ -233,35 +238,88 @@ class TimelinePanel {
       e.target.value = '';
     });
     const bin = this.el.bin;
-    bin.addEventListener('dragover', (e) => { e.preventDefault(); bin.classList.add('drag-over'); });
-    bin.addEventListener('dragleave', (e) => { if (!bin.contains(e.relatedTarget)) bin.classList.remove('drag-over'); });
+    this.dragId = null;
+    bin.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      if (this.dragId != null) this.showInsert(this.insertIndexAt(e.clientX));
+      else bin.classList.add('drag-over');
+    });
+    bin.addEventListener('dragleave', (e) => {
+      if (!bin.contains(e.relatedTarget)) { bin.classList.remove('drag-over'); this.showInsert(-1); }
+    });
     bin.addEventListener('drop', (e) => {
       e.preventDefault();
       bin.classList.remove('drag-over');
-      this.engine.addFiles(e.dataTransfer.files);
+      if (this.dragId != null) {
+        this.reorderTo(this.dragId, this.insertIndexAt(e.clientX));
+        this.dragId = null;
+        this.showInsert(-1);
+      } else {
+        this.engine.addFiles(e.dataTransfer.files);
+      }
     });
+  }
+
+  // Insertion slot 0..N under the pointer (before the card whose centre is
+  // to the right of x).
+  insertIndexAt(x) {
+    const cards = Array.from(this.el.binCards.children);
+    for (let i = 0; i < cards.length; i++) {
+      const r = cards[i].getBoundingClientRect();
+      if (x < r.left + r.width / 2) return i;
+    }
+    return cards.length;
+  }
+
+  showInsert(slot) {
+    const cards = Array.from(this.el.binCards.children);
+    cards.forEach((c, i) => {
+      c.classList.toggle('insert-before', i === slot);
+      c.classList.toggle('insert-after', slot === cards.length && i === cards.length - 1);
+    });
+  }
+
+  // slot is an insertion point in the current stack; convert to the index
+  // the clip ends up at once it's been lifted out.
+  reorderTo(id, slot) {
+    const from = this.engine.clips.findIndex(c => c.id === id);
+    if (from < 0) return;
+    this.engine.moveClip(id, slot > from ? slot - 1 : slot);
   }
 
   renderBin() {
     const cards = this.el.binCards;
     const clips = this.engine.clips;
+    const focusedId = document.activeElement && document.activeElement.closest && document.activeElement.closest('.bin-card')
+      ? document.activeElement.closest('.bin-card').dataset.id : null;
     this.el.binCount.textContent = `${clips.length} clip${clips.length === 1 ? '' : 's'}`;
     cards.textContent = '';
-    clips.forEach(clip => {
+    clips.forEach((clip, i) => {
       const card = document.createElement('div');
-      card.className = 'bin-card';
+      card.className = 'bin-card' + (clip.id === this.engine.selectedId ? ' selected' : '');
       card.dataset.id = clip.id;
       card.dataset.band = clip.band;
+      card.tabIndex = 0;
+      card.draggable = true;
+      card.setAttribute('role', 'option');
+      card.setAttribute('aria-selected', String(clip.id === this.engine.selectedId));
+      card.setAttribute('aria-label', `${i + 1}. ${clip.name}`);
+      card.title = 'Click for options. Drag (or Alt+←/→) to change its place in the stack.';
 
       let thumb;
       if (clip.thumb) {
         thumb = document.createElement('img');
         thumb.src = clip.thumb.toDataURL('image/jpeg', 0.8);
         thumb.alt = '';
+        thumb.draggable = false;
       } else {
         thumb = document.createElement('div');
       }
       thumb.className = 'bin-thumb';
+
+      const rank = document.createElement('span');
+      rank.className = 'bin-rank';
+      rank.textContent = clip.importance;
 
       const meta = document.createElement('div');
       meta.className = 'bin-meta';
@@ -271,44 +329,54 @@ class TimelinePanel {
       name.title = clip.name;
       const dur = document.createElement('span');
       dur.className = 'bin-dur';
-      dur.textContent = clip.error ? 'ERR' : clip.ready ? fmtTime(clip.duration, false) : '…';
+      dur.textContent = clip.error ? 'ERR' : !clip.ready ? '…' : clip.kind === 'image' ? 'Still' : fmtTime(clip.duration, false);
       if (clip.error) {
         card.classList.add('bin-error');
         card.title = `${clip.error}. Try Chrome/Edge, or convert to WebM (VP9) or H.264 MP4.`;
       }
       meta.append(name, dur);
 
-      const row = document.createElement('div');
-      row.className = 'bin-row';
-      const band = document.createElement('select');
-      band.setAttribute('aria-label', `${clip.name} band`);
-      band.title = 'Band pool (used when clip order = By dominant band)';
-      [['any', 'Any band'], ['bass', 'Bass'], ['mid', 'Mid'], ['high', 'High']].forEach(([v, l]) => band.add(new Option(l, v)));
-      band.value = clip.band;
-      band.addEventListener('change', () => this.engine.setClipBand(clip.id, band.value));
-      const pace = document.createElement('select');
-      pace.setAttribute('aria-label', `${clip.name} pace`);
-      pace.title = 'Pace — how long this clip holds on screen. Global follows the Auto-Editor panel; any other pace overrides it for this clip.';
-      pace.add(new Option('Global', 'global'));
-      Object.entries(MusicalTime.AUTO_PACES).forEach(([k, v]) => pace.add(new Option(v.label, k)));
-      pace.value = clip.pace;
-      pace.classList.toggle('is-set', clip.pace !== 'global');
-      pace.addEventListener('change', () => this.engine.setClipPace(clip.id, pace.value));
-      const rm = document.createElement('button');
-      rm.type = 'button';
-      rm.className = 'bin-remove';
-      rm.textContent = '✕';
-      rm.title = 'Remove clip';
-      rm.setAttribute('aria-label', `Remove ${clip.name}`);
-      rm.addEventListener('click', () => this.engine.removeAsset(clip.id));
-      row.append(band, pace, rm);
+      const tags = document.createElement('div');
+      tags.className = 'bin-tags';
+      const t = [clip.kind === 'image' ? 'IMG' : 'VID'];
+      if (clip.pace !== 'global') t.push(MusicalTime.AUTO_PACES[clip.pace].label);
+      if (clip.band !== 'any') t.push(clip.band);
+      if (clip.layer) t.push(`layer ${clip.layer}`);
+      tags.textContent = t.join(' · ');
 
       const bar = document.createElement('div');
       bar.className = 'bin-band-bar';
 
-      card.append(thumb, bar, meta, row);
+      card.append(rank, thumb, bar, meta, tags);
+      const select = () => {
+        this.engine.select(clip.id);
+        if (this.app.sidebar) this.app.sidebar.open('assets');
+      };
+      card.addEventListener('click', select);
+      card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); select(); }
+        if (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+          e.preventDefault();
+          this.engine.moveClip(clip.id, i + (e.key === 'ArrowLeft' ? -1 : 1));
+        }
+      });
+      card.addEventListener('dragstart', (e) => {
+        this.dragId = clip.id;
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', String(clip.id));
+        card.classList.add('dragging');
+      });
+      card.addEventListener('dragend', () => {
+        this.dragId = null;
+        card.classList.remove('dragging');
+        this.showInsert(-1);
+      });
       cards.appendChild(card);
     });
+    if (focusedId) {
+      const again = cards.querySelector(`[data-id="${focusedId}"]`);
+      if (again) again.focus();
+    }
     this.markShowing();
   }
 

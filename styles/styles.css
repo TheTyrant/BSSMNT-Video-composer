@@ -635,6 +635,7 @@ input[type="range"]::-moz-range-thumb {
 
 .viewport-hud { left: 10px; }
 .viewport-hud .status-item.on-air { background: var(--ink); color: var(--paper); }
+.status-item.on-air .status-label { color: rgba(255, 255, 255, 0.65); }
 
 .viewport-hint {
   position: absolute;
@@ -828,6 +829,45 @@ input[type="range"]::-moz-range-thumb {
   font-size: 11px; line-height: 1; padding: 0;
 }
 .bin-remove:hover { background: var(--ink); color: var(--paper); }
+/* Action Editor (D-45): stack number, selection, drag-to-reorder marker */
+.bin-card { cursor: grab; }
+.bin-card.dragging { opacity: 0.4; }
+.bin-card.selected { box-shadow: 0 0 0 3px var(--high); }
+.bin-card:focus-visible { outline: 2px solid var(--high); outline-offset: 2px; }
+.bin-card.insert-before::before, .bin-card.insert-after::before {
+  content: "";
+  position: absolute;
+  top: -4px; bottom: -4px;
+  width: 4px;
+  background: var(--high);
+}
+.bin-card.insert-before::before { left: -7px; }
+.bin-card.insert-after::before { right: -7px; }
+.bin-rank {
+  position: absolute;
+  top: 0; right: 0;
+  z-index: 1;
+  min-width: 22px;
+  padding: 2px 5px;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+.bin-tags {
+  padding: 2px 5px 5px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ch-hint { margin-top: 6px; line-height: 1.3; text-transform: none; letter-spacing: 0; }
 .bin-card.bin-error { border-color: var(--live); }
 .bin-card.bin-error .bin-thumb { background: repeating-linear-gradient(45deg, var(--ink) 0 6px, #2a2a2a 6px 12px); }
 .bin-card.bin-error .bin-dur { color: var(--live); font-weight: 700; }

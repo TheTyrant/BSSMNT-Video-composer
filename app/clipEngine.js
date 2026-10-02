@@ -56,7 +56,6 @@ class ClipEngine {
     this.outgoing = null;
     this.pending = null;    // pre-rolled next clip { clip, inPoint }
     this.transition = null; // { def, startMs, lengthMs }
-    this.cursor = { all: -1, bass: -1, mid: -1, high: -1, any: -1 };
     this.emit('reset');
   }
 
@@ -384,38 +383,54 @@ class ClipEngine {
     }
   }
 
+  // Clips the automation may pick: decoded, used as clips, in stack order.
+  // (Story assets leave this pool in Story Mode -- step 7.)
+  regularPool() {
+    return this.clips.filter(c => c.ready);
+  }
+
+  // Importance (stack position) only changes WHICH clip is picked (D-32):
+  //  - Sequential: the next clip down the stack, wrapping to the top.
+  //  - Random / By band: weighted pick, top of the stack most often.
+  //    Never the same clip twice in a row.
   choose() {
-    // Images join the pool in step 5d (D-46).
-    const clips = this.clips.filter(c => c.ready && c.kind === 'video');
+    const clips = this.regularPool();
     if (clips.length === 0) return null;
     const currentClip = this.current && this.current.clip;
     const s = this.settings;
 
-    if (s.order === 'random') {
-      if (clips.length === 1) return clips[0];
-      let pick;
-      do { pick = clips[Math.floor(Math.random() * clips.length)]; } while (pick === currentClip);
-      return pick;
+    if (s.order === 'sequential') {
+      const i = clips.indexOf(currentClip);
+      return clips[(i + 1) % clips.length];
     }
 
-    let pool = clips, key = 'all';
+    let pool = clips;
     if (s.order === 'band') {
-      key = this.dominant;
-      pool = clips.filter(c => c.band === key);
-      if (pool.length === 0) { key = 'any'; pool = clips.filter(c => c.band === 'any'); }
-      if (pool.length === 0) { key = 'all'; pool = clips; }
+      pool = clips.filter(c => c.band === this.dominant);
+      if (pool.length === 0) pool = clips.filter(c => c.band === 'any');
+      if (pool.length === 0) pool = clips;
     }
-    this.cursor[key] = (this.cursor[key] + 1) % pool.length;
-    let pick = pool[this.cursor[key]];
-    if (pick === currentClip && pool.length > 1) {
-      this.cursor[key] = (this.cursor[key] + 1) % pool.length;
-      pick = pool[this.cursor[key]];
+    return this.weightedPick(pool, currentClip);
+  }
+
+  // Weight = N − rank + 1 within the pool (rank 1 = highest in the stack),
+  // so with 3 clips the odds are 3:2:1 (Q15).
+  weightedPick(pool, exclude) {
+    const cands = pool.length > 1 ? pool.filter(c => c !== exclude) : pool;
+    const N = pool.length;
+    const weights = cands.map(c => N - pool.indexOf(c));
+    let r = Math.random() * weights.reduce((a, b) => a + b, 0);
+    for (let i = 0; i < cands.length; i++) {
+      r -= weights[i];
+      if (r < 0) return cands[i];
     }
-    return pick;
+    return cands[cands.length - 1];
   }
 
   prepare(clip, bpm) {
     if (!clip) return null;
+    // Images hold for their Pace; in-points don't apply (D-46).
+    if (clip.kind === 'image') return { clip, inPoint: 0 };
     const dur = clip.duration || (isFinite(clip.el.duration) ? clip.el.duration : 0);
     let inPoint = 0;
     if (this.settings.inPoint === 'resume') inPoint = clip.lastPos || 0;
@@ -437,7 +452,7 @@ class ClipEngine {
     const next = this.pending || this.prepare(this.choose(), bpm);
     this.pending = null;
     if (!next) return;
-    if (next.clip.el.paused) next.clip.el.play().catch(() => {});
+    if (next.clip.el && next.clip.el.paused) next.clip.el.play().catch(() => {});
 
     const hold = this.intervalFor(next.clip, bpm);
     if (atPos != null) {
@@ -510,15 +525,18 @@ class ClipEngine {
   // Leaving clips mode or stopping audio: hold still, keep the recording.
   setActive(active) {
     if (!active) this.pauseAll();
-    else if (this.current) this.current.clip.el.play().catch(() => {});
+    else if (this.current && this.current.clip.el) this.current.clip.el.play().catch(() => {});
   }
 
   // ---- rendering -------------------------------------------------------
 
   draw(p) {
     const drawClip = (clip, { alpha = 1, offsetX = 0, scale = 1 } = {}) => {
-      if (!clip || !clip.el || !clip.el.videoWidth) return;
-      const vw = clip.el.videoWidth, vh = clip.el.videoHeight;
+      if (!clip || !clip.media) return;
+      // Videos and images share the same cover-fit path and transitions.
+      const vw = clip.kind === 'image' ? clip.media.width : clip.el.videoWidth;
+      const vh = clip.kind === 'image' ? clip.media.height : clip.el.videoHeight;
+      if (!vw || !vh) return;
       const cover = Math.max(p.width / vw, p.height / vh) * scale;
       const w = vw * cover, h = vh * cover;
       p.push();
