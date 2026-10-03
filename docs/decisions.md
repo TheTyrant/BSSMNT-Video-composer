@@ -372,6 +372,12 @@ The brief's four questions were not answered before the build. Rather than guess
 - **Firefox (no save dialog):** projects and exports are first written to the browser's private disk area (OPFS) and downloaded from there, so a large project or a long export is never held in memory. The temporary copy is removed at the next save / export. If the browser won't grant enough space it says so (and suggests Chrome / Edge, which write straight to the chosen file).
 - **Verified:** a project with a 4.5 GB file + clip, image, track and text — Chrome: saved 4.512 GB in 21 s with progress, reopened in 0.5 s with nothing missing, the 4.5 GB file byte-exact at start / 2.1 GB / 4 GB / 4.4 GB / end; Firefox from disk: saved (disk, then download) 4.505 GB in 56 s, reopened complete and byte-exact. Independent checks: Windows' .NET ZIP reader lists every entry of both files with the right sizes; Node's zlib CRC of the source equals the CRC stored in the .mnt. Saving with a file that isn't connected warns and names it. All earlier suites pass.
 
+
+### D-67 · Pack or Link, with the file size before saving *(Accepted — built)*
+- **Choice (Omar):** 03 File › Project has a **Media: Pack | Link** switch above Save (remembered). Hover text explains each: *Pack* copies the music, video and image files into the .mnt (one file to keep, move or share; reopens anywhere with nothing to reconnect; as big as the media). *Link* keeps the .mnt small, remembering each file's name, size and date; the media stays where it is and is found again on reopening (Reconnect / Find in folder), or pointed to once if it moved or on another computer.
+- **Size before saving:** under the switch, "Project file: ≈ 25.9 MB — includes 25.8 MB of media" (Pack) or "≈ 91 KB — media linked (25.8 MB stays where it is)" (Link), updated as media is added; it also says when files aren't connected and so won't be included. The Save button's tooltip repeats it.
+- **Accuracy:** Pack projected 25,906,370 B vs 25,911,928 B saved (0.02 %); Link ≈ 91 KB vs 95 KB.
+
 ## I. Known carry-overs (pre-existing on `main`, not changed)
 - Placeholder text drawn with `p.text()` in WebGL mode doesn't render, because no font is loaded (affects the Media Layers "Upload images…" prompt). v2 uses a DOM overlay for its own hints.
 - `visualizer.js` has duplicate `drawAudioWaves` / `drawMandala` / `drawTunnel` definitions (the later ones win), plus unused snake-game code.

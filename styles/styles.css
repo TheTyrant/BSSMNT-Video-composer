@@ -1124,5 +1124,8 @@ select option:disabled { color: var(--ink-3); }
 .text-handle.is-clipped .text-handle-tag { background: var(--live); color: #fff; }
 
 /* Pack media (D-65) */
-.pack-check { display: flex; margin-top: 12px; }
+.media-choice { margin-top: 12px; }
+.project-size { margin-bottom: 8px; }
+.media-choice .seg-btns button { height: 28px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.project-size { margin-top: 6px; font-family: var(--font-mono); font-size: 11px; color: var(--ink); }
 #projectPackHint:empty { display: none; }

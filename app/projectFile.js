@@ -61,7 +61,7 @@ class ProjectFile {
       openInput: $('projectOpenInput'), status: $('projectStatus'), missing: $('projectMissing'),
       missingCount: $('missingCount'), missingList: $('missingList'), auto: $('reconnectAuto'),
       folder: $('reconnectFolder'), folderInput: $('reconnectFolderInput'), files: $('reconnectFiles'),
-      pack: $('projectPack'), packHint: $('projectPackHint'),
+      media: $('projectMedia'), packHint: $('projectPackHint'),
     };
     if (!this.el.save) return;
     const fail = (e) => { console.error(e); if (e && e.name !== 'AbortError') alert('Project: ' + (e.message || e)); };
@@ -74,13 +74,8 @@ class ProjectFile {
       e.target.value = '';
       if (f) this.open(f).catch(fail);
     });
-    if (this.el.pack) {
-      this.el.pack.checked = this.pack;
-      this.el.pack.addEventListener('change', () => {
-        this.pack = this.el.pack.checked;
-        try { localStorage.setItem('bssmnt.pack', this.pack ? '1' : '0'); } catch (e) { /* storage blocked */ }
-        this.render();
-      });
+    if (this.el.media) {
+      this.el.media.querySelectorAll('button').forEach(b => b.addEventListener('click', () => this.setPack(b.dataset.v === 'pack')));
     }
     this.el.auto.addEventListener('click', () => this.reconnect('handles').catch(fail));
     // Find in folder: the folder dialog (Chrome / Edge), or a folder upload
@@ -112,6 +107,26 @@ class ProjectFile {
     this.render();
   }
 
+  // Pack or Link (D-67); remembered for next time.
+  setPack(on) {
+    this.pack = !!on;
+    try { localStorage.setItem('bssmnt.pack', this.pack ? '1' : '0'); } catch (e) { /* storage blocked */ }
+    this.render();
+  }
+
+  // Projected size of the .mnt for Pack or Link, before saving: media (when
+  // packed), voice, the recording, thumbnails, project data and the index.
+  estimateSize(pack = this.pack) {
+    const app = this.app, e = app.clipEngine;
+    let n = 6000 + e.assets.length * 400 + app.text.items.length * 400;      // project.json + ZIP index
+    n += e.segments.length * 260 + e.beats.length * 40;                       // cut list + beat grid
+    n += app.record.frameCount * SessionRecord.FRAME_BYTES;                     // recorded motion
+    n += e.assets.filter(a => a.thumb).length * 6000;                          // thumbnails
+    if (app.voice.isLoaded && app.voice.blob) n += app.voice.blob.size;       // voice is always inside
+    if (pack) n += this.packable().reduce((s, f) => s + f.size, 0);
+    return n;
+  }
+
   // Media the project would pack (track + every connected asset).
   packable() {
     const out = [];
@@ -131,11 +146,23 @@ class ProjectFile {
     parts.push(`${linked} media ${this.pack ? 'packed' : 'linked'}`);
     if (rec > 0) parts.push(`${fmtTime(rec, false)} recorded`);
     this.el.status.textContent = parts.join(' · ');
+    if (this.el.media) {
+      this.el.media.querySelectorAll('button').forEach(b => {
+        const on = (b.dataset.v === 'pack') === this.pack;
+        b.classList.toggle('on', on);
+        b.setAttribute('aria-checked', String(on));
+      });
+    }
     if (this.el.packHint) {
-      const bytes = this.packable().reduce((n, f) => n + f.size, 0);
-      const mb = (b) => (b >= 1e9 ? `${(b / 1e9).toFixed(1)} GB` : `${Math.max(0.1, b / 1e6).toFixed(1)} MB`);
-      this.el.packHint.textContent = !this.pack ? 'Media is linked: reopening may ask you to reconnect files.'
-        : bytes ? `Adds ${mb(bytes)} of media to the file.` : '';
+      const size = (b) => (b >= 1e9 ? `${(b / 1e9).toFixed(2)} GB` : b >= 1e6 ? `${(b / 1e6).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1e3))} KB`);
+      const media = this.packable().reduce((n, f) => n + f.size, 0);
+      const left = this.unsaved();
+      let text = `Project file: ≈ ${size(this.estimateSize())}`;
+      text += this.pack ? (media ? ` — includes ${size(media)} of media` : ' — media will be packed inside')
+        : ` — media linked${media ? ` (${size(media)} stays where it is)` : ''}`;
+      if (left.length) text += ` · ${left.length} file${left.length === 1 ? '' : 's'} not connected, so not included`;
+      this.el.packHint.textContent = text;
+      if (this.el.save) this.el.save.title = `Save (Ctrl+S) · ${text}`;
     }
     this.el.missing.hidden = !this.missing.length;
     if (this.missing.length) {
