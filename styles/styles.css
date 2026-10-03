@@ -1097,3 +1097,10 @@ select option:disabled { color: var(--ink-3); }
 .export-bar { height: 10px; border: 1px solid var(--ink); background: var(--paper); }
 .export-bar > div { height: 100%; width: 0; background: var(--ink); transition: width 0.2s linear; }
 .export-result { color: var(--ink); font-weight: 600; }
+
+/* Text drag handle (D-62) */
+.text-handle { position: absolute; z-index: 5; border: 1px dashed rgba(255, 255, 255, 0.9); outline: 1px dashed rgba(0, 0, 0, 0.6); outline-offset: -2px; cursor: move; touch-action: none; }
+.text-handle.dragging { border-style: solid; }
+.text-handle.ghost { border-color: rgba(255, 255, 255, 0.5); }
+.text-handle-tag { position: absolute; left: -1px; top: -20px; white-space: nowrap; font: 600 10px/18px var(--font-mono, monospace); padding: 0 6px; background: var(--ink); color: var(--paper); letter-spacing: 0.04em; }
+.text-handle-tag:empty { display: none; }

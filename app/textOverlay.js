@@ -41,6 +41,7 @@ class TextOverlay {
     this.nextId = 1;
     this.selectedId = null;
     this.listeners = new Set();
+    this.boxes = new Map();     // on-screen bounds per item (viewport), for the drag handle
   }
 
   on(fn) { this.listeners.add(fn); }
@@ -97,21 +98,24 @@ class TextOverlay {
   // ---- drawing -------------------------------------------------------------
 
   // Draw every item visible at time t into a 2D context of size W×H.
-  // preview: an item id to show even outside its time (while editing).
+  // preview: an item id to show faded even outside its time (editing while
+  // paused, D-62); during playback every item keeps strictly to its time.
   // live = false (export): Show now items sit at their master time.
   render(ctx, W, H, t, preview = null, live = true) {
     ctx.clearRect(0, 0, W, H);
+    if (ctx === this.ctx) this.boxes = new Map();
     let drawn = 0;
     for (const it of this.items) {
       let win = this.windowOf(it);
       let tt = t;
       // Show now runs on the wall clock, so it plays even while the live clock is stopped.
       if (live && it.firedWall != null && !this.app.isTrackMode()) { tt = performance.now() / 1000; win = [it.firedWall, it.firedWall + (win[1] - win[0])]; }
-      let p = null;
+      let p = null, ghost = false;
       if (win && tt >= win[0] && tt < win[1]) p = (tt - win[0]) / (win[1] - win[0]);
-      else if (it.id === preview) p = it.anim === 'roll' ? 0.35 : 0.5;
+      else if (it.id === preview) { p = it.anim === 'roll' ? 0.35 : 0.5; ghost = true; }
       if (p == null) continue;
-      this.drawItem(ctx, W, H, it, p, (win ? win[1] - win[0] : it.duration));
+      const box = this.drawItem(ctx, W, H, it, p, (win ? win[1] - win[0] : it.duration), ghost);
+      if (ctx === this.ctx && box) this.boxes.set(it.id, { ...box, ghost });
       drawn++;
     }
     return drawn;
@@ -128,7 +132,7 @@ class TextOverlay {
     });
   }
 
-  drawItem(ctx, W, H, it, p, dur) {
+  drawItem(ctx, W, H, it, p, dur, ghost = false) {
     const L = this.lines(it, H);
     const blockH = L.reduce((h, l) => h + l.gap, 0);
     const fadeP = Math.min(0.25, 0.6 / Math.max(0.6, dur));
@@ -136,14 +140,20 @@ class TextOverlay {
     if (it.anim !== 'none' && it.anim !== 'roll') alpha = Math.min(1, p / fadeP, (1 - p) / fadeP);
     else if (it.anim === 'roll') alpha = Math.min(1, p / 0.04, (1 - p) / 0.04);
     alpha = Math.max(0, alpha);
-    if (alpha <= 0) return;
+    if (ghost) alpha = 0.55;
+    if (alpha <= 0) return null;
 
     const align = it.style.align;
     const pad = W * 0.06;
-    const x = align === 'left' ? pad : align === 'right' ? W - pad : W / 2;
+    let x = align === 'left' ? pad : align === 'right' ? W - pad : W / 2;
     let y;
     if (it.anim === 'roll') {
       y = H - p * (H + blockH);                  // credits roll bottom → top
+    } else if (it.style.position === 'free') {
+      // Placed by dragging (D-62): x/y are fractions of the frame.
+      x = (it.style.x != null ? it.style.x : 0.5) * W;
+      y = (it.style.y != null ? it.style.y : 0.5) * H;
+      if (it.anim === 'rise') y += (1 - alpha) * H * 0.03;
     } else {
       const pos = it.style.position;
       y = pos === 'top' ? H * 0.08 : pos === 'bottom' ? H * 0.92 - blockH : pos === 'lower' ? H * 0.72 - blockH / 2 : (H - blockH) / 2;
@@ -156,9 +166,10 @@ class TextOverlay {
     ctx.textBaseline = 'top';
     const family = TextOverlay.FONTS[it.style.font] || TextOverlay.FONTS.sans;
 
+    let maxW = 0;
+    L.forEach(l => { ctx.font = `${l.weight} ${l.size}px ${family}`; maxW = Math.max(maxW, ctx.measureText(l.text).width); });
+    const boxLeft = align === 'left' ? x : align === 'right' ? x - maxW : x - maxW / 2;
     if (it.style.plate === 'plate') {
-      let maxW = 0;
-      L.forEach(l => { ctx.font = `${l.weight} ${l.size}px ${family}`; maxW = Math.max(maxW, ctx.measureText(l.text).width); });
       const px = H * 0.02;
       const left = align === 'left' ? x - px : align === 'right' ? x - maxW - px : x - maxW / 2 - px;
       ctx.fillStyle = 'rgba(0,0,0,0.6)';
@@ -179,6 +190,7 @@ class TextOverlay {
       yy += l.gap;
     }
     ctx.restore();
+    return { x: boxLeft, y, w: maxW, h: blockH, anchorX: x };
   }
 
   // ---- viewport overlay ----------------------------------------------------
@@ -206,11 +218,81 @@ class TextOverlay {
       // an empty full-size layer over the WebGL canvas still costs
       // compositing time every frame.
       if (!this.items.length && !this.drawn) return;
-      const preview = this.previewing ? this.selectedId : null;
+      const preview = this.previewing && !this.app.timelineRolling() ? this.selectedId : null;
       this.drawn = this.render(this.ctx, c.width, c.height, this.app.masterTime(), preview) > 0;
       if (c.hidden === this.drawn) c.hidden = !this.drawn;
+      this.updateHandle();
     };
     loop();
+    this.makeHandle(container);
+  }
+
+  // ---- drag handle (D-62) ----------------------------------------------------
+  // While 04 Text is open, the selected base text gets a dashed box on the
+  // viewport. Dragging it places the text anywhere (position "Free").
+
+  makeHandle(container) {
+    const h = document.createElement('div');
+    h.className = 'text-handle';
+    h.hidden = true;
+    h.title = 'Drag to move this text';
+    h.innerHTML = '<span class="text-handle-tag"></span>';
+    container.appendChild(h);
+    this.handle = h;
+    this.handleTag = h.firstChild;
+    let drag = null;
+    h.addEventListener('pointerdown', (e) => {
+      const it = this.get(this.selectedId);
+      const box = this.boxes && this.boxes.get(this.selectedId);
+      if (!it || !box) return;
+      e.preventDefault();
+      h.setPointerCapture(e.pointerId);
+      const W = this.canvas.width, H = this.canvas.height;
+      // Start from where it is drawn now, whatever its position preset.
+      if (it.style.position !== 'free') { it.style.x = box.anchorX / W; it.style.y = box.y / H; it.style.position = 'free'; }
+      drag = { x: e.clientX, y: e.clientY, sx: it.style.x, sy: it.style.y, cw: this.canvas.clientWidth, ch: this.canvas.clientHeight };
+      h.classList.add('dragging');
+    });
+    h.addEventListener('pointermove', (e) => {
+      if (!drag) return;
+      const it = this.get(this.selectedId);
+      if (!it) return;
+      const clamp = (v) => Math.max(-0.2, Math.min(1.2, v));
+      it.style.x = clamp(drag.sx + (e.clientX - drag.x) / drag.cw);
+      it.style.y = clamp(drag.sy + (e.clientY - drag.y) / drag.ch);
+    });
+    const end = () => {
+      if (!drag) return;
+      drag = null;
+      h.classList.remove('dragging');
+      const it = this.get(this.selectedId);
+      if (it) {
+        it.style.x = Math.round(it.style.x * 1000) / 1000;
+        it.style.y = Math.round(it.style.y * 1000) / 1000;
+      }
+      this.emit('change');
+    };
+    h.addEventListener('pointerup', end);
+    h.addEventListener('pointercancel', end);
+  }
+
+  updateHandle() {
+    const h = this.handle;
+    if (!h) return;
+    const it = this.previewing ? this.get(this.selectedId) : null;
+    const box = it && it.kind === 'text' && it.anim !== 'roll' && this.boxes ? this.boxes.get(it.id) : null;
+    if (!box) { if (!h.hidden) h.hidden = true; return; }
+    const s = this.canvas.clientWidth / this.canvas.width;     // canvas px → CSS px
+    const pad = 6;
+    h.hidden = false;
+    h.style.left = `${box.x * s - pad}px`;
+    h.style.top = `${box.y * s - pad}px`;
+    h.style.width = `${box.w * s + pad * 2}px`;
+    h.style.height = `${box.h * s + pad * 2}px`;
+    h.classList.toggle('ghost', box.ghost);
+    const win = this.windowOf(it);
+    const tag = box.ghost && win ? `Preview · on screen ${fmtTime(win[0], true)}–${fmtTime(win[1], true)}` : '';
+    if (this.handleTag.textContent !== tag) this.handleTag.textContent = tag;
   }
 
   // ---- project file ----------------------------------------------------------

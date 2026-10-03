@@ -763,6 +763,26 @@ class ClipEngine {
     this.segments = this.segments.filter(s => s.end == null || s.end > s.start + 0.001 || (this.current && s === this.current.segment));
     this.pass++;
     this.passStart = seconds;
+    // The clip on screen carries on from the new playhead: record that as
+    // the new pass's first cut, so the list has no hole between the seek
+    // and the next beat cut (none comes before BPM locks). A story clip
+    // re-enters on its own if the seek lands in its block.
+    if (this.current && this.current.clip.story !== 'none' && this.settings.storyMode) {
+      this.current = null;
+    } else if (this.current) {
+      const c = this.current.clip;
+      const old = this.current.segment;
+      if (old.end != null && old.end <= old.start + 0.001) this.segments = this.segments.filter(s => s !== old);
+      const segment = {
+        ...this.current.segment, start: seconds, end: null, transition: 'jump', blendSec: 0,
+        inPoint: c.kind === 'video' && c.el ? c.el.currentTime : 0, beat: this.beatIndex, pass: this.pass,
+      };
+      delete segment.story;
+      this.segments.push(segment);
+      this.current = { clip: c, segment };
+      this.outgoing = null;
+      this.transition = null;
+    }
     const before = this.beats.filter(b => b.time < seconds);
     this.beatIndex = before.length ? before[before.length - 1].index : -1;
     this.lastSeenBeatTime = this.viz.lastBeatTime;

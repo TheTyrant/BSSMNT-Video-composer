@@ -123,7 +123,15 @@ class TextPanel {
     g3.appendChild(this.row('Colour', color));
     g3.appendChild(this.row('Align', this.segment([['left', 'Left'], ['center', 'Centre'], ['right', 'Right']], it.style.align, (v) => up({ style: { align: v } }), 'textAlign')));
     if (it.anim !== 'roll') {
-      g3.appendChild(this.row('Position', ap.select([['top', 'Top'], ['center', 'Centre'], ['lower', 'Lower third'], ['bottom', 'Bottom']], it.style.position, (v) => up({ style: { position: v } }), 'textPosition')));
+      const positions = [['top', 'Top'], ['center', 'Centre'], ['lower', 'Lower third'], ['bottom', 'Bottom']];
+      if (it.kind === 'text' || it.style.position === 'free') positions.push(['free', 'Free (drag on screen)']);
+      g3.appendChild(this.row('Position', ap.select(positions, it.style.position, (v) => up({ style: v === 'free' && it.style.x == null ? { position: v, x: 0.5, y: 0.5 } : { position: v } }), 'textPosition')));
+      if (it.kind === 'text') {
+        const tip = document.createElement('p');
+        tip.className = 'hint';
+        tip.textContent = 'Drag the dashed box on screen to place this text anywhere.';
+        g3.appendChild(tip);
+      }
     }
     g3.appendChild(this.row('Backing', this.segment([['none', 'None'], ['shadow', 'Shadow'], ['plate', 'Plate']], it.style.plate, (v) => up({ style: { plate: v } }), 'textPlate')));
     const anims = it.kind === 'credits' ? [['roll', 'Roll'], ['fade', 'Fade'], ['none', 'None']] : [['fade', 'Fade'], ['rise', 'Rise'], ['none', 'None']];

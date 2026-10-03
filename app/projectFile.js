@@ -269,7 +269,11 @@ class ProjectFile {
 
     // 3. Source: switch mode, reconnect the track if the browser still has it.
     const wantFile = project.source.mode === 'file';
+    // A project brings its own track: nothing parked from before it comes back (D-62).
+    app.parkedTrack = null;
+    app.clipAutoSwitch = null;
     if (wantFile !== (app.audioSourceMode === 'file')) document.getElementById(wantFile ? 'audioSourceFile' : 'audioSourceMic').click();
+    app.parkedTrack = null;
     this.missing = [];
     this.trackRef = project.source.track || null;
     this.trackDuration = project.source.duration || 0;

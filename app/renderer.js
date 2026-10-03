@@ -448,7 +448,10 @@ class OfflineRenderer {
   async prepareAudio(edl) {
     const app = this.app, parts = [];
     if (app.isTrackMode() && app.trackSource.file && !app.musicMuted) {
-      parts.push({ buffer: await this.decode(app.trackSource.file), at: 0, offset: 0, level: (t) => app.storyFadeLevel(t) });
+      // Fades follow the mode that was on screen at each moment.
+      const rec = app.record;
+      const modeAt = (t) => { const f = rec.frame(Math.round(t * SessionRecord.FPS)); return f ? f.mode : app.visualizer.currentMode; };
+      parts.push({ buffer: await this.decode(app.trackSource.file), at: 0, offset: 0, level: (t) => app.storyFadeLevel(t, modeAt(t)) });
     }
     const v = app.voice;
     if (v.isLoaded && v.blob && !v.muted) {

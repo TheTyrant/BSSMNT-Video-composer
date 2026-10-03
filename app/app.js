@@ -222,6 +222,8 @@ class DJVisualizerApp {
     this.visualModeSelect.addEventListener('change', () => {
       this.clipEngine.setActive(this.visualModeSelect.value === 'clips' && this.timelineRolling());
       if (this.visualModeSelect.value === 'clips') this.enterClipMode();
+      else this.leaveClipMode();
+      this.applyMusicLevel();
     });
 
     this.timeline.init();
@@ -355,13 +357,32 @@ class DJVisualizerApp {
   // Clip Auto-Editor works on a track (D-58): switching to it selects Track
   // file and, if no track is loaded yet, opens the track file dialog and
   // 01 Audio. Not while a project is being restored.
-  enterClipMode() {
+  // If it had to leave the live input for that, it remembers, so leaving
+  // Clip mode goes back to it (D-62).
+  async enterClipMode() {
     if (this.project && this.project.restoring) return;
-    if (this.audioSourceMode !== 'file') document.getElementById('audioSourceFile').click();
+    if (this.audioSourceMode !== 'file') {
+      this.clipAutoSwitch = { wasRunning: this.isRunning };
+      document.getElementById('audioSourceFile').checked = true;
+      await this.setAudioSourceMode('file');
+    }
     if (!this.trackSource.isLoaded) {
       this.sidebar.open('audio');
       this.audioFileInput.click();
     }
+  }
+
+  // Back from Clip mode: if Clip mode switched SRC away from the live input
+  // and no new track was chosen there, return to the live input and restart
+  // it if it was running. A track picked while in Clip mode is kept.
+  async leaveClipMode() {
+    const sw = this.clipAutoSwitch;
+    if (!sw || (this.project && this.project.restoring)) return;
+    this.clipAutoSwitch = null;
+    if (sw.keepTrack) return;
+    document.getElementById('audioSourceMic').checked = true;
+    await this.setAudioSourceMode('mic');
+    if (sw.wasRunning) await this.startAudio();
   }
 
   // ---- Adding media (D-53, D-54) ------------------------------------------
@@ -440,8 +461,11 @@ class DJVisualizerApp {
   // time, so seek, pause and stop need no extra bookkeeping.
   // Per locked clip (D-59): each clip with Auto fade on sets its own shape
   // and length (in bars; 2 s per bar before BPM is known).
-  storyFadeLevel(t) {
-    if (!this.isTrackMode()) return 1;
+  // Locked clips only exist in the Clip Auto-Editor, so the fade only acts
+  // there (D-62); mode = the visual mode at time t (the export passes the
+  // recorded one).
+  storyFadeLevel(t, mode = this.visualizer.currentMode) {
+    if (!this.isTrackMode() || mode !== 'clips') return 1;
     const bpm = this.visualizer.audioData.bpm || 0;
     const bar = bpm > 0 ? MusicalTime.beatsToMs(MusicalTime.toBeats(1, 'bar'), bpm) / 1000 : 2;
     const shape = { linear: (x) => x, smooth: (x) => x * x * (3 - 2 * x), snap: (x) => Math.pow(x, 0.25), duck: (x) => x };
@@ -631,7 +655,16 @@ class DJVisualizerApp {
     this.startBtn.classList.toggle('is-live', live);
   }
 
-  setAudioSourceMode(mode) {
+  // Switching SRC (D-62):
+  //  - the same source again: nothing changes;
+  //  - leaving a loaded track: the track is parked with its session (cuts,
+  //    recorded motion, timeline, position) instead of being thrown away;
+  //  - back to Track file with a parked track: it is reloaded and its
+  //    session restored, paused where it was — no new file needed;
+  //  - Track file with nothing parked: asks for a file, as before.
+  async setAudioSourceMode(mode) {
+    if (mode === this.audioSourceMode && (mode === 'mic' || this.trackSource.isLoaded || this.unparking)) return;
+    if (this.audioSourceMode === 'file' && this.trackSource.isLoaded) this.parkTrack();
     if (this.isRunning || this.trackSource.isLoaded) {
       this.stopAudio();
     }
@@ -642,6 +675,39 @@ class DJVisualizerApp {
     this.audioFileStatus.textContent = 'No file selected';
     this.resetSession();
     this.updateMusicUI();
+    if (mode === 'file' && this.parkedTrack) await this.unparkTrack();
+  }
+
+  parkTrack() {
+    const e = this.clipEngine;
+    if (e.current) e.closeOpenSegment(this.trackSource.currentTime);
+    this.parkedTrack = {
+      file: this.trackSource.file,
+      time: this.trackSource.currentTime,
+      record: this.record.toBytes(),
+      engine: {
+        segments: e.segments.map(s => ({ ...s })), beats: e.beats.map(b => ({ ...b })),
+        pass: e.pass, passStart: e.passStart, lastAdvanceTime: e.lastAdvanceTime, beatIndex: e.beatIndex,
+      },
+      energy: (this.timeline.energy || []).slice(),
+    };
+  }
+
+  async unparkTrack() {
+    const pk = this.parkedTrack;
+    this.parkedTrack = null;
+    this.unparking = true;
+    try {
+      await this.loadAudioFile(pk.file, { autoplay: false, keepSession: true });
+    } finally {
+      this.unparking = false;
+    }
+    if (!this.trackSource.isLoaded) return;
+    this.record.fromBytes(pk.record);
+    Object.assign(this.clipEngine, pk.engine, { current: null, outgoing: null, pending: null, transition: null, story: null });
+    this.timeline.energy = pk.energy;
+    this.seekMaster(pk.time);
+    this.audioFileStatus.textContent = `Loaded: ${pk.file.name} (kept)`;
   }
 
   wireDropZone(zoneEl, onFile) {
@@ -663,6 +729,8 @@ class DJVisualizerApp {
     this.audioFileStatus.textContent = `Loading: ${file.name}...`;
     try {
       await this.trackSource.load(file);
+      if (this.clipAutoSwitch && !this.unparking) this.clipAutoSwitch.keepTrack = true;
+      if (!this.unparking) this.parkedTrack = null;   // a new track replaces the parked one
       this.attachEq();
       this.audioFileStatus.textContent = `Loaded: ${file.name}`;
       if (!keepSession) this.resetSession();
