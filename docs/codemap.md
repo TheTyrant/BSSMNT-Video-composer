@@ -29,7 +29,8 @@ app/
   videoOrientation.js      Reads rotation from MP4/MOV headers; 2D bridge so rotated phone video draws upright in WebGL
   sessionRecord.js         Per-frame analysis log on a 60 fps grid (for the offline renderer), serialisable
   mediaLibrary.js          Linked-media fingerprints, remembered file handles (IndexedDB), reconnect by folder / files
-  projectFile.js           .mnt project files: save / open / restore / reconnect (ZIP via fflate)
+  projectFile.js           .mnt project files: save / open / restore / reconnect / pack media
+  zip64.js                 ZIP64 writer (streamed, stored) + reader (index only, slices); TempDisk (OPFS) for Firefox saves / exports (D-66)
   textOverlay.js           Text model (titles, credits, text) + one render() for viewport, pop-out and renderer (D-60)
   textPanel.js             04 Text tab: add / edit / lock / style text items
   displaySize.js           Header SIZE: frame shape on screen (letterboxed stage), breakpoints Base / Vertical / Square (D-63)

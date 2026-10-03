@@ -150,10 +150,15 @@ class OfflineRenderer {
     const name = (opts.name || 'Untitled').replace(/[\\/:*?"<>|]+/g, '_');
 
     // The save dialog has to open straight from the click.
-    let handle = null, writable = null;
+    let handle = null, writable = null, tmp = null;
     if (window.showSaveFilePicker && !opts.toMemory) {
       handle = await window.showSaveFilePicker({ suggestedName: `${name}.mp4`, types: [{ description: 'MP4 video', accept: { 'video/mp4': ['.mp4'] } }] });
       writable = await handle.createWritable();
+    } else if (!opts.toMemory) {
+      // No save dialog (Firefox): render to the browser's disk area, then
+      // download from that file — long exports never sit in memory (D-66).
+      tmp = await TempDisk.create('mp4').catch(() => null);
+      if (tmp) writable = tmp.writable;
     }
 
     this.busy = true;
@@ -228,7 +233,8 @@ class OfflineRenderer {
       this.disposeScene(scene);
       const secs = (performance.now() - t0) / 1000;
       const result = { name: handle ? handle.name : `${name}.mp4`, width: W, height: H, fps, frames: total, duration, start, seconds: secs, speed: duration / secs, vcodec, acodec };
-      if (!writable) result.blob = new Blob([output.target.buffer], { type: 'video/mp4' });
+      if (tmp) result.blob = await tmp.handle.getFile();
+      else if (!writable) result.blob = new Blob([output.target.buffer], { type: 'video/mp4' });
       return result;
     } catch (e) {
       if (output && output.state !== 'finalized' && output.state !== 'canceled') { try { await output.cancel(); } catch (_) { /* already closed */ } }

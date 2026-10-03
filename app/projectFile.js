@@ -15,14 +15,14 @@
 // With Pack media off, video, image and music files are LINKED (by name,
 // size and date) and MediaLibrary reconnects them on reopen.
 //
-// Packed media is stored uncompressed and written as a stream, so saving is
-// quick and never holds the whole project in one buffer. Opening reads the
-// ZIP's index and plays packed media straight from its slice of the .mnt.
+// Packed media is stored uncompressed and written as a stream (ZIP64 — no
+// size limit, D-66), so saving is quick and never holds the project in
+// memory. Opening reads the ZIP's index and plays packed media straight from
+// its slice of the .mnt.
 class ProjectFile {
   static FORMAT = 'bssmnt-project';
   static VERSION = 1;
   static MIME = 'application/x-bssmnt';
-  static PACK_LIMIT = 3.8e9;   // ZIP without ZIP64 tops out at 4 GB
 
   constructor(app) {
     this.app = app;
@@ -135,8 +135,7 @@ class ProjectFile {
       const bytes = this.packable().reduce((n, f) => n + f.size, 0);
       const mb = (b) => (b >= 1e9 ? `${(b / 1e9).toFixed(1)} GB` : `${Math.max(0.1, b / 1e6).toFixed(1)} MB`);
       this.el.packHint.textContent = !this.pack ? 'Media is linked: reopening may ask you to reconnect files.'
-        : bytes > ProjectFile.PACK_LIMIT ? `Media is ${mb(bytes)}: over the 3.8 GB a project can hold, so the largest files will be linked instead.`
-          : bytes ? `Adds ${mb(bytes)} of media to the file.` : '';
+        : bytes ? `Adds ${mb(bytes)} of media to the file.` : '';
     }
     this.el.missing.hidden = !this.missing.length;
     if (this.missing.length) {
@@ -160,14 +159,8 @@ class ProjectFile {
     const { strToU8 } = await this.zipLib();
     const app = this.app, e = app.clipEngine, v = app.voice, viz = app.visualizer;
     const out = [];
-    // Which media fits in the pack: smallest first, up to the ZIP limit.
-    const packSet = new Set();
-    if (this.pack) {
-      let total = 0;
-      this.packable().slice().sort((a, b) => a.size - b.size).forEach(f => {
-        if (total + f.size <= ProjectFile.PACK_LIMIT) { packSet.add(f); total += f.size; }
-      });
-    }
+    // Every connected media file goes in — no size limit (ZIP64, D-66).
+    const packSet = new Set(this.pack ? this.packable() : []);
     const assets = [];
     for (const a of e.assets) {
       let thumb = null;
@@ -238,53 +231,46 @@ class ProjectFile {
     return out;
   }
 
-  // Stream entries into a ZIP; write(chunk) receives the bytes in order and
-  // may return a promise (backpressure while writing to disk).
-  async writeZip(entries, write) {
-    const { Zip, ZipPassThrough } = await this.zipLib();
-    let chain = Promise.resolve(), failed = null, done;
-    const finished = new Promise(r => { done = r; });
-    const zip = new Zip((err, chunk, final) => {
-      if (err) { failed = err; done(); return; }
-      // fflate may reuse its buffers for the next chunk, and the write runs
-      // later (after the disk catches up): keep our own copy.
-      const own = chunk.slice();
-      chain = chain.then(() => write(own));
-      if (final) done();
-    });
+  // Stream entries into a ZIP64 file; write(chunk) receives the bytes in
+  // order and may return a promise (backpressure while writing to disk).
+  async writeZip(entries, write, onProgress) {
+    const total = entries.reduce((n, en) => n + (en.data instanceof Blob ? en.data.size : en.data.length), 0);
+    let done = 0, lastPct = -1;
+    const w = new Zip64.ZipWriter(write);
     for (const en of entries) {
-      const f = new ZipPassThrough(en.name);   // everything stored (see entries())
-      zip.add(f);
-      if (en.data instanceof Blob) {
-        const reader = en.data.stream().getReader();
-        for (;;) {
-          const { done: end, value } = await reader.read();
-          if (end) { f.push(new Uint8Array(0), true); break; }
-          f.push(value);
-          await chain;            // don't run ahead of the disk
-          if (failed) throw failed;
-        }
-      } else {
-        f.push(en.data, true);
-      }
+      await w.add(en.name, en.data, (n) => {
+        done += n;
+        const pct = Math.floor((done / Math.max(1, total)) * 100);
+        if (onProgress && pct !== lastPct) { lastPct = pct; onProgress(pct, done, total); }
+      });
     }
-    zip.end();
-    await finished;
-    await chain;
-    if (failed) throw failed;
+    return w.finish();
   }
 
-  // The whole project as one Blob (download, tests).
+  // The whole project as one Blob (tests, small projects).
   async build() {
     const chunks = [];
     await this.writeZip(await this.entries(), (c) => { chunks.push(c); });
     return new Blob(chunks, { type: ProjectFile.MIME });
   }
 
+  // Connected-but-not-packed and not-connected media, so a save can say so.
+  unsaved() {
+    const out = [];
+    this.app.clipEngine.assets.forEach(a => { if (!a.file || a.offline) out.push(a.ref ? a.ref.name : a.name); });
+    if (this.app.audioSourceMode === 'file' && !this.app.trackSource.file && this.trackRef) out.push(this.trackRef.name);
+    return out;
+  }
+
   async save(as) {
     const entries = await this.entries();
+    const status = this.el && this.el.status;
+    const progress = (pct, done, total) => {
+      if (status && total > 50e6) status.textContent = `Saving… ${pct}% (${(done / 1e9).toFixed(2)} of ${(total / 1e9).toFixed(2)} GB)`;
+    };
     let size = 0;
     if (window.showSaveFilePicker) {
+      // Chrome / Edge: straight to the chosen file.
       if (as || !this.handle) {
         this.handle = await window.showSaveFilePicker({
           suggestedName: this.fileName(),
@@ -293,80 +279,53 @@ class ProjectFile {
       }
       const w = await this.handle.createWritable();
       try {
-        await this.writeZip(entries, (c) => { size += c.length; return w.write(c); });
+        size = await this.writeZip(entries, (c) => w.write(c), progress);
         await w.close();
       } catch (e) { try { await w.abort(); } catch (_) { /* closed */ } throw e; }
       this.name = this.handle.name.replace(/\.mnt$/i, '');
       // Media opened from this same .mnt now has to read from the new file.
       if (this.sourceHandle && await this.handle.isSameEntry(this.sourceHandle)) await this.repointPacked(await this.handle.getFile());
     } else {
-      const chunks = [];
-      await this.writeZip(entries, (c) => { size += c.length; chunks.push(c); });
-      const blob = new Blob(chunks, { type: ProjectFile.MIME });
+      // No save dialog (Firefox): write to the browser's disk area, then
+      // download from that file — the project is never held in memory.
+      const need = entries.reduce((n, en) => n + (en.data instanceof Blob ? en.data.size : en.data.length), 0);
+      const tmp = await TempDisk.create('mnt', need);
+      let blob;
+      if (tmp) {
+        try {
+          size = await this.writeZip(entries, (c) => tmp.writable.write(c), progress);
+          await tmp.writable.close();
+        } catch (e) { try { await tmp.writable.abort(); } catch (_) { /* closed */ } throw e; }
+        blob = await tmp.handle.getFile();
+      } else {
+        const chunks = [];
+        size = await this.writeZip(entries, (c) => { chunks.push(c); }, progress);
+        blob = new Blob(chunks, { type: ProjectFile.MIME });
+      }
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = this.fileName();
       document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+      setTimeout(() => URL.revokeObjectURL(a.href), 120000);
     }
     this.dirty = false;
     this.savedAt = Date.now();
-    this.app.notify(`Saved ${this.fileName()} (${(size / 1e6).toFixed(1)} MB)`);
+    const left = this.pack ? this.unsaved() : [];
+    if (left.length) {
+      const msg = `Saved ${this.fileName()}, but ${left.length === 1 ? '1 media file is' : `${left.length} media files are`} not connected, so not inside it: ${left.join(', ')}. Reconnect (03 File › Project) and save again.`;
+      this.app.notify(msg, 12000);
+      alert(msg);
+    } else {
+      this.app.notify(`Saved ${this.fileName()} (${size >= 1e9 ? (size / 1e9).toFixed(2) + ' GB' : (size / 1e6).toFixed(1) + ' MB'})`);
+    }
     this.render();
     return size;
   }
 
   // ---- reading a .mnt ---------------------------------------------------------
 
-  // Index of a ZIP file without reading it all: stored entries come back as
-  // slices of the file (no copy), deflated ones are inflated.
-  static async readZip(file) {
-    const { inflateSync } = await VendorLoader.zip();
-    const tailLen = Math.min(file.size, 65557);
-    const tail = new Uint8Array(await file.slice(file.size - tailLen).arrayBuffer());
-    let eocd = -1;
-    for (let i = tail.length - 22; i >= 0; i--) {
-      if (tail[i] === 0x50 && tail[i + 1] === 0x4b && tail[i + 2] === 5 && tail[i + 3] === 6) { eocd = i; break; }
-    }
-    if (eocd < 0) throw new Error(`${file.name} isn't a BSSMNT project.`);
-    const tv = new DataView(tail.buffer);
-    const count = tv.getUint16(eocd + 10, true), cdSize = tv.getUint32(eocd + 12, true), cdOff = tv.getUint32(eocd + 16, true);
-    const cd = new Uint8Array(await file.slice(cdOff, cdOff + cdSize).arrayBuffer());
-    const cv = new DataView(cd.buffer);
-    const dec = new TextDecoder();
-    const entries = new Map();
-    for (let i = 0, p = 0; i < count && p + 46 <= cd.length; i++) {
-      if (cv.getUint32(p, true) !== 0x02014b50) break;
-      const nlen = cv.getUint16(p + 28, true), elen = cv.getUint16(p + 30, true), clen = cv.getUint16(p + 32, true);
-      entries.set(dec.decode(cd.subarray(p + 46, p + 46 + nlen)), {
-        method: cv.getUint16(p + 10, true), csize: cv.getUint32(p + 20, true), offset: cv.getUint32(p + 42, true),
-      });
-      p += 46 + nlen + elen + clen;
-    }
-    const locate = async (name) => {
-      const en = entries.get(name);
-      if (!en) return null;
-      const lh = new DataView(await file.slice(en.offset, en.offset + 30).arrayBuffer());
-      const start = en.offset + 30 + lh.getUint16(26, true) + lh.getUint16(28, true);
-      return { blob: file.slice(start, start + en.csize), method: en.method };
-    };
-    return {
-      file,
-      has: (name) => entries.has(name),
-      async bytes(name) {
-        const r = await locate(name);
-        if (!r) return null;
-        const u = new Uint8Array(await r.blob.arrayBuffer());
-        return r.method === 8 ? inflateSync(u) : u;
-      },
-      async blob(name, type = '') {
-        const r = await locate(name);
-        if (!r) return null;
-        if (r.method === 0) return r.blob;
-        return new Blob([inflateSync(new Uint8Array(await r.blob.arrayBuffer()))], { type });
-      },
-    };
-  }
+  // Index of a .mnt without reading it all (ZIP and ZIP64, D-66).
+  static readZip(file) { return Zip64.open(file); }
 
   // Packed media as a File with its original name, size and date, so it
   // matches its reference exactly (and re-packs on the next save).
