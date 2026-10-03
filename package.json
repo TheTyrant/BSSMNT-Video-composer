@@ -1,0 +1,59 @@
+{
+  "name": "bssmnt",
+  "productName": "BSS MNT",
+  "version": "0.1.0-alpha.1",
+  "description": "BSS MNT — beat-locked video composer and DJ visualizer. Offline: renders, packs and exports on your machine.",
+  "private": true,
+  "main": "electron/main.js",
+  "author": "Omar",
+  "scripts": {
+    "start": "node electron/run.js",
+    "serve": "node serve.js",
+    "dist:win": "electron-builder --win nsis zip --x64"
+  },
+  "devDependencies": {
+    "electron": "^44.5.1",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "com.bssmnt.app",
+    "productName": "BSS MNT",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "index.html",
+      "output.html",
+      "app/**",
+      "styles/**",
+      "vendor/**",
+      "package.json",
+      "electron/main.js",
+      "electron/icon.png"
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        "nsis",
+        "zip"
+      ],
+      "icon": "electron/icon.png",
+      "artifactName": "BSSMNT-alphaV1-win-x64.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "BSS MNT",
+      "artifactName": "BSSMNT-alphaV1-win-x64-Setup.${ext}"
+    },
+    "electronFuses": {
+      "runAsNode": false,
+      "enableNodeOptionsEnvironmentVariable": false,
+      "enableNodeCliInspectArguments": false,
+      "enableCookieEncryption": true,
+      "onlyLoadAppFromAsar": true,
+      "enableEmbeddedAsarIntegrityValidation": true
+    }
+  }
+}

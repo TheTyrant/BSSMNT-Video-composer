@@ -5,3 +5,6 @@
 .claude/
 .vscode/
 node_modules/
+
+# Build output
+dist/

@@ -267,6 +267,10 @@ The 03 Assets tab. Drop zone + `#assetUpload` chooser (`image/*,video/*`, multip
 
 ### 3.7g `app/exportPanel.js` — `class ExportPanel` — ✅ *(D-61)*
 
+### 3.7i `electron/` + `package.json` — Windows launcher *(D-70)*
+- `electron/main.js`: the window (loads index.html via file://), permissions (media, file dialogs, fullscreen), pop-out window handler, no menu. `electron/run.js`: `npm start` without ELECTRON_RUN_AS_NODE. `electron/icon.png`.
+- `package.json`: `npm start`, `npm run dist:win` (electron-builder: NSIS installer + zip in `dist/`, fuses), `npm run serve`.
+
 ### 3.7h `vendor/`, `serve.js`, `Start BSS MNT.bat` — offline running *(D-61)*
 - `vendor/`: p5 1.9.0, Mediabunny 1.61 (`mediabunny.js`, plain-script build, global `Mediabunny`), fflate 0.8.2 (`fflate.js`, UMD, global `fflate`), `fonts/` (+ `fonts.css`), `licenses/`. `mediabunny-aac.js` (AAC encoder add-on, loaded only where the browser has no AAC encoder, D-65). `app/vendorLoader.js` loads them on first use (D-64).
 - `serve.js`: dependency-free static server on 127.0.0.1 (default port 8765). `Start BSS MNT.bat` starts it and opens the browser.

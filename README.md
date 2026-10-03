@@ -1,72 +1,68 @@
-# JS DJ Audio Visualizer
+# BSS MNT — Video Composer *(v2, alpha: BASSMNTalphaV1)*
 
-A web-based audio visualizer and processor for DJs, built with JavaScript. This project lets you visualize and manipulate audio in real time, making it perfect for live performances, music analysis, or just having fun with sound.
+A beat-locked video composer and DJ visualizer that runs entirely on your computer. Play a track (or go live from a mic / line in), let the auto-editor cut your clips on the beat, add titles and credits, then export a finished MP4 — rendered offline on your machine, no internet, no uploads.
 
-Performed live at [Indy Hall](https://www.indyhall.org/) in Philadelphia, driving real-time visuals off a Pioneer DDJ-REV1 in front of an audience.
+Built on the open-source *JS DJ Audio Visualizer* (credited below). Performed live at [Indy Hall](https://www.indyhall.org/) in Philadelphia, driving real-time visuals off a Pioneer DDJ-REV1.
 
-## Features
-- Real-time audio visualization
-- Audio processing and effects
-- Interactive controls for DJs
-- Modern, responsive UI
+## What it does
+- **Ten visual modes** reacting to the music (Spectrum Bars, Particles, Rings, Waves, Mandala, Tunnel, Galaxy, Polygons, Media Layers, Clip Auto-Editor).
+- **Clip Auto-Editor:** cuts your videos and images on the beat, with per-clip pace and importance, jump / crossfade / blur transitions, and **position locks** (Hook · Result · CTA) with music auto-fade.
+- **Voice track:** record or import narration over the music, with volume, normalize and mute.
+- **Text:** titles, rolling credits and free text, timed on the timeline, draggable on screen, with per-size layouts.
+- **Display size + breakpoints:** see the frame at 16:9, 9:16 or 1:1 live; lay text out per shape like a responsive website.
+- **Offline export:** MP4 (H.264 + AAC) at 720p / 1080p / 4K, vertical or square, faster than real time on a GPU; replays exactly what was recorded (cuts, motion, text, fades, voice; muted tracks left out).
+- **Live mode recording** *(untested in real-world use)*: records the live input so live exports have sound; crash-safe.
+- **Projects (.mnt):** save and reopen everything. **Pack** puts the media inside (any size, opens anywhere) or **Link** keeps the file small; the projected file size shows before you save.
+- **Dynamic EQ** for what the analysis hears, an analyser-style EQ graph and session lanes, and a **dark skin** (header button).
 
-## Demo
+## Download (Windows)
+Get **BASSMNTalphaV1** from the [Releases page](https://github.com/TheTyrant/1238-djVisualizer/releases):
+- `BSSMNT-alphaV1-win-x64-Setup.exe` — installer, or
+- `BSSMNT-alphaV1-win-x64.zip` — portable: unzip and run `BSS MNT.exe`.
 
-![Galaxy visualization mode reacting to audio](docs/screenshots/demo.gif)
+The app isn't code-signed yet, so Windows SmartScreen may say *"Windows protected your PC"* — click **More info → Run anyway**. **macOS:** not built yet (on request, and it will be marked untested).
 
-| Spectrum Bars | Mandala |
-| --- | --- |
-| ![Spectrum bars mode](docs/screenshots/spectrum-bars.png) | ![Mandala mode](docs/screenshots/mandala-mode.png) |
+## Run from source (developers)
+The source download is for developers — it needs building / running with Node.js tooling (or an editor such as VS Code):
 
-To see the app in action yourself, clone the repo and follow the instructions below.
+```sh
+git clone https://github.com/TheTyrant/1238-djVisualizer.git
+cd 1238-djVisualizer
+git checkout v2            # or download the BASSMNTalphaV1 source from Releases
+npm install                # Electron + electron-builder (dev tools)
+npm start                  # run the desktop app from source
+npm run dist:win           # build the Windows installer + zip into dist/
+```
 
-## Getting Started
+No build step is needed for the web version itself — everything it uses is in this folder (`vendor/` holds the libraries and fonts), so it runs offline:
+- open `index.html` in Chrome, Edge or Firefox (works straight from disk), or
+- `node serve.js` → `http://127.0.0.1:8765` (Windows: **Start BSS MNT.bat**).
 
-### Prerequisites
-- Node.js (for development, optional)
-- A modern web browser (Chrome, Firefox, Edge, Safari)
+**Browsers:** Chrome and Edge (recommended — they save straight to your disk) and Firefox (tested: 156; projects and exports go to your Downloads folder). Safari isn't supported.
 
-### Installation
-1. Clone the repository:
-	 ```sh
-	 git clone https://github.com/philaconvalley/djVisualizer.git
-	 cd djVisualizer
-	 ```
-2. (Optional) Install dependencies if you plan to extend or build locally:
-	 ```sh
-	 npm install
-	 ```
+## Known limits (alpha)
+- The BPM detector misreads some tracks (e.g. 97 BPM read as 105–145); cuts follow what it detects.
+- Play a track through once before exporting — unplayed parts have no recorded motion and export still.
+- Live-mode input recording is **untested in real-world use**.
+- The pop-out output window doesn't mirror the Clip Auto-Editor yet (use Fullscreen).
+- Windows only for now; not code-signed.
 
-### Running Locally (works offline)
-Everything the app needs is in this folder (`vendor/` holds the libraries and fonts), so no internet connection is needed.
-
-- **Simplest:** open `index.html` in your browser (double-click it). Everything works from disk, including saving projects, exporting video and the pop-out window.
-- **Or, Windows:** double-click **Start BSS MNT.bat** — it serves the app on this computer and opens it.
-- **Or, any system with Node.js:** `node serve.js`, then open `http://127.0.0.1:8765`.
-
-**Browsers:** Chrome, Edge and Firefox (tested: Firefox 156).
-- Chrome / Edge ask where to save projects and exports, and can write long exports straight to disk. Exports have AAC sound.
-- Firefox has no save dialog for web pages, so projects and exports download to your Downloads folder. Exports are built in memory first (fine for songs; very long sets need more RAM).
-- Exports are MP4 (H.264 video + AAC sound) in every browser and play in Windows Media Player, VLC, browsers and editors.
-
-**Projects (.mnt):** with **Pack media** on (the default), the music, video and image files are saved inside the project — any size, no limit — so it reopens anywhere with nothing to reconnect. Turn it off to keep the file small and link the media instead (reopening then asks you to point at the files or their folder).
+## Documentation
+- [docs/roadmap.md](docs/roadmap.md) — what's built, what's next
+- [docs/decisions.md](docs/decisions.md) — every design decision (D-01 … D-70)
+- [docs/codemap.md](docs/codemap.md) — where everything lives in the code
 
 ## Project Structure
 ```
-app/
-	app.js              # Main application logic
-	audioProcessor.js   # Audio processing and effects
-	visualizer.js       # Visualization logic
-styles/
-	styles.css          # App styles
-index.html            # Main HTML file
-netlify.toml, vercel.json # Deployment configs
+index.html, output.html   the app and the pop-out output window
+app/                      app modules (audioProcessor.js is the original analysis engine, kept unchanged)
+styles/styles.css         light + dark skins
+vendor/                   p5, Mediabunny (+ AAC encoder), fflate, fonts, licences
+electron/                 desktop launcher (main.js, run.js, icon)
+docs/                     roadmap, decisions, codemap
+serve.js, Start BSS MNT.bat   local server for the web version
+test-assets/              generators and the render speed test
 ```
-
-## Usage
-- Upload or select an audio file
-- Watch the real-time visualization
-- Use controls to manipulate playback and effects
 
 ## Contributing
 Contributions are welcome! Please open issues or submit pull requests for new features, bug fixes, or improvements.
@@ -81,8 +77,10 @@ Contributions are welcome! Please open issues or submit pull requests for new fe
 MIT License. See [LICENSE](LICENSE) for details.
 
 ## Authors
-- [traksaw](https://github.com/traksaw)
+- [traksaw](https://github.com/traksaw) — original JS DJ Audio Visualizer
+- Omar ([TheTyrant](https://github.com/TheTyrant)) — BSS MNT v2
 
 ## Acknowledgments
 - Inspired by the DJ and web audio community
 - Built with the Web Audio API and Canvas
+- p5.js, Mediabunny (+ its AAC encoder, FFmpeg), fflate, Boldonse / Inter Tight / JetBrains Mono — licences in `vendor/licenses/`

@@ -102,7 +102,7 @@ Supersedes parts of the v2.1 layout (the v2.1 table below describes it as it was
 - **Auto Fade Music per locked clip** with four shape presets shown as icons and a fade length (D-59).
 - **04 Text:** titles, credits (rolling) and general text over every mode, with a Text lane on the timeline, live Show now, pop-out and project save (D-60).
 - **Display size + breakpoints (D-63):** header SIZE (Original + every export size) letterboxes the viewport live; text layout per breakpoint (Base / Vertical / Square) like a responsive site.
-- **Live mode records its input** — live exports have sound, crash-safe (D-68). **Dark skin** (header button) and analyser-style EQ graph / Master / Voice lanes (D-69).
+- **Windows launcher + release BASSMNTalphaV1** (D-70). **Live mode records its input** — live exports have sound, crash-safe (D-68). **Dark skin** (header button) and analyser-style EQ graph / Master / Voice lanes (D-69).
 - **Fixes (D-62):** audio after Clip mode, switching SRC keeps the loaded track and its session, text keeps its timing while editing, drag handle for base text (Free position), no cut-list hole after a seek.
 
 ---
@@ -129,6 +129,31 @@ Supersedes parts of the v2.1 layout (the v2.1 table below describes it as it was
 - [x] Muted tracks are absent from the exported audio; unmuted voice and story sound are present and in sync.
 - [ ] A 3-minute 1080p export finishes faster than real time on the target machine; a 2-hour project exports without running out of memory.
 - [ ] Every visual mode exports.
+
+---
+
+## Release: BASSMNTalphaV1 ✅ *(first alpha for testers, D-70)*
+
+- **Windows launcher** (Electron, Chromium built in): installer + portable zip, unsigned (SmartScreen "Run anyway"). Mic, file dialogs and the pop-out window work in it; can't be misused as plain Node (fuses).
+- **GitHub release BASSMNTalphaV1:** the source for developers (needs `npm install` / `npm start` / `npm run dist:win`) plus the Windows downloads.
+- **macOS:** on request only, labelled untested (needs a Mac or a CI macOS runner to build and ad-hoc sign).
+- **Next for the launcher:** code signing (SmartScreen), auto-update, real file paths for linked media (no reconnecting).
+
+---
+
+## Live video input ⬜ *(roadmap only)*
+
+**Goal:** bring live video into the composition, not just live sound — cameras and capture cards as sources, alongside clips.
+
+| Step | What |
+|---|---|
+| 1 | **Camera / capture-card source:** pick a video input (webcam, HDMI capture card, virtual camera such as OBS) in 01 Input; it shows as a live asset |
+| 2 | **Use as clip or layer:** the live feed joins the Auto-Editor's rotation (cut on the beat like any clip) or sits in a Media Layer slot / background |
+| 3 | **Record the feed for export:** like the live input sound (D-68) — recorded to disk in segments while the session runs, replayed frame-accurately by the renderer |
+| 4 | **Several inputs:** two or more cameras, switched by the Auto-Editor (multi-cam on the beat) |
+| 5 | **Overlay system tie-in:** live video under or over the visual modes and text |
+
+Notes: depends on the browser / launcher camera permissions (the launcher already allows media); recording video takes far more disk than audio (plan ~1–3 GB per hour at 1080p).
 
 ---
 

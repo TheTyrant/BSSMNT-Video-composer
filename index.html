@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>DJ Visualizer – Creative Code</title>
+    <title>BSS MNT — Video Composer</title>
 
     <!-- Fonts (falls back to system fonts offline) -->
     <!-- Skin before first paint, so a dark skin never flashes light (D-69). -->
@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="vendor/fonts/fonts.css">
 
     <!-- External Styles -->
-    <link rel="stylesheet" href="styles/styles.css?v=2.10.0">
+    <link rel="stylesheet" href="styles/styles.css?v=2.10.1">
 
     <!-- External Libraries -->
     <script src="vendor/p5.min.js"></script>
@@ -32,7 +32,7 @@
           <div class="readout hdr-pick" id="srcPick">
             <span class="readout-k">SRC</span>
             <span class="activity-light" id="srcLight" title="Lights up when audio is coming in"></span>
-            <span class="rec-badge" id="recBadge" title="Recording the live input for export" hidden>REC</span>
+            <span class="rec-badge" id="recBadge" title="Recording the live input for export (untested in real-world use)" hidden>REC</span>
             <button type="button" class="hdr-btn" id="srcBtn" aria-haspopup="listbox" aria-expanded="false" aria-controls="srcMenu" aria-label="Audio source">
               <span id="topSource">LIVE</span><span class="caret" aria-hidden="true">&#x25BE;</span>
             </button>
@@ -86,9 +86,9 @@
                 </select>
               </div>
               <!-- Live input recording for exports (D-68) -->
-              <label class="prop-check live-rec" title="Records your live input while the session runs, so exports include the sound. Saved to disk as it goes (safe if the browser crashes) and kept inside the project.">
+              <label class="prop-check live-rec" title="UNTESTED in real-world use (alpha): tested only with test inputs, not yet at a live show. Records your live input while the session runs, so exports include the sound. Saved to disk as it goes (safe if the browser crashes) and kept inside the project.">
                 <input type="checkbox" id="liveRecord" checked>
-                <span>Record input for export</span>
+                <span>Record input for export <span class="untested-tag">untested</span></span>
               </label>
               <p class="hint" id="liveRecStatus"></p>
               <div class="live-recover" id="liveRecover" hidden>
@@ -537,32 +537,32 @@
     </div>
 
     <!-- Application Modules -->
-    <script src="app/vendorLoader.js?v=2.10.0"></script>
-    <script src="app/audioProcessor.js?v=2.10.0"></script>
-    <script src="app/videoOrientation.js?v=2.10.0"></script>
-    <script src="app/visualizer.js?v=2.10.0"></script>
-    <script src="app/trackSource.js?v=2.10.0"></script>
-    <script src="app/analysisEq.js?v=2.10.0"></script>
-    <script src="app/voiceTrack.js?v=2.10.0"></script>
-    <script src="app/musicalTime.js?v=2.10.0"></script>
-    <script src="app/transitions.js?v=2.10.0"></script>
-    <script src="app/clipEngine.js?v=2.10.0"></script>
-    <script src="app/sessionRecord.js?v=2.10.0"></script>
-    <script src="app/mediaLibrary.js?v=2.10.0"></script>
-    <script src="app/zip64.js?v=2.10.0"></script>
-    <script src="app/projectFile.js?v=2.10.0"></script>
-    <script src="app/textOverlay.js?v=2.10.0"></script>
-    <script src="app/textPanel.js?v=2.10.0"></script>
-    <script src="app/liveRecorder.js?v=2.10.0"></script>
-    <script src="app/renderer.js?v=2.10.0"></script>
-    <script src="app/displaySize.js?v=2.10.0"></script>
-    <script src="app/exportPanel.js?v=2.10.0"></script>
-    <script src="app/scope.js?v=2.10.0"></script>
-    <script src="app/timelinePanel.js?v=2.10.0"></script>
-    <script src="app/sidebar.js?v=2.10.0"></script>
-    <script src="app/headerPickers.js?v=2.10.0"></script>
-    <script src="app/assetPanel.js?v=2.10.0"></script>
-    <script src="app/eqPanel.js?v=2.10.0"></script>
-    <script src="app/app.js?v=2.10.0"></script>
+    <script src="app/vendorLoader.js?v=2.10.1"></script>
+    <script src="app/audioProcessor.js?v=2.10.1"></script>
+    <script src="app/videoOrientation.js?v=2.10.1"></script>
+    <script src="app/visualizer.js?v=2.10.1"></script>
+    <script src="app/trackSource.js?v=2.10.1"></script>
+    <script src="app/analysisEq.js?v=2.10.1"></script>
+    <script src="app/voiceTrack.js?v=2.10.1"></script>
+    <script src="app/musicalTime.js?v=2.10.1"></script>
+    <script src="app/transitions.js?v=2.10.1"></script>
+    <script src="app/clipEngine.js?v=2.10.1"></script>
+    <script src="app/sessionRecord.js?v=2.10.1"></script>
+    <script src="app/mediaLibrary.js?v=2.10.1"></script>
+    <script src="app/zip64.js?v=2.10.1"></script>
+    <script src="app/projectFile.js?v=2.10.1"></script>
+    <script src="app/textOverlay.js?v=2.10.1"></script>
+    <script src="app/textPanel.js?v=2.10.1"></script>
+    <script src="app/liveRecorder.js?v=2.10.1"></script>
+    <script src="app/renderer.js?v=2.10.1"></script>
+    <script src="app/displaySize.js?v=2.10.1"></script>
+    <script src="app/exportPanel.js?v=2.10.1"></script>
+    <script src="app/scope.js?v=2.10.1"></script>
+    <script src="app/timelinePanel.js?v=2.10.1"></script>
+    <script src="app/sidebar.js?v=2.10.1"></script>
+    <script src="app/headerPickers.js?v=2.10.1"></script>
+    <script src="app/assetPanel.js?v=2.10.1"></script>
+    <script src="app/eqPanel.js?v=2.10.1"></script>
+    <script src="app/app.js?v=2.10.1"></script>
   </body>
 </html>
