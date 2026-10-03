@@ -123,6 +123,7 @@ class ProjectFile {
     n += app.record.frameCount * SessionRecord.FRAME_BYTES;                     // recorded motion
     n += e.assets.filter(a => a.thumb).length * 6000;                          // thumbnails
     if (app.voice.isLoaded && app.voice.blob) n += app.voice.blob.size;       // voice is always inside
+    if (app.live && app.live.take) n += app.live.take.blob.size;               // so is the live recording
     if (pack) n += this.packable().reduce((s, f) => s + f.size, 0);
     return n;
   }
@@ -178,6 +179,8 @@ class ProjectFile {
 
   // ---- save -----------------------------------------------------------------
 
+  static livePath(type) { return `media/live-input.${/ogg/.test(type) ? 'ogg' : /mp4/.test(type) ? 'm4a' : 'webm'}`; }
+
   static safeName(n) { return String(n || 'file').replace(/[\\/:*?"<>|\u0000-\u001f]+/g, '_').slice(0, 120); }
 
   // Everything that goes into the .mnt, as ZIP entries:
@@ -213,6 +216,13 @@ class ProjectFile {
       voice = { file: `media/voice.${ext}`, type: v.blob.type, name: v.name, offset: v.offset, volume: v.volume, normalize: v.normalize, muted: v.muted };
       out.push({ name: voice.file, data: v.blob, level: 0 });
     }
+    // Live input recording (D-68): the only copy of the set, so always inside.
+    let live = null;
+    const take = app.live && app.live.take;
+    if (take) {
+      live = { file: ProjectFile.livePath(take.type), type: take.type, offset: take.offset };
+      out.push({ name: live.file, data: take.blob });
+    }
     const tf = app.trackSource.file;
     let trackPacked = null;
     if (tf && packSet.has(tf)) {
@@ -240,6 +250,7 @@ class ProjectFile {
       eq: { mode: app.eqMode, bands: app.eq.bands.map(b => ({ ...b })), sensitivity: { bass: app.bassGain, mid: app.midGain, high: app.highGain } },
       mutes: { music: app.musicMuted, voice: v.muted },
       voice,
+      live,
       text: app.text.toJSON(),
       assets,
       record: {
@@ -488,6 +499,11 @@ class ProjectFile {
       ui.muteVoice.setAttribute('aria-pressed', String(!!project.voice.muted));
       app.updateVoiceUI();
     }
+    // Live input recording (D-68).
+    if (app.live) {
+      if (project.live && zr.has(project.live.file)) app.live.load(await zr.blob(project.live.file, project.live.type), project.live.type, project.live.offset);
+      else app.live.load(null);
+    }
     app.musicMuted = !!(project.mutes && project.mutes.music);
     app.voiceUI.muteMaster.setAttribute('aria-pressed', String(app.musicMuted));
     app.applyMusicLevel();
@@ -539,6 +555,10 @@ class ProjectFile {
         L.file = f;
         if (L.type === 'video' && L.media && L.media.elt) { const lu = URL.createObjectURL(f); swap(L.media.elt, lu); L.url = lu; }
       }
+    }
+    const lt = app.live && app.live.take;
+    if (lt && zr.has(ProjectFile.livePath(lt.type))) {
+      lt.blob = await zr.blob(ProjectFile.livePath(lt.type), lt.type);
     }
     const ts = app.trackSource;
     if (ts.file) {

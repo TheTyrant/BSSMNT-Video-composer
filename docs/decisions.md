@@ -378,6 +378,15 @@ The brief's four questions were not answered before the build. Rather than guess
 - **Size before saving:** under the switch, "Project file: ≈ 25.9 MB — includes 25.8 MB of media" (Pack) or "≈ 91 KB — media linked (25.8 MB stays where it is)" (Link), updated as media is added; it also says when files aren't connected and so won't be included. The Save button's tooltip repeats it.
 - **Accuracy:** Pack projected 25,906,370 B vs 25,911,928 B saved (0.02 %); Link ≈ 91 KB vs 95 KB.
 
+
+### D-68 · Live mode records its input, so live exports have sound *(Accepted — built)*
+- **What (Omar):** in live mode the input (mic / line in) is now recorded while the session clock runs — "Record input for export" in 01 Input (on by default, remembered), a blinking **REC** badge next to SRC while it records, and a status line ("Recorded 12.4 MB of input — included in exports and saved in the project").
+- **How:** a MediaRecorder on the stream AudioProcessor already opened (raw input: echo cancellation, noise suppression, auto-gain off) — audioProcessor.js untouched. Opus in WebM, ~1 MB/min. The start time against the session clock is kept, so the export lines the sound up with the recorded motion. Each Start is a new live session and a new recording (as the live timeline already was).
+- **Long sets:** written to the browser's disk area as 5-second segment files (the browser only commits a file when it's closed), never held in memory; the export reads it piece by piece as it mixes, so a 2-hour set is never decoded whole. Master mute applies.
+- **Crash safety:** a recording that never finished (browser closed or crashed mid-set) is offered back on the next start — "Download it" / "Dismiss" in 01 Input; at most the last ~5 s are lost.
+- **Saved in the project:** always packed into the .mnt (it's the only copy of the set), counted in the projected size, restored on open.
+- **Verified:** Chrome — REC while running, take kept on stop (offset 0.11 s), live export carries the input in AAC with no warning, **sync: beep onsets in the export vs the recorded analysis 17–33 ms apart, mean 26 ms (under one frame at 30 fps)**, saved in the .mnt and counted in the projected size, reload mid-set → recording offered and downloadable, Dismiss clears it. Firefox 156 from disk — records, live export has AAC input sound, reload mid-set offers the recording.
+
 ## I. Known carry-overs (pre-existing on `main`, not changed)
 - Placeholder text drawn with `p.text()` in WebGL mode doesn't render, because no font is loaded (affects the Media Layers "Upload images…" prompt). v2 uses a DOM overlay for its own hints.
 - `visualizer.js` has duplicate `drawAudioWaves` / `drawMandala` / `drawTunnel` definitions (the later ones win), plus unused snake-game code.

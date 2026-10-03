@@ -34,6 +34,7 @@ class DJVisualizerApp {
     this.text = new TextOverlay(this);   // titles, credits, text (D-60)
     this.project = new ProjectFile(this);
     this.renderer = new OfflineRenderer(this);   // offline export (D-61)
+    this.live = new LiveRecorder(this);          // live input recording for exports (D-68)
     this.display = new DisplaySize(this);        // header SIZE + breakpoints (D-63)
     this.eqMode = 'sensitivity';
     this.musicMuted = false;
@@ -267,6 +268,7 @@ class DJVisualizerApp {
     this.textPanel.init();
     this.exportPanel = new ExportPanel(this);
     this.exportPanel.init();
+    this.initLiveUI();
     this.text.on((type) => { if (type === 'change') this.project.markDirty(); });
 
     // EQ section of 02 Assets: Sensitivity / Dynamic tabs + Use radios
@@ -352,6 +354,43 @@ class DJVisualizerApp {
     ui.status.textContent = v.recording ? `Recording from ${fmtTime(v.recordStart, true)}…`
       : v.isLoaded ? `${v.name} · ${fmtTime(v.duration, true)} · starts ${fmtTime(v.offset, true)}`
       : 'No voice track';
+  }
+
+  // Live recording controls (D-68): switch + status in 01 Input, REC badge
+  // in the header, and a recovered recording after a crash.
+  initLiveUI() {
+    const $ = (id) => document.getElementById(id);
+    const box = $('liveRecord'), status = $('liveRecStatus'), badge = $('recBadge');
+    const rec = $('liveRecover'), dl = $('liveRecoverDl'), dismiss = $('liveRecoverDismiss');
+    if (!box) return;
+    const L = this.live;
+    box.checked = L.enabled;
+    box.addEventListener('change', () => L.setEnabled(box.checked));
+    if (dismiss) dismiss.addEventListener('click', () => L.dismissRecovered());
+    let tick = null;
+    const render = () => {
+      if (badge) badge.hidden = !L.recording;
+      if (L.recording) {
+        if (!tick) tick = setInterval(render, 1000);
+        status.textContent = `Recording input · ${fmtTime(this.masterTime(), false)}`;
+      } else {
+        if (tick) { clearInterval(tick); tick = null; }
+        status.textContent = !L.enabled ? 'Off: live exports will have no input sound.'
+          : L.take ? `Recorded ${(L.take.blob.size / 1e6).toFixed(1)} MB of input — included in exports and saved in the project.`
+            : LiveRecorder.mime() === null ? 'This browser cannot record the input.' : 'Starts with the live session.';
+      }
+      if (rec) {
+        const r = L.recovered[L.recovered.length - 1];
+        rec.hidden = !r;
+        if (r && dl) {
+          if (dl._file !== r.file) { if (dl.href.startsWith('blob:')) URL.revokeObjectURL(dl.href); dl.href = URL.createObjectURL(r.file); dl._file = r.file; }
+          dl.download = `live-recording-${new Date(r.at).toISOString().slice(0, 16).replace(/[:T]/g, '-')}.${r.ext}`;
+        }
+      }
+    };
+    L.on(render);
+    render();
+    L.init();
   }
 
   // Pop-out output window. Served (launcher): output.html. Opened from disk
@@ -806,6 +845,7 @@ class DJVisualizerApp {
     this.record.clear();
     this.clipEngine.reset();
     this.timeline.resetSession();
+    if (this.live && !this.live.recording) this.live.discard();   // a new session replaces the live take
   }
 
   seekMaster(seconds) {
@@ -844,6 +884,7 @@ class DJVisualizerApp {
       // Live session clock: a fresh, unbounded timeline per start.
       this.resetSession();
       this.sessionStart = performance.now();
+      this.live.start(this.audioProcessor.stream, this.sessionStart);
       this.clipEngine.setActive(this.visualizer.currentMode === 'clips');
       
       // Update status to show active device
@@ -885,6 +926,8 @@ class DJVisualizerApp {
   }
 
   stopAudio() {
+    // Finish the live recording before the input closes (D-68).
+    if (this.live && this.live.recording) this.live.stop();
     // Track mode owns an <audio> element the processor doesn't know about;
     // unload() tears that down and then calls audioProcessor.stop().
     this.eq.detach();

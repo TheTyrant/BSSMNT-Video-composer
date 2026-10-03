@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="vendor/fonts/fonts.css">
 
     <!-- External Styles -->
-    <link rel="stylesheet" href="styles/styles.css?v=2.8.1">
+    <link rel="stylesheet" href="styles/styles.css?v=2.9.0">
 
     <!-- External Libraries -->
     <script src="vendor/p5.min.js"></script>
@@ -30,6 +30,7 @@
           <div class="readout hdr-pick" id="srcPick">
             <span class="readout-k">SRC</span>
             <span class="activity-light" id="srcLight" title="Lights up when audio is coming in"></span>
+            <span class="rec-badge" id="recBadge" title="Recording the live input for export" hidden>REC</span>
             <button type="button" class="hdr-btn" id="srcBtn" aria-haspopup="listbox" aria-expanded="false" aria-controls="srcMenu" aria-label="Audio source">
               <span id="topSource">LIVE</span><span class="caret" aria-hidden="true">&#x25BE;</span>
             </button>
@@ -78,6 +79,19 @@
                 <select id="audioInputSelect">
                   <option value="">Auto-select best device</option>
                 </select>
+              </div>
+              <!-- Live input recording for exports (D-68) -->
+              <label class="prop-check live-rec" title="Records your live input while the session runs, so exports include the sound. Saved to disk as it goes (safe if the browser crashes) and kept inside the project.">
+                <input type="checkbox" id="liveRecord" checked>
+                <span>Record input for export</span>
+              </label>
+              <p class="hint" id="liveRecStatus"></p>
+              <div class="live-recover" id="liveRecover" hidden>
+                <p class="hint">A live recording from a session that didn't finish was found.</p>
+                <div class="btn-row">
+                  <a class="btn" id="liveRecoverDl" href="#" download>Download it</a>
+                  <button class="btn" id="liveRecoverDismiss" type="button">Dismiss</button>
+                </div>
               </div>
             </div>
 
@@ -518,30 +532,31 @@
     </div>
 
     <!-- Application Modules -->
-    <script src="app/vendorLoader.js?v=2.8.1"></script>
-    <script src="app/audioProcessor.js?v=2.8.1"></script>
-    <script src="app/videoOrientation.js?v=2.8.1"></script>
-    <script src="app/visualizer.js?v=2.8.1"></script>
-    <script src="app/trackSource.js?v=2.8.1"></script>
-    <script src="app/analysisEq.js?v=2.8.1"></script>
-    <script src="app/voiceTrack.js?v=2.8.1"></script>
-    <script src="app/musicalTime.js?v=2.8.1"></script>
-    <script src="app/transitions.js?v=2.8.1"></script>
-    <script src="app/clipEngine.js?v=2.8.1"></script>
-    <script src="app/sessionRecord.js?v=2.8.1"></script>
-    <script src="app/mediaLibrary.js?v=2.8.1"></script>
-    <script src="app/zip64.js?v=2.8.1"></script>
-    <script src="app/projectFile.js?v=2.8.1"></script>
-    <script src="app/textOverlay.js?v=2.8.1"></script>
-    <script src="app/textPanel.js?v=2.8.1"></script>
-    <script src="app/renderer.js?v=2.8.1"></script>
-    <script src="app/displaySize.js?v=2.8.1"></script>
-    <script src="app/exportPanel.js?v=2.8.1"></script>
-    <script src="app/timelinePanel.js?v=2.8.1"></script>
-    <script src="app/sidebar.js?v=2.8.1"></script>
-    <script src="app/headerPickers.js?v=2.8.1"></script>
-    <script src="app/assetPanel.js?v=2.8.1"></script>
-    <script src="app/eqPanel.js?v=2.8.1"></script>
-    <script src="app/app.js?v=2.8.1"></script>
+    <script src="app/vendorLoader.js?v=2.9.0"></script>
+    <script src="app/audioProcessor.js?v=2.9.0"></script>
+    <script src="app/videoOrientation.js?v=2.9.0"></script>
+    <script src="app/visualizer.js?v=2.9.0"></script>
+    <script src="app/trackSource.js?v=2.9.0"></script>
+    <script src="app/analysisEq.js?v=2.9.0"></script>
+    <script src="app/voiceTrack.js?v=2.9.0"></script>
+    <script src="app/musicalTime.js?v=2.9.0"></script>
+    <script src="app/transitions.js?v=2.9.0"></script>
+    <script src="app/clipEngine.js?v=2.9.0"></script>
+    <script src="app/sessionRecord.js?v=2.9.0"></script>
+    <script src="app/mediaLibrary.js?v=2.9.0"></script>
+    <script src="app/zip64.js?v=2.9.0"></script>
+    <script src="app/projectFile.js?v=2.9.0"></script>
+    <script src="app/textOverlay.js?v=2.9.0"></script>
+    <script src="app/textPanel.js?v=2.9.0"></script>
+    <script src="app/liveRecorder.js?v=2.9.0"></script>
+    <script src="app/renderer.js?v=2.9.0"></script>
+    <script src="app/displaySize.js?v=2.9.0"></script>
+    <script src="app/exportPanel.js?v=2.9.0"></script>
+    <script src="app/timelinePanel.js?v=2.9.0"></script>
+    <script src="app/sidebar.js?v=2.9.0"></script>
+    <script src="app/headerPickers.js?v=2.9.0"></script>
+    <script src="app/assetPanel.js?v=2.9.0"></script>
+    <script src="app/eqPanel.js?v=2.9.0"></script>
+    <script src="app/app.js?v=2.9.0"></script>
   </body>
 </html>

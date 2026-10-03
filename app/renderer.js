@@ -122,7 +122,9 @@ class OfflineRenderer {
     if (!(duration > 0)) warnings.push(track ? 'The track has no length yet.' : 'Nothing recorded yet: play the set first.');
     const missing = Math.max(0, frames - recorded) / SessionRecord.FPS;
     if (duration > 0 && missing > 0.5) warnings.push(`${fmtTime(missing, false)} of the timeline hasn't been played yet, so it has no recorded motion (shown still). Play it through once to record it.`);
-    if (!track && duration > 0) warnings.push('Live mode: the input sound is not recorded, so the export carries voice and clip sound only.');
+    if (!track && duration > 0 && !(app.live && app.live.take)) warnings.push(app.live && !app.live.enabled
+      ? 'Live mode: Record input for export is off (01 Input), so the export has no input sound.'
+      : 'Live mode: no input recording for this session, so the export has no input sound.');
     const usesClips = this.modesUsed(frames).has('clips');
     if (usesClips && !edl.length) warnings.push('Clip Auto-Editor was on but no cuts were recorded.');
     const offline = app.clipEngine.assets.filter(a => a.offline).length;
@@ -194,7 +196,7 @@ class OfflineRenderer {
 
       onProgress({ stage: 'Preparing media', done: 0, total: 1 });
       const scene = await this.prepareScene(M, W, H);
-      const mix = acodec ? await this.prepareAudio(scene.edl) : null;
+      const mix = acodec ? await this.prepareAudio(scene.edl, M) : null;
 
       // Range on the master timeline; the file starts at 0.
       let start = 0, end = plan.duration;
@@ -519,8 +521,15 @@ class OfflineRenderer {
   }
 
   // Everything that sounds, placed on the master timeline.
-  async prepareAudio(edl) {
+  async prepareAudio(edl, M) {
     const app = this.app, parts = [];
+    // Live mode: the recorded input (D-68), read piece by piece as the mix
+    // goes, so a long set is never decoded whole. Master mute applies.
+    const take = !app.isTrackMode() && app.live && app.live.take;
+    if (take && !app.musicMuted && M) {
+      const reader = await this.streamReader(M, take.blob).catch((e) => { console.warn('Live recording unreadable:', e); return null; });
+      if (reader) parts.push({ stream: reader, at: take.offset, gain: 1 });
+    }
     if (app.isTrackMode() && app.trackSource.file && !app.musicMuted) {
       // Fades follow the mode that was on screen at each moment.
       const rec = app.record;
@@ -545,10 +554,47 @@ class OfflineRenderer {
     return parts;
   }
 
+  // Sequential reader for a long recording: hands out the decoded pieces
+  // that overlap a time range, keeping only what the next range needs.
+  async streamReader(M, blob) {
+    const input = new M.Input({ source: new M.BlobSource(blob), formats: M.ALL_FORMATS });
+    const track = await input.getPrimaryAudioTrack();
+    if (!track) return null;
+    const sink = new M.AudioBufferSink(track);
+    let iter = null, done = false, queue = [];
+    return {
+      async range(t0, t1) {
+        if (!iter) iter = sink.buffers(Math.max(0, t0));
+        while (!done && (!queue.length || queue[queue.length - 1].timestamp + queue[queue.length - 1].duration < t1)) {
+          const r = await iter.next();
+          if (r.done) { done = true; break; }
+          queue.push(r.value);
+        }
+        const out = queue.filter(w => w.timestamp + w.duration > t0 && w.timestamp < t1);
+        queue = queue.filter(w => w.timestamp + w.duration > t1);
+        return out;
+      },
+    };
+  }
+
   async mixChunk(parts, a, b) {
     const SR = OfflineRenderer.SR;
     const ctx = new OfflineAudioContext(2, Math.max(1, Math.round((b - a) * SR)), SR);
     for (const part of parts) {
+      if (part.stream) {
+        for (const w of await part.stream.range(a - part.at, b - part.at)) {
+          const s0 = part.at + w.timestamp, s1 = s0 + w.buffer.duration;
+          const from = Math.max(s0, a), to = Math.min(s1, b);
+          if (to <= from) continue;
+          const node = ctx.createBufferSource();
+          node.buffer = w.buffer;
+          const g = ctx.createGain();
+          g.gain.value = part.gain;
+          node.connect(g).connect(ctx.destination);
+          node.start(from - a, from - s0, to - from);
+        }
+        continue;
+      }
       const len = Math.min(part.length != null ? part.length : Infinity, part.buffer.duration - part.offset);
       const s0 = part.at, s1 = part.at + len;
       if (s1 <= a || s0 >= b) continue;
