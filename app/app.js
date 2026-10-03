@@ -103,9 +103,7 @@ class DJVisualizerApp {
 
     document.getElementById('helpBtn').addEventListener('click', () => this.toggleHelp());
 
-    this.popOutBtn.addEventListener('click', () => {
-      window.open('output.html', 'djVisualizerOutput', 'width=1280,height=720');
-    });
+    this.popOutBtn.addEventListener('click', () => this.popOut());
 
     // Set up gain controls
     this.setupGainControls();
@@ -255,7 +253,7 @@ class DJVisualizerApp {
     this.voice.on(() => this.project.markDirty());
     this.eq.on(() => this.project.markDirty());
     ['input', 'change'].forEach(t => document.addEventListener(t, (e) => {
-      if (e.target && e.target.closest && e.target.closest('#sidebar, #rightbar, .channels') && e.target.id !== 'projectName') this.project.markDirty();
+      if (e.target && e.target.closest && e.target.closest('#sidebar, #rightbar, .channels') && e.target.id !== 'projectName' && e.target.type !== 'file') this.project.markDirty();   // file pickers aren't edits (adding media marks dirty on its own)
     }, true));
     // Choosers go through the picker that remembers files, so projects can reconnect them.
     const MEDIA = { 'video/*': ['.mp4', '.m4v', '.mov', '.webm', '.mkv'], 'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp'] };
@@ -354,6 +352,31 @@ class DJVisualizerApp {
     ui.status.textContent = v.recording ? `Recording from ${fmtTime(v.recordStart, true)}…`
       : v.isLoaded ? `${v.name} · ${fmtTime(v.duration, true)} · starts ${fmtTime(v.offset, true)}`
       : 'No voice track';
+  }
+
+  // Pop-out output window. Served (launcher): output.html. Opened from disk
+  // (file://): browsers keep file pages apart, so output.html couldn't reach
+  // this window; instead a blank window gets the same page written into it,
+  // which counts as this page and can mirror it (D-64).
+  popOut() {
+    if (location.protocol !== 'file:') {
+      window.open('output.html', 'djVisualizerOutput', 'width=1280,height=720');
+      return;
+    }
+    const w = window.open('', 'djVisualizerOutput', 'width=1280,height=720');
+    if (!w) { this.notify('The browser blocked the pop-out window. Allow pop-ups for this page.'); return; }
+    if (w.document.getElementById('p5-canvas')) { w.focus(); return; }   // already open
+    const base = location.href.replace(/[^/]*([?#].*)?$/, '');
+    const end = '</' + 'script>';
+    w.document.open();
+    w.document.write('<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">' +
+      `<base href="${base}"><title>BSS MNT – Output</title>` +
+      '<style>html,body{margin:0;padding:0;width:100%;height:100%;background:#000;overflow:hidden}#p5-canvas{position:absolute;inset:0}' +
+      "#waiting{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:rgba(255,255,255,.5);font:14px 'Segoe UI',sans-serif}</style>" +
+      '</head><body><div id="p5-canvas"></div><div id="spectrum-visualizer" style="display:none"></div>' +
+      '<div id="waiting">Connecting to control window…</div>' +
+      `<script src="vendor/p5.min.js">${end}<script src="app/output.js">${end}</body></html>`);
+    w.document.close();
   }
 
   // Clip Auto-Editor works on a track (D-58): switching to it selects Track

@@ -314,7 +314,7 @@ The brief's four questions were not answered before the build. Rather than guess
 
 
 ### D-61 · Offline renderer and a fully offline app *(Accepted — built; v2.3 steps 3–4)*
-- **Offline (Omar):** the app needs no internet. p5, Mediabunny, fflate and the fonts (Boldonse, Inter Tight, JetBrains Mono; latin + latin-ext) live in `vendor/` with their licences. The unused p5.asciify tag (a version that never existed, so it always failed) is removed. **Start BSS MNT.bat** runs `serve.js` (Node, no installs, this computer only) and opens the app; opening `index.html` from disk isn't enough, because browsers block the module files that saving and exporting use.
+- **Offline (Omar):** the app needs no internet. p5, Mediabunny, fflate and the fonts (Boldonse, Inter Tight, JetBrains Mono; latin + latin-ext) live in `vendor/` with their licences. The unused p5.asciify tag (a version that never existed, so it always failed) is removed. **Start BSS MNT.bat** runs `serve.js` (Node, no installs, this computer only) and opens the app. *(Since D-64, opening `index.html` from disk works too.)*
 - **Export (03 Output › Export video):** size (1080p, 720p, 4K, 1080×1920, 1080×1080), range (whole timeline / played part only), 30 or 60 fps, quality (Standard / High / Max) → **MP4, H.264 + AAC**, written straight to the file picked in the save dialog (Chrome / Edge), with progress, speed, time left and cancel.
 - **How it renders** (the D-55 design): it replays the session record, it doesn't re-analyse.
   - **Visual modes:** the app's own drawing code on a private p5 canvas at the export size, fed the recorded analysis frame by frame. Trail-based modes step at the live 60 Hz, so a 30 fps export looks like what was on screen. Randomness stays random (no seeding, as agreed).
@@ -344,6 +344,15 @@ The brief's four questions were not answered before the build. Rather than guess
 - **Everywhere the same:** viewport, pop-out (by its own window shape) and export each pick the layout for their frame shape, so a vertical export uses the Vertical layout.
 - **Not per breakpoint (yet):** Media Layer justify/stack and clip framing (clips cover-fit every shape, centred).
 - **Verified:** six sizes in the menu with icons; Vertical / Square / 1080p frames at the right ratio, centred, visuals redrawn at the frame size, playback not interrupted; Original fills again; Base bar on 16:9; Vertical follows Base until changed; drag + XL on Vertical stored for Vertical only with marks; back on 16:9 the Base layout; Square follows Base; Vertical export (1080×1920) puts the text where it was dragged, a 16:9 export uses Base; project saves size + per-size layout; Reset.
+
+
+### D-64 · Works opened from disk, and in Firefox *(Accepted — built; fixes Omar's Save / Export errors)*
+- **The error:** opening `index.html` from disk (file://) in Firefox, Save failed loading `vendor/fflate.mjs` and Export failed loading `vendor/mediabunny.min.mjs`: browsers refuse module imports on file://.
+- **Fix:** both libraries are now plain scripts (`vendor/fflate.js` = fflate's UMD build; `vendor/mediabunny.js` = Mediabunny bundled as a plain script, global `Mediabunny`), loaded on first use by `app/vendorLoader.js`. Plain scripts load from disk and from a server, in every browser.
+- **Pop-out from disk:** browsers keep file:// pages apart, so `output.html` couldn't reach the main window. From disk the pop-out is now a blank window with the same page written into it, which counts as the main page and can mirror it. Served, it still opens `output.html`.
+- **Firefox:** no save dialog for web pages → projects and exports download (exports auto-download; a link stays for another copy). No AAC encoder → exports use Opus sound (H.264 video). Exports build in memory there.
+- **Found while testing:** opening a project right after loading the page asked "Unsaved changes will be lost": choosing the .mnt file in the Open picker counted as an edit. File pickers no longer mark the project changed (anything they add does that itself).
+- **Verified:** Chrome from disk (save dialog removed, like Firefox): fonts and p5 load, Save downloads the .mnt, Export downloads a valid 1280×720 H.264 + AAC MP4, pop-out mirrors, the .mnt reopens. **Firefox 156 from disk:** app, fonts, both libraries, track + clips + recording, Save downloads, Export downloads a valid MP4 (H.264 + Opus), pop-out works, the .mnt reopens, no page errors. All earlier suites pass.
 
 ## I. Known carry-overs (pre-existing on `main`, not changed)
 - Placeholder text drawn with `p.text()` in WebGL mode doesn't render, because no font is loaded (affects the Media Layers "Upload images…" prompt). v2 uses a DOM overlay for its own hints.

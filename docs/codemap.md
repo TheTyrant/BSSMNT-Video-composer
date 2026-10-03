@@ -265,7 +265,7 @@ The 03 Assets tab. Drop zone + `#assetUpload` chooser (`image/*,video/*`, multip
 ### 3.7g `app/exportPanel.js` — `class ExportPanel` — ✅ *(D-61)*
 
 ### 3.7h `vendor/`, `serve.js`, `Start BSS MNT.bat` — offline running *(D-61)*
-- `vendor/`: p5 1.9.0, Mediabunny 1.61 (`mediabunny.min.mjs`), fflate 0.8.2 (`fflate.mjs`), `fonts/` (+ `fonts.css`), `licenses/`.
+- `vendor/`: p5 1.9.0, Mediabunny 1.61 (`mediabunny.js`, plain-script build, global `Mediabunny`), fflate 0.8.2 (`fflate.js`, UMD, global `fflate`), `fonts/` (+ `fonts.css`), `licenses/`. `app/vendorLoader.js` loads the two on first use (D-64).
 - `serve.js`: dependency-free static server on 127.0.0.1 (default port 8765). `Start BSS MNT.bat` starts it and opens the browser.
 
 ### 3.8 `app/app.js` — `class DJVisualizerApp` — ✅

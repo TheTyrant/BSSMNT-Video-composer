@@ -59,7 +59,7 @@ class ExportPanel {
     el.start.disabled = true;
     el.progress.hidden = false;
     el.bar.style.width = '0%';
-    el.status.textContent = 'Choose where to save…';
+    el.status.textContent = window.showSaveFilePicker ? 'Choose where to save…' : 'Preparing…';
     try {
       const res = await this.app.renderer.export({
         size: el.size.value, range: el.range.value, fps: parseInt(el.fps.value, 10), quality: el.quality.value, name: this.app.project.name,
@@ -77,6 +77,8 @@ class ExportPanel {
         const a = document.createElement('a');
         a.href = URL.createObjectURL(res.blob);
         a.download = res.name;
+        // No save dialog in this browser (e.g. Firefox): download it now; the link stays for another copy.
+        document.body.appendChild(a); a.click(); a.remove();
         a.textContent = `Download ${res.name}`;
         el.result.append(`${res.width}×${res.height} · ${fmtTime(res.duration, false)} · `, a);
       } else {

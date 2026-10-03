@@ -40,10 +40,13 @@ To see the app in action yourself, clone the repo and follow the instructions be
 ### Running Locally (works offline)
 Everything the app needs is in this folder (`vendor/` holds the libraries and fonts), so no internet connection is needed.
 
-- **Windows:** double-click **Start BSS MNT.bat** — it starts a small server on this computer and opens the app in your browser.
-- **Any system with Node.js:** `node serve.js`, then open `http://127.0.0.1:8765`.
+- **Simplest:** open `index.html` in your browser (double-click it). Everything works from disk, including saving projects, exporting video and the pop-out window.
+- **Or, Windows:** double-click **Start BSS MNT.bat** — it serves the app on this computer and opens it.
+- **Or, any system with Node.js:** `node serve.js`, then open `http://127.0.0.1:8765`.
 
-Use Chrome or Edge (video export and project files need them). Opening `index.html` straight from disk is not enough: browsers block the module files that saving projects and exporting video use.
+**Browsers:** Chrome, Edge and Firefox (tested: Firefox 156).
+- Chrome / Edge ask where to save projects and exports, and can write long exports straight to disk. Exports have AAC sound.
+- Firefox has no save dialog for web pages, so projects and exports download to your Downloads folder. Exports are built in memory first (fine for songs; very long sets need more RAM) and carry Opus sound, which plays in browsers, VLC and Windows Media Player but not in every editor — use Chrome or Edge when an editor needs AAC.
 
 ## Project Structure
 ```

@@ -48,9 +48,9 @@
   <div id="log"></div>
   <div id="stage"></div>
 
+<script src="../vendor/mediabunny.js"></script>
 <script type="module">
-import { Input, ALL_FORMATS, BlobSource, CanvasSink, Output, Mp4OutputFormat, BufferTarget, CanvasSource, Quality }
-  from '../vendor/mediabunny.min.mjs';
+const { Input, ALL_FORMATS, BlobSource, CanvasSink, Output, Mp4OutputFormat, BufferTarget, CanvasSource, Quality } = Mediabunny;
 
 const $ = (id) => document.getElementById(id);
 const FPS = 30;

@@ -15,7 +15,6 @@ class ProjectFile {
   static FORMAT = 'bssmnt-project';
   static VERSION = 1;
   static MIME = 'application/x-bssmnt';
-  static FFLATE = new URL('vendor/fflate.mjs', document.baseURI).href;   // local copy: works offline
 
   constructor(app) {
     this.app = app;
@@ -28,7 +27,7 @@ class ProjectFile {
   }
 
   zipLib() {
-    if (!this._zip) this._zip = import(ProjectFile.FFLATE);
+    if (!this._zip) this._zip = VendorLoader.zip();   // local copy, works offline and from file:// (D-64)
     return this._zip;
   }
 

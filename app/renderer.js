@@ -34,7 +34,7 @@ class OfflineRenderer {
   }
 
   lib() {
-    if (!this._lib) this._lib = import(new URL('vendor/mediabunny.min.mjs', document.baseURI).href);
+    if (!this._lib) this._lib = VendorLoader.media();   // works offline and from file:// (D-64)
     return this._lib;
   }
 
