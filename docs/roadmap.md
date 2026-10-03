@@ -101,6 +101,7 @@ Supersedes parts of the v2.1 layout (the v2.1 table below describes it as it was
 - **Position lock replaces the Story Mode switch:** Hook / Result / CTA always available per asset, limited to three; Clip Auto-Editor starts on a track (D-58).
 - **Auto Fade Music per locked clip** with four shape presets shown as icons and a fade length (D-59).
 - **04 Text:** titles, credits (rolling) and general text over every mode, with a Text lane on the timeline, live Show now, pop-out and project save (D-60).
+- **Display size + breakpoints (D-63):** header SIZE (Original + every export size) letterboxes the viewport live; text layout per breakpoint (Base / Vertical / Square) like a responsive site.
 - **Fixes (D-62):** audio after Clip mode, switching SRC keeps the loaded track and its session, text keeps its timing while editing, drag handle for base text (Free position), no cut-list hole after a seek.
 
 ---

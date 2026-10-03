@@ -150,7 +150,8 @@ class DJVisualizer {
 
     this.p5Instance = new p5((p) => {
       p.setup = () => {
-        const container = document.querySelector('.visualizer-container');
+        // The stage is the frame at the display size (D-63).
+        const container = document.getElementById('stage') || document.querySelector('.visualizer-container');
         this.w = container.clientWidth;
         this.h = container.clientHeight;
         const canvas = p.createCanvas(this.w, this.h, p.WEBGL);
@@ -168,7 +169,7 @@ class DJVisualizer {
       };
 
       p.windowResized = () => {
-        const container = document.querySelector('.visualizer-container');
+        const container = document.getElementById('stage') || document.querySelector('.visualizer-container');
         const w = container.clientWidth;
         const h = container.clientHeight;
         if (!w || !h || (w === this.w && h === this.h)) return;

@@ -26,6 +26,8 @@ class ExportPanel {
     // Keep the summary current while 03 Output is open.
     setInterval(() => { if (!this.app.renderer.busy && !document.getElementById('panel-output').hidden) this.refresh(); }, 2000);
     if (this.app.sidebar) this.app.sidebar.on((open) => { if (open.includes('output')) this.refresh(); });
+    // The export size follows the display size picked in the header (D-63).
+    if (this.app.display) this.app.display.on((key) => { if (OfflineRenderer.SIZES[key]) this.el.size.value = key; });
     this.refresh();
   }
 

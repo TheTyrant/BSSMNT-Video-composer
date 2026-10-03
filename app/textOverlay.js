@@ -20,6 +20,9 @@ class TextOverlay {
     serif: 'Georgia, "Times New Roman", serif',
   };
   static SIZES = { s: 0.035, m: 0.05, l: 0.07, xl: 0.11 };
+  // Layout that a breakpoint (D-63) can override; words, font, colour,
+  // animation and timing are shared by every size.
+  static BP_KEYS = ['position', 'x', 'y', 'size', 'align', 'plate'];
 
   static defaults(kind) {
     const base = {
@@ -60,13 +63,48 @@ class TextOverlay {
 
   get(id) { return this.items.find(i => i.id === id); }
 
+  // Style edits go to the breakpoint on screen (D-63): layout keys on a
+  // breakpoint other than Base are stored as overrides for it.
   update(id, patch) {
     const it = this.get(id);
     if (!it) return;
     if ('anchor' in patch || 'start' in patch) patch.firedWall = null;
-    if (patch.style) { Object.assign(it.style, patch.style); delete patch.style; }
+    if (patch.style) {
+      const target = this.layoutTarget(it);
+      Object.entries(patch.style).forEach(([k, v]) => {
+        if (TextOverlay.BP_KEYS.includes(k)) target[k] = v; else it.style[k] = v;
+      });
+      delete patch.style;
+    }
     Object.assign(it, patch);
     this.emit('change');
+  }
+
+  // ---- breakpoints (D-63) -----------------------------------------------------
+
+  activeBp() { return this.app.display ? this.app.display.breakpoint : 'base'; }
+
+  // Style as seen at breakpoint bp: Base, with that breakpoint's overrides.
+  styleFor(it, bp = this.activeBp()) {
+    const o = bp !== 'base' && it.bp && it.bp[bp];
+    return o ? { ...it.style, ...o } : it.style;
+  }
+
+  // Where a layout edit lands right now (the Base style, or the override).
+  layoutTarget(it, bp = this.activeBp()) {
+    if (bp === 'base') return it.style;
+    if (!it.bp) it.bp = {};
+    if (!it.bp[bp]) it.bp[bp] = {};
+    return it.bp[bp];
+  }
+
+  overrides(it, bp = this.activeBp()) {
+    return bp !== 'base' && it.bp && it.bp[bp] ? Object.keys(it.bp[bp]) : [];
+  }
+
+  resetBp(id, bp = this.activeBp()) {
+    const it = this.get(id);
+    if (it && it.bp) { delete it.bp[bp]; this.emit('change'); }
   }
 
   remove(id) {
@@ -104,8 +142,10 @@ class TextOverlay {
   render(ctx, W, H, t, preview = null, live = true) {
     ctx.clearRect(0, 0, W, H);
     if (ctx === this.ctx) this.boxes = new Map();
+    const bp = DisplaySize.bpFor(W, H);     // the layout for this frame shape
     let drawn = 0;
-    for (const it of this.items) {
+    for (const src of this.items) {
+      const it = bp === 'base' || !src.bp || !src.bp[bp] ? src : { ...src, style: this.styleFor(src, bp) };
       let win = this.windowOf(it);
       let tt = t;
       // Show now runs on the wall clock, so it plays even while the live clock is stopped.
@@ -248,9 +288,13 @@ class TextOverlay {
       e.preventDefault();
       h.setPointerCapture(e.pointerId);
       const W = this.canvas.width, H = this.canvas.height;
+      // Moves land on the breakpoint on screen (D-63).
+      const target = this.layoutTarget(it);
+      const eff = this.styleFor(it);
       // Start from where it is drawn now, whatever its position preset.
-      if (it.style.position !== 'free') { it.style.x = box.anchorX / W; it.style.y = box.y / H; it.style.position = 'free'; }
-      drag = { x: e.clientX, y: e.clientY, sx: it.style.x, sy: it.style.y, cw: this.canvas.clientWidth, ch: this.canvas.clientHeight };
+      if (eff.position !== 'free') { target.x = box.anchorX / W; target.y = box.y / H; target.position = 'free'; }
+      else { target.x = eff.x; target.y = eff.y; target.position = 'free'; }
+      drag = { x: e.clientX, y: e.clientY, sx: target.x, sy: target.y, cw: this.canvas.clientWidth, ch: this.canvas.clientHeight, target };
       h.classList.add('dragging');
     });
     h.addEventListener('pointermove', (e) => {
@@ -258,18 +302,16 @@ class TextOverlay {
       const it = this.get(this.selectedId);
       if (!it) return;
       const clamp = (v) => Math.max(-0.2, Math.min(1.2, v));
-      it.style.x = clamp(drag.sx + (e.clientX - drag.x) / drag.cw);
-      it.style.y = clamp(drag.sy + (e.clientY - drag.y) / drag.ch);
+      drag.target.x = clamp(drag.sx + (e.clientX - drag.x) / drag.cw);
+      drag.target.y = clamp(drag.sy + (e.clientY - drag.y) / drag.ch);
     });
     const end = () => {
       if (!drag) return;
+      const t = drag.target;
       drag = null;
       h.classList.remove('dragging');
-      const it = this.get(this.selectedId);
-      if (it) {
-        it.style.x = Math.round(it.style.x * 1000) / 1000;
-        it.style.y = Math.round(it.style.y * 1000) / 1000;
-      }
+      t.x = Math.round(t.x * 1000) / 1000;
+      t.y = Math.round(t.y * 1000) / 1000;
       this.emit('change');
     };
     h.addEventListener('pointerup', end);
@@ -280,7 +322,7 @@ class TextOverlay {
     const h = this.handle;
     if (!h) return;
     const it = this.previewing ? this.get(this.selectedId) : null;
-    const box = it && it.kind === 'text' && it.anim !== 'roll' && this.boxes ? this.boxes.get(it.id) : null;
+    const box = it && it.kind === 'text' && it.anim !== 'roll' && this.boxes ? this.boxes.get(it.id) : null;   // (base text)
     if (!box) { if (!h.hidden) h.hidden = true; return; }
     const s = this.canvas.clientWidth / this.canvas.width;     // canvas px → CSS px
     const pad = 6;
@@ -291,13 +333,17 @@ class TextOverlay {
     h.style.height = `${box.h * s + pad * 2}px`;
     h.classList.toggle('ghost', box.ghost);
     const win = this.windowOf(it);
-    const tag = box.ghost && win ? `Preview · on screen ${fmtTime(win[0], true)}–${fmtTime(win[1], true)}` : '';
+    // Text running past the frame edge is cut off in the video: say so.
+    const W = this.canvas.width, H = this.canvas.height;
+    const off = box.x < -1 || box.y < -1 || box.x + box.w > W + 1 || box.y + box.h > H + 1;
+    h.classList.toggle('is-clipped', off);
+    const tag = off ? 'Runs off the frame at this size' : box.ghost && win ? `Preview · on screen ${fmtTime(win[0], true)}–${fmtTime(win[1], true)}` : '';
     if (this.handleTag.textContent !== tag) this.handleTag.textContent = tag;
   }
 
   // ---- project file ----------------------------------------------------------
 
-  toJSON() { return { nextId: this.nextId, items: this.items.map(i => ({ ...i, style: { ...i.style }, firedAt: null, firedWall: null })) }; }
+  toJSON() { return { nextId: this.nextId, items: this.items.map(i => ({ ...i, style: { ...i.style }, bp: JSON.parse(JSON.stringify(i.bp || {})), firedAt: null, firedWall: null })) }; }
 
   fromJSON(data) {
     this.items = (data && data.items || []).map(i => ({ ...TextOverlay.defaults(i.kind), ...i, style: { ...TextOverlay.defaults(i.kind).style, ...i.style } }));

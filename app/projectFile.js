@@ -143,6 +143,7 @@ class ProjectFile {
         duration: app.trackSource.duration || (this.trackRef && this.trackDuration) || 0,
       },
       visualMode: viz.currentMode,
+      display: app.display ? app.display.key : 'original',
       engine: { settings: { ...e.settings }, bandTransitions: { ...e.bandTransitions } },
       layers,
       eq: { mode: app.eqMode, bands: app.eq.bands.map(b => ({ ...b })), sensitivity: { bass: app.bassGain, mid: app.midGain, high: app.highGain } },
@@ -266,6 +267,7 @@ class ProjectFile {
     const modeSel = document.getElementById('visualMode');
     modeSel.value = project.visualMode || 'spectrum';
     modeSel.dispatchEvent(new Event('change'));
+    if (app.display) app.display.set(project.display || 'original');
 
     // 3. Source: switch mode, reconnect the track if the browser still has it.
     const wantFile = project.source.mode === 'file';

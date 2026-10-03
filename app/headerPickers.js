@@ -61,8 +61,24 @@ class HeaderPickers {
         this.modeSelect.dispatchEvent(new Event('change'));
       });
 
+    // SIZE (D-63): the frame shape on screen, live; also the export size.
+    const display = this.app.display;
+    const pickers = [this.src, this.mode];
+    if ($('sizeBtn') && display) {
+      const opts = DisplaySize.options();
+      const label = () => { const o = opts.find(x => x.value === display.key); $('topSize').textContent = o ? o.short : 'ORIGINAL'; };
+      this.size = this.makePicker($('sizeBtn'), $('sizeMenu'),
+        () => opts.map(o => ({ value: o.value, label: o.label,
+          html: `${DisplaySize.icon(o.w, o.h)}<span>${o.label}</span>${o.value === 'original' ? '' : `<kbd class="menu-key">${o.w}×${o.h}</kbd>`}` })),
+        () => display.key,
+        (v) => display.set(v));
+      display.on(label);
+      label();
+      pickers.push(this.size);
+    }
+
     document.addEventListener('pointerdown', (e) => {
-      [this.src, this.mode].forEach(p => { if (!p.root.contains(e.target)) p.close(); });
+      pickers.forEach(p => { if (!p.root.contains(e.target)) p.close(); });
     });
     this.tick();
   }

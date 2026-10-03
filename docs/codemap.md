@@ -32,6 +32,7 @@ app/
   projectFile.js           .mnt project files: save / open / restore / reconnect (ZIP via fflate)
   textOverlay.js           Text model (titles, credits, text) + one render() for viewport, pop-out and renderer (D-60)
   textPanel.js             04 Text tab: add / edit / lock / style text items
+  displaySize.js           Header SIZE: frame shape on screen (letterboxed stage), breakpoints Base / Vertical / Square (D-63)
   renderer.js              OfflineRenderer: replays the session record into an MP4 (video + mixed audio), D-61
   exportPanel.js           03 Output › Export video: settings, summary + warnings, progress, cancel
   eqPanel.js               02 Assets EQ: Sensitivity / Dynamic tabs, Use radios, EQ graph
@@ -251,6 +252,10 @@ The 03 Assets tab. Drop zone + `#assetUpload` chooser (`image/*,video/*`, multip
 ### 3.7e `app/textPanel.js` — `class TextPanel` — ✅ *(D-60)*
 - 04 Text tab: add buttons, item list, properties (words, Lock & timing, Look, delete). Reuses AssetPanel's `group` / `select` helpers.
 - Per-locked-clip Auto Fade (D-59) lives in `assetPanel.fadeControls()`, `clipEngine.setClipFade()` and `app.storyFadeLevel()`.
+
+### 3.7e2 `app/displaySize.js` — `class DisplaySize` — ✅ *(D-63)*
+- `set(key)` (`original` | an `OfflineRenderer.SIZES` key), `layout()` fits `#stage` inside `.visualizer-container`, `breakpoint` (on screen), static `bpFor(w, h)`, `options()`, `on(fn)`. The p5 canvas, Spectrum Bars and the text overlay live in `#stage`.
+- Text breakpoints: `TextOverlay.styleFor / layoutTarget / overrides / resetBp`; each item has `bp: { vertical: {...}, square: {...} }` holding only the layout keys changed there (`BP_KEYS`).
 
 ### 3.7f `app/renderer.js` — `class OfflineRenderer` — ✅ *(D-61)*
 - `plan()` → length, played range, recorded seconds, cuts, warnings. `export(opts, onProgress)` → save dialog (or memory), Mediabunny Output (MP4, StreamTarget to the file), frame loop, audio chunks, finalize. `cancel()`.

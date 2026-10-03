@@ -7,6 +7,8 @@ class TextPanel {
 
   init() {
     const $ = (id) => document.getElementById(id);
+    // A new display size can mean another breakpoint: show its layout.
+    if (this.app.display) this.app.display.on(() => this.render());
     this.list = $('textList');
     this.props = $('textProps');
     if (!this.list) return;
@@ -110,10 +112,33 @@ class TextPanel {
     }
     P.appendChild(g2);
 
-    // Look
+    // Look — shown and edited for the breakpoint on screen (D-63)
     const g3 = ap.group('Look');
-    g3.appendChild(this.row('Font', ap.select([['display', 'Display (Boldonse)'], ['sans', 'Sans'], ['mono', 'Mono'], ['serif', 'Serif']], it.style.font, (v) => up({ style: { font: v } }), 'textFont')));
-    g3.appendChild(this.row('Size', this.segment([['s', 'S'], ['m', 'M'], ['l', 'L'], ['xl', 'XL']], it.style.size, (v) => up({ style: { size: v } }), 'textSize')));
+    const bp = this.text.activeBp();
+    const S = this.text.styleFor(it, bp);
+    const over = this.text.overrides(it, bp);
+    const bar = document.createElement('div');
+    bar.className = 'bp-bar' + (bp !== 'base' ? ' is-bp' : '');
+    bar.id = 'textBpBar';
+    const bl = document.createElement('span');
+    bl.textContent = bp === 'base'
+      ? 'Layout: Base · Vertical and Square follow it unless changed there'
+      : `Layout: ${DisplaySize.BREAKPOINTS[bp].label} · ${over.length ? (() => { const n = new Set(over.map(k => (k === 'x' || k === 'y' ? 'position' : k))).size; return n === 1 ? '1 change for this size' : n + ' changes for this size'; })() : 'follows Base'}`;
+    bar.appendChild(bl);
+    if (over.length) {
+      const reset = document.createElement('button');
+      reset.type = 'button';
+      reset.className = 'btn';
+      reset.id = 'textBpReset';
+      reset.textContent = 'Reset';
+      reset.title = 'Clear the changes for this size (follow Base again)';
+      reset.addEventListener('click', () => this.text.resetBp(it.id, bp));
+      bar.appendChild(reset);
+    }
+    g3.appendChild(bar);
+    const mark = (row, key) => { if (over.includes(key)) row.classList.add('is-override'); return row; };
+    g3.appendChild(this.row('Font', ap.select([['display', 'Display (Boldonse)'], ['sans', 'Sans'], ['mono', 'Mono'], ['serif', 'Serif']], S.font, (v) => up({ style: { font: v } }), 'textFont')));
+    g3.appendChild(mark(this.row('Size', this.segment([['s', 'S'], ['m', 'M'], ['l', 'L'], ['xl', 'XL']], S.size, (v) => up({ style: { size: v } }), 'textSize')), 'size'));
     const color = document.createElement('input');
     color.type = 'color';
     color.id = 'textColor';
@@ -121,11 +146,11 @@ class TextPanel {
     color.addEventListener('input', () => { it.style.color = color.value; });
     color.addEventListener('change', () => up({ style: { color: color.value } }));
     g3.appendChild(this.row('Colour', color));
-    g3.appendChild(this.row('Align', this.segment([['left', 'Left'], ['center', 'Centre'], ['right', 'Right']], it.style.align, (v) => up({ style: { align: v } }), 'textAlign')));
+    g3.appendChild(mark(this.row('Align', this.segment([['left', 'Left'], ['center', 'Centre'], ['right', 'Right']], S.align, (v) => up({ style: { align: v } }), 'textAlign')), 'align'));
     if (it.anim !== 'roll') {
       const positions = [['top', 'Top'], ['center', 'Centre'], ['lower', 'Lower third'], ['bottom', 'Bottom']];
-      if (it.kind === 'text' || it.style.position === 'free') positions.push(['free', 'Free (drag on screen)']);
-      g3.appendChild(this.row('Position', ap.select(positions, it.style.position, (v) => up({ style: v === 'free' && it.style.x == null ? { position: v, x: 0.5, y: 0.5 } : { position: v } }), 'textPosition')));
+      if (it.kind === 'text' || S.position === 'free') positions.push(['free', 'Free (drag on screen)']);
+      g3.appendChild(mark(this.row('Position', ap.select(positions, S.position, (v) => up({ style: v === 'free' && S.x == null ? { position: v, x: 0.5, y: 0.5 } : { position: v } }), 'textPosition')), over.includes('x') ? 'x' : 'position'));
       if (it.kind === 'text') {
         const tip = document.createElement('p');
         tip.className = 'hint';
@@ -133,7 +158,7 @@ class TextPanel {
         g3.appendChild(tip);
       }
     }
-    g3.appendChild(this.row('Backing', this.segment([['none', 'None'], ['shadow', 'Shadow'], ['plate', 'Plate']], it.style.plate, (v) => up({ style: { plate: v } }), 'textPlate')));
+    g3.appendChild(mark(this.row('Backing', this.segment([['none', 'None'], ['shadow', 'Shadow'], ['plate', 'Plate']], S.plate, (v) => up({ style: { plate: v } }), 'textPlate')), 'plate'));
     const anims = it.kind === 'credits' ? [['roll', 'Roll'], ['fade', 'Fade'], ['none', 'None']] : [['fade', 'Fade'], ['rise', 'Rise'], ['none', 'None']];
     g3.appendChild(this.row('Animation', ap.select(anims, it.anim, (v) => up({ anim: v }), 'textAnim')));
     P.appendChild(g3);

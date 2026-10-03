@@ -34,6 +34,7 @@ class DJVisualizerApp {
     this.text = new TextOverlay(this);   // titles, credits, text (D-60)
     this.project = new ProjectFile(this);
     this.renderer = new OfflineRenderer(this);   // offline export (D-61)
+    this.display = new DisplaySize(this);        // header SIZE + breakpoints (D-63)
     this.eqMode = 'sensitivity';
     this.musicMuted = false;
 
@@ -240,6 +241,7 @@ class DJVisualizerApp {
     });
 
     // Header quick pickers: SRC / MODE dropdowns + activity light (D-50)
+    this.display.init();
     this.headerPickers = new HeaderPickers(this);
     this.headerPickers.init();
 
@@ -262,7 +264,7 @@ class DJVisualizerApp {
     MediaLibrary.usePicker(this.audioFileInput, { 'audio/*': ['.mp3', '.wav', '.m4a', '.aac', '.ogg', '.flac'] }, (files) => this.loadAudioFile(files[0]));
 
     // Text (04 Text tab + overlay on the viewport)
-    this.text.attach(document.querySelector('.visualizer-container'));
+    this.text.attach(document.getElementById('stage') || document.querySelector('.visualizer-container'));
     this.textPanel = new TextPanel(this);
     this.textPanel.init();
     this.exportPanel = new ExportPanel(this);
