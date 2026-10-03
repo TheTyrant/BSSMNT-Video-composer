@@ -387,6 +387,12 @@ The brief's four questions were not answered before the build. Rather than guess
 - **Saved in the project:** always packed into the .mnt (it's the only copy of the set), counted in the projected size, restored on open.
 - **Verified:** Chrome — REC while running, take kept on stop (offset 0.11 s), live export carries the input in AAC with no warning, **sync: beep onsets in the export vs the recorded analysis 17–33 ms apart, mean 26 ms (under one frame at 30 fps)**, saved in the .mnt and counted in the projected size, reload mid-set → recording offered and downloadable, Dismiss clears it. Firefox 156 from disk — records, live export has AAC input sound, reload mid-set offers the recording.
 
+
+### D-69 · Dark skin, and analyser-style EQ graph and session lanes *(Accepted — built)*
+- **Dark skin (Omar):** a second skin with the colouring flipped — ivory lines, text and buttons on near-black; band colours a step brighter; dark form controls and scrollbars. **Chosen with the half-moon button in the header** (remembered), never taken from the computer's light / dark setting. Applied before the page draws, so it never flashes light. Every UI colour is a CSS variable (the few hard-coded ones — primary-button hover, the glass panels, the canvas line colours — now follow the skin; the timeline's canvas lines use ink / paper with alpha).
+- **Analyser look (Omar, after iZotope Ozone's EQ):** inside the EQ graph and the timeline's **Master** and **Voice** lanes only — a deep navy "screen", a filled blue spectrum with a crisp top line, the EQ curve as a glowing blue → violet → pink → orange gradient with a soft fill to 0 dB, nodes tinted by where they sit on the curve with a white ring; the Master waveform in that gradient with the played part bright and the rest dim, band-energy lines glowing in brighter bass / mid / high; the Voice waveform in the same gradient. Shared code in `app/scope.js`; colours in `--scope-*` variables (the dark skin deepens the screen). The viewport stays black in both skins.
+- **Roadmap:** hardware-inspired skins (MPC, Akai) — colour and feel only, no trademarks.
+
 ## I. Known carry-overs (pre-existing on `main`, not changed)
 - Placeholder text drawn with `p.text()` in WebGL mode doesn't render, because no font is loaded (affects the Media Layers "Upload images…" prompt). v2 uses a DOM overlay for its own hints.
 - `visualizer.js` has duplicate `drawAudioWaves` / `drawMandala` / `drawTunnel` definitions (the later ones win), plus unused snake-game code.

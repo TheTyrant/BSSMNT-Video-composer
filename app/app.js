@@ -269,6 +269,7 @@ class DJVisualizerApp {
     this.exportPanel = new ExportPanel(this);
     this.exportPanel.init();
     this.initLiveUI();
+    this.initSkin();
     this.text.on((type) => { if (type === 'change') this.project.markDirty(); });
 
     // EQ section of 02 Assets: Sensitivity / Dynamic tabs + Use radios
@@ -354,6 +355,22 @@ class DJVisualizerApp {
     ui.status.textContent = v.recording ? `Recording from ${fmtTime(v.recordStart, true)}…`
       : v.isLoaded ? `${v.name} · ${fmtTime(v.duration, true)} · starts ${fmtTime(v.offset, true)}`
       : 'No voice track';
+  }
+
+  // Light / dark skin (D-69): the header button, remembered; never taken
+  // from the system setting.
+  initSkin() {
+    const btn = document.getElementById('themeBtn');
+    if (!btn) return;
+    const apply = (dark) => {
+      if (dark) document.documentElement.dataset.theme = 'dark'; else delete document.documentElement.dataset.theme;
+      btn.setAttribute('aria-pressed', String(dark));
+      btn.title = dark ? 'Light skin' : 'Dark skin';
+      try { localStorage.setItem('bssmnt.theme', dark ? 'dark' : 'light'); } catch (e) { /* storage blocked */ }
+      if (this.timeline && this.timeline.draw) this.timeline.draw();
+    };
+    apply(document.documentElement.dataset.theme === 'dark');
+    btn.addEventListener('click', () => apply(document.documentElement.dataset.theme !== 'dark'));
   }
 
   // Live recording controls (D-68): switch + status in 01 Input, REC badge

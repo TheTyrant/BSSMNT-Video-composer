@@ -754,6 +754,12 @@ class TimelinePanel {
       surface: this.color('--surface'), steel: this.color('--steel'), steel2: this.color('--steel-2'),
       bass: this.color('--bass'), mid: this.color('--mid'), high: this.color('--high'), live: this.color('--live'),
     };
+    // Ink / paper at an alpha, so lines and labels follow the skin (D-69).
+    const rgbOf = (c) => { const m = /^#([0-9a-f]{6})$/i.exec(c); return m ? [0, 2, 4].map(i => parseInt(m[1].slice(i, i + 2), 16)).join(',') : '26,26,26'; };
+    const inkRGB = rgbOf(C.ink), paperRGB = rgbOf(C.paper);
+    C.a = (alpha) => `rgba(${inkRGB},${alpha})`;
+    C.pa = (alpha) => `rgba(${paperRGB},${alpha})`;
+    C.scope = Scope.palette();
     const { start, span } = this.view;
     const x = (t) => ((t - start) / span) * W;
     const now = this.app.masterTime();
@@ -785,7 +791,7 @@ class TimelinePanel {
       const bx = Math.round(x(b.time)) + 0.5;
       const isBar = b.index % bpb === 0;
       if (!isBar && pxPerBeat < 6) continue;
-      ctx.strokeStyle = isBar ? 'rgba(26,26,26,0.28)' : 'rgba(26,26,26,0.09)';
+      ctx.strokeStyle = isBar ? C.a(0.28) : C.a(0.09);
       ctx.beginPath(); ctx.moveTo(bx, yMaster); ctx.lineTo(bx, H); ctx.stroke();
       if (isBar && pxPerBeat * bpb > 22) {
         ctx.fillStyle = C.ink3;
@@ -803,7 +809,7 @@ class TimelinePanel {
     // Row rules
     ctx.fillStyle = C.ink;
     ctx.fillRect(0, R.ruler - 1, W, 1);
-    ctx.fillStyle = 'rgba(26,26,26,0.16)';
+    ctx.fillStyle = C.a(0.16);
     ctx.fillRect(0, yClips - 1, W, 1);
 
     // Playhead
@@ -832,7 +838,7 @@ class TimelinePanel {
       if (t < 0) continue;
       const tx = Math.round(x(t)) + 0.5;
       const major = Math.abs(t / step - Math.round(t / step)) < 1e-6;
-      ctx.fillStyle = major ? C.ink : 'rgba(26,26,26,0.35)';
+      ctx.fillStyle = major ? C.ink : C.a(0.35);
       ctx.fillRect(tx - 0.5, R.ruler - (major ? 10 : 5), 1, major ? 10 : 5);
       if (major) {
         ctx.fillStyle = C.ink;
@@ -841,10 +847,18 @@ class TimelinePanel {
     }
   }
 
+  // Drawn as an analyser window (D-69): navy screen, gradient waveform
+  // (played part brighter), glowing band-energy lines.
   drawMaster(ctx, C, x, W, y, h, now) {
-    const mid = y + h / 2;
+    const mid = y + h / 2, P = C.scope;
+    Scope.background(ctx, 0, y, W, h, P);
+    ctx.fillStyle = P.grid;
+    ctx.fillRect(0, Math.round(mid), W, 1);
     // Track waveform
     if (this.app.isTrackMode() && this.peaks) {
+      const nowX = x(now);
+      const played = Scope.curveGradient(ctx, 0, W, P);
+      const ahead = Scope.fillGradient(ctx, y + 4, y + h - 4, P.fillTop, P.fillTop);
       const n = this.peaks.length / 2;
       const dur = this.peaksDuration || this.app.trackSource.duration || 1;
       for (let px = 0; px < W; px++) {
@@ -857,20 +871,22 @@ class TimelinePanel {
           if (this.peaks[i * 2] < mn) mn = this.peaks[i * 2];
           if (this.peaks[i * 2 + 1] > mx) mx = this.peaks[i * 2 + 1];
         }
-        ctx.fillStyle = t0 <= now ? 'rgba(26,26,26,0.62)' : 'rgba(26,26,26,0.26)';
+        ctx.globalAlpha = px <= nowX ? 0.9 : 0.42;
+        ctx.fillStyle = px <= nowX ? played : ahead;
         ctx.fillRect(px, mid - mx * (h / 2 - 6), 1, Math.max(1, (mx - mn) * (h / 2 - 6)));
       }
-    } else if (!this.app.isTrackMode()) {
-      ctx.fillStyle = 'rgba(26,26,26,0.12)';
-      ctx.fillRect(0, mid, W, 1);
+      ctx.globalAlpha = 1;
     }
 
-    // Band energy history (both modes)
-    const bands = [['b', C.bass], ['m', C.mid], ['h', C.high]];
+    // Band energy history (both modes), glowing on the screen
+    const bands = [['b', P.bass], ['m', P.mid], ['h', P.high]];
     const { start, span } = this.view;
+    ctx.save();
+    ctx.shadowBlur = 6;
     for (const [k, col] of bands) {
       ctx.strokeStyle = col;
-      ctx.lineWidth = 1.25;
+      ctx.shadowColor = col;
+      ctx.lineWidth = 1.4;
       ctx.beginPath();
       let started = false, lastPx = -1;
       for (const e of this.energy) {
@@ -883,6 +899,7 @@ class TimelinePanel {
       }
       ctx.stroke();
     }
+    ctx.restore();
     ctx.lineWidth = 1;
   }
 
@@ -922,7 +939,7 @@ class TimelinePanel {
         ctx.fillStyle = isCur ? C.paper : C.ink;
         ctx.fillText(clip.name, textX, top + 14);
         ctx.font = '9px "JetBrains Mono", monospace';
-        ctx.fillStyle = isCur ? 'rgba(255,255,255,0.7)' : C.ink3;
+        ctx.fillStyle = isCur ? C.pa(0.7) : C.ink3;
         ctx.fillText(`${ClipTransitions.get(seg.transition).label} · in ${seg.inPoint.toFixed(1)}s`, textX, top + 27);
         ctx.font = '600 10px "Inter Tight", sans-serif';
         ctx.restore();
@@ -961,7 +978,7 @@ class TimelinePanel {
     if (st.state === 'running' && st.position >= 0 && st.bpm > 0 && st.nextCutPos != null) {
       const beatSec = 60 / st.bpm;
       ctx.setLineDash([3, 3]);
-      ctx.strokeStyle = 'rgba(26,26,26,0.45)';
+      ctx.strokeStyle = C.a(0.45);
       for (let k = 0; k < 24; k++) {
         const t = now + (st.nextCutPos + k * st.globalBeats - st.position) * beatSec;
         if (t > start + span) break;
@@ -987,7 +1004,7 @@ class TimelinePanel {
       ctx.font = '700 10px "JetBrains Mono", monospace';
       ctx.fillText(({ hook: 'HOOK', result: 'RESULT / CLIMAX', cta: 'CTA' })[role], x0 + 9, top + 14);
       ctx.font = '9px "JetBrains Mono", monospace';
-      ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      ctx.fillStyle = C.pa(0.7);
       ctx.fillText(isCur ? 'story · on air' : 'story · once', x0 + 9, top + 27);
       ctx.restore();
     }
@@ -1005,7 +1022,7 @@ class TimelinePanel {
   drawText(ctx, C, x, W, y, h) {
     ctx.fillStyle = C.surface;
     ctx.fillRect(0, y, W, h);
-    ctx.fillStyle = 'rgba(26,26,26,0.16)';
+    ctx.fillStyle = C.a(0.16);
     ctx.fillRect(0, y, W, 1);
     this.textHits = [];
     for (const it of this.app.text.items) {
@@ -1034,23 +1051,22 @@ class TimelinePanel {
 
   // Voice lane: the take's waveform at its offset on the master timeline.
   drawVoice(ctx, C, x, W, y, h) {
-    const v = this.app.voice;
-    ctx.fillStyle = C.paper;
-    ctx.fillRect(0, y, W, h);
-    ctx.fillStyle = 'rgba(26,26,26,0.16)';
+    const v = this.app.voice, P = C.scope;
+    Scope.background(ctx, 0, y, W, h, P);
+    ctx.fillStyle = C.a(0.16);
     ctx.fillRect(0, y, W, 1);
     const x0 = x(v.offset), x1 = x(v.offset + v.duration);
     if (x1 < 0 || x0 > W) return;
-    ctx.fillStyle = C.steel;
+    ctx.fillStyle = P.grid;
     ctx.fillRect(Math.max(0, x0), y + 4, Math.min(W, x1) - Math.max(0, x0), h - 8);
     const n = v.peaks.length / 2, mid = y + h / 2, amp = h / 2 - 6;
-    ctx.fillStyle = C.ink;
+    ctx.fillStyle = Scope.curveGradient(ctx, x0, x1, P);
     for (let px = Math.max(0, Math.floor(x0)); px < Math.min(W, x1); px++) {
       const i = Math.floor(((px - x0) / (x1 - x0)) * n);
       const mn = v.peaks[i * 2] || 0, mx = v.peaks[i * 2 + 1] || 0;
       ctx.fillRect(px, mid - mx * amp, 1, Math.max(1, (mx - mn) * amp));
     }
-    ctx.strokeStyle = C.ink;
+    ctx.strokeStyle = P.axis;
     ctx.strokeRect(Math.round(x0) + 0.5, y + 4.5, Math.max(1, Math.round(x1 - x0) - 1), h - 9);
   }
 

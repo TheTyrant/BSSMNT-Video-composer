@@ -21,6 +21,27 @@
   --mid:       #1F9D55;
   --high:      #2F5BD3;
   --live:      #E5322D;
+  --ink-strong: #000000;                    /* primary button hover            */
+  --surface-glass:   rgba(237, 234, 228, 0.82);
+  --surface-glass-2: rgba(237, 234, 228, 0.92);
+
+  /* Analyser windows (EQ graph, Master / Voice lanes) — D-69 */
+  --scope-bg-1:  #0B1120;
+  --scope-bg-2:  #131D33;
+  --scope-grid:  rgba(150, 175, 220, 0.10);
+  --scope-axis:  rgba(170, 195, 240, 0.30);
+  --scope-text:  rgba(185, 200, 232, 0.62);
+  --scope-fill-top:    rgba(84, 140, 230, 0.55);
+  --scope-fill-bottom: rgba(40, 70, 150, 0.04);
+  --scope-line:  rgba(140, 190, 255, 0.85);
+  --scope-c1:    #38B6FF;
+  --scope-c2:    #7C5CFF;
+  --scope-c3:    #E64C9B;
+  --scope-c4:    #FF9E45;
+  --scope-bass:  #FF5A6E;
+  --scope-mid:   #3FE08A;
+  --scope-high:  #4FA0FF;
+  --scope-node:  #FFFFFF;
 
   --font-logo: "Boldonse", "Inter Tight", "Segoe UI", sans-serif;
   --font-ui:   "Inter Tight", "Segoe UI", system-ui, -apple-system, sans-serif;
@@ -30,6 +51,32 @@
   --sidebar-w: 312px;
   --panel-w: 300px;
   --editor-h:  340px;
+}
+
+/* Dark skin (D-69): chosen in the header, not taken from the system.
+   Ink and paper flip — ivory lines and text on near-black, ivory buttons —
+   band colours step up so they read on dark. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface:   #17181B;
+  --panel:     #1E1F23;
+  --steel:     #2A2C31;
+  --steel-2:   #353840;
+  --paper:     #0F1012;
+  --ink:       #ECE8E1;
+  --ink-2:     #C9C5BD;
+  --ink-3:     #8F8C86;
+  --hair:      rgba(236, 232, 225, 0.16);
+  --hair-2:    rgba(236, 232, 225, 0.08);
+  --bass:      #FF5C5C;
+  --mid:       #3DCB80;
+  --high:      #5C8DFF;
+  --live:      #FF4A42;
+  --ink-strong: #FFFFFF;
+  --surface-glass:   rgba(23, 24, 27, 0.86);
+  --surface-glass-2: rgba(23, 24, 27, 0.94);
+  --scope-bg-1:  #060A12;
+  --scope-bg-2:  #0C1322;
 }
 
 * { box-sizing: border-box; }
@@ -170,7 +217,7 @@ kbd {
 .btn:hover, .stepper button:hover { background: var(--ink); color: var(--paper); }
 .btn:disabled { opacity: 0.5; cursor: default; }
 .btn-primary { background: var(--ink); color: var(--paper); }
-.btn-primary:hover { background: #000; }
+.btn-primary:hover { background: var(--ink-strong); }
 .btn.is-live, .btn-primary.is-live { background: var(--live); border-color: var(--live); color: var(--paper); }
 .btn-block { width: 100%; }
 .btn-icon { width: 28px; padding: 0; font-size: 12px; letter-spacing: 0; }
@@ -477,7 +524,7 @@ input[type="range"]::-moz-range-thumb {
   flex-direction: column;
   width: 236px;
   border: 1px solid var(--ink);
-  background: rgba(237, 234, 228, 0.82);
+  background: var(--surface-glass);
   -webkit-backdrop-filter: blur(6px);
   backdrop-filter: blur(6px);
   color: var(--ink);
@@ -749,7 +796,7 @@ select option:disabled { color: var(--ink-3); }
 
 .viewport-hud { left: 62px; }      /* clears the left sidebar's tabs */
 .viewport-hud .status-item.on-air { background: var(--ink); color: var(--paper); }
-.status-item.on-air .status-label { color: rgba(255, 255, 255, 0.65); }
+.status-item.on-air .status-label { color: var(--paper); opacity: 0.65; }
 
 .viewport-hint {
   position: absolute;
@@ -1053,7 +1100,7 @@ select option:disabled { color: var(--ink-3); }
 .help-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(237, 234, 228, 0.92);
+  background: var(--surface-glass-2);
   z-index: 1000;
   display: flex;
   align-items: center;

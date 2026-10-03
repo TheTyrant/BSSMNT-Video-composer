@@ -33,6 +33,8 @@ app/
   zip64.js                 ZIP64 writer (streamed, stored) + reader (index only, slices); TempDisk (OPFS) for Firefox saves / exports (D-66)
   textOverlay.js           Text model (titles, credits, text) + one render() for viewport, pop-out and renderer (D-60)
   textPanel.js             04 Text tab: add / edit / lock / style text items
+  liveRecorder.js          Live input recording for exports: segments on disk, crash recovery (D-68)
+  scope.js                 Analyser-window look for the EQ graph and Master / Voice lanes (D-69)
   displaySize.js           Header SIZE: frame shape on screen (letterboxed stage), breakpoints Base / Vertical / Square (D-63)
   renderer.js              OfflineRenderer: replays the session record into an MP4 (video + mixed audio), D-61
   exportPanel.js           03 Output › Export video: settings, summary + warnings, progress, cancel

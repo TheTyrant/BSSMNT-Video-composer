@@ -145,6 +145,8 @@ class EqPanel {
     this.draw();
   }
 
+  // Drawn as an analyser window (D-69): navy screen, filled blue spectrum,
+  // glowing blue → violet → pink → orange EQ curve. Colours: --scope-*.
   draw() {
     const c = this.el.canvas, ctx = this.ctx;
     const dpr = window.devicePixelRatio || 1;
@@ -158,42 +160,50 @@ class EqPanel {
     this.W = W; this.H = H;
     const css = getComputedStyle(document.documentElement);
     const col = (n) => css.getPropertyValue(n).trim();
-    const ink = col('--ink'), live = col('--live');
+    const live = col('--live');
+    const P = Scope.palette();
 
-    ctx.fillStyle = col('--paper');
-    ctx.fillRect(0, 0, W, H);
+    Scope.background(ctx, 0, 0, W, H, P);
 
     // grid
     ctx.font = '8px "JetBrains Mono", monospace';
     [50, 100, 200, 500, 1000, 2000, 5000, 10000].forEach(f => {
       const x = Math.round(this.xOf(f)) + 0.5;
-      ctx.fillStyle = 'rgba(26,26,26,0.08)';
+      ctx.fillStyle = P.grid;
       ctx.fillRect(x, 0, 1, H);
-      ctx.fillStyle = col('--ink-3');
+      ctx.fillStyle = P.text;
       ctx.fillText(f >= 1000 ? `${f / 1000}k` : String(f), x + 2, H - 3);
     });
-    ctx.fillStyle = 'rgba(26,26,26,0.18)';
+    [-12, -6, 6, 12].forEach(g => { if (Math.abs(g) <= this.G_MAX) { ctx.fillStyle = P.grid; ctx.fillRect(0, Math.round(this.yOf(g)), W, 1); } });
+    ctx.fillStyle = P.axis;
     ctx.fillRect(0, Math.round(this.yOf(0)), W, 1);
 
-    // live spectrum: what the analysis hears right now
+    // live spectrum: what the analysis hears right now (filled, with a crisp top edge)
     const spec = this.app.visualizer.audioData.spectrum || [];
     const sr = (this.app.audioProcessor.audioContext && this.app.audioProcessor.audioContext.sampleRate) || 48000;
     const nyq = sr / 2;
     if (spec.length) {
-      ctx.beginPath();
-      ctx.moveTo(0, H);
+      const pts = [];
       for (let x = 0; x <= W; x += 2) {
         const i = Math.min(spec.length - 1, Math.round((this.fOf(x) / nyq) * spec.length));
-        ctx.lineTo(x, H - (spec[i] || 0) * (H - 12));
+        pts.push([x, H - (spec[i] || 0) * (H - 12)]);
       }
+      ctx.beginPath();
+      ctx.moveTo(0, H);
+      pts.forEach(([x, y]) => ctx.lineTo(x, y));
       ctx.lineTo(W, H);
       ctx.closePath();
-      ctx.fillStyle = 'rgba(26,26,26,0.16)';
+      ctx.fillStyle = Scope.fillGradient(ctx, 8, H, P.fillTop, P.fillBottom);
       ctx.fill();
+      ctx.beginPath();
+      pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+      ctx.strokeStyle = P.line;
+      ctx.lineWidth = 1;
+      ctx.stroke();
     }
 
     // where the frozen analyser splits Bass | Mid | High (bandEnergy: 12 % / 45 % of the bins)
-    const split = [['BASS', 0, 0.12, col('--bass')], ['MID', 0.12, 0.45, col('--mid')], ['HIGH', 0.45, 1, col('--high')]];
+    const split = [['BASS', 0, 0.12, P.bass], ['MID', 0.12, 0.45, P.mid], ['HIGH', 0.45, 1, P.high]];
     split.forEach(([name, a, b, color], i) => {
       const fa = Math.max(this.F_MIN, a * nyq), fb = Math.min(this.F_MAX, b * nyq);
       const xa = this.xOf(fa), xb = this.xOf(fb);
@@ -203,6 +213,7 @@ class EqPanel {
       ctx.fillText(name, xa + 3, 12);
       if (i > 0) {
         ctx.save();
+        ctx.globalAlpha = 0.55;
         ctx.setLineDash([2, 3]);
         ctx.strokeStyle = color;
         ctx.beginPath(); ctx.moveTo(xa + 0.5, 0); ctx.lineTo(xa + 0.5, H); ctx.stroke();
@@ -210,40 +221,60 @@ class EqPanel {
       }
     });
 
-    // EQ curve
+    // EQ curve: soft fill to 0 dB, then the glowing gradient line
     const N = 160;
     const freqs = new Float32Array(N);
     for (let i = 0; i < N; i++) freqs[i] = this.fOf((i / (N - 1)) * W);
     const db = this.eq.response(freqs);
     const applied = this.app.eqMode !== 'sensitivity';
+    const y0 = this.yOf(0);
+    const path = () => {
+      ctx.beginPath();
+      for (let i = 0; i < N; i++) {
+        const x = (i / (N - 1)) * W;
+        const y = this.yOf(Math.max(-this.G_MAX - 6, Math.min(this.G_MAX + 6, db[i])));
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+    };
+    const grad = Scope.curveGradient(ctx, 0, W, P);
     ctx.save();
-    if (!applied) ctx.setLineDash([4, 4]);
-    ctx.strokeStyle = applied ? ink : 'rgba(26,26,26,0.45)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    for (let i = 0; i < N; i++) {
-      const x = (i / (N - 1)) * W;
-      const y = this.yOf(Math.max(-this.G_MAX - 6, Math.min(this.G_MAX + 6, db[i])));
-      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    if (applied && !this.eq.isFlat) {
+      path();
+      ctx.lineTo(W, y0); ctx.lineTo(0, y0); ctx.closePath();
+      ctx.globalAlpha = 0.16;
+      ctx.fillStyle = grad;
+      ctx.fill();
+      ctx.globalAlpha = 1;
     }
+    if (!applied) { ctx.setLineDash([4, 4]); ctx.globalAlpha = 0.6; }
+    path();
+    ctx.strokeStyle = grad;
+    ctx.lineWidth = 2.5;
+    ctx.shadowColor = P.c2;
+    ctx.shadowBlur = applied ? 10 : 0;
     ctx.stroke();
     ctx.restore();
 
-    // points
+    // points: coloured by where they sit on the curve, white ring
     this.eq.bands.forEach((b, i) => {
       const p = this.nodePos(b);
       const on = this.eq.isActiveBand(b);
       const hot = b === this.drag || b === this.hover;
+      const tint = Scope.colorAt(p.x / W, P);
+      ctx.save();
       ctx.lineWidth = hot ? 2 : 1.25;
-      ctx.strokeStyle = ink;
-      ctx.fillStyle = on ? (hot ? live : ink) : col('--paper');
+      ctx.strokeStyle = P.node;
+      ctx.fillStyle = on ? (hot ? live : tint) : P.bg1;
+      ctx.shadowColor = tint;
+      ctx.shadowBlur = on ? 8 : 0;
       if (this.eq.isCut(b)) {
         ctx.fillRect(p.x - 5, p.y - 5, 10, 10);
         ctx.strokeRect(p.x - 5 + 0.5, p.y - 5 + 0.5, 9, 9);
       } else {
         ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
       }
-      ctx.fillStyle = on ? col('--paper') : ink;
+      ctx.restore();
+      ctx.fillStyle = on ? P.bg1 : P.node;
       ctx.font = '700 7px "JetBrains Mono", monospace';
       ctx.textAlign = 'center';
       ctx.fillText(String(i + 1), p.x, p.y + 2.5);
@@ -262,7 +293,7 @@ class EqPanel {
     }
 
     if (!applied && !this.eq.isFlat) {
-      ctx.fillStyle = 'rgba(26,26,26,0.75)';
+      ctx.fillStyle = P.text;
       ctx.font = '700 9px "JetBrains Mono", monospace';
       ctx.fillText('PREVIEW — set Use to Dynamic or Blend', 6, 26);
     }

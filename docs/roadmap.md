@@ -102,6 +102,7 @@ Supersedes parts of the v2.1 layout (the v2.1 table below describes it as it was
 - **Auto Fade Music per locked clip** with four shape presets shown as icons and a fade length (D-59).
 - **04 Text:** titles, credits (rolling) and general text over every mode, with a Text lane on the timeline, live Show now, pop-out and project save (D-60).
 - **Display size + breakpoints (D-63):** header SIZE (Original + every export size) letterboxes the viewport live; text layout per breakpoint (Base / Vertical / Square) like a responsive site.
+- **Live mode records its input** — live exports have sound, crash-safe (D-68). **Dark skin** (header button) and analyser-style EQ graph / Master / Voice lanes (D-69).
 - **Fixes (D-62):** audio after Clip mode, switching SRC keeps the loaded track and its session, text keeps its timing while editing, drag handle for base text (Free position), no cut-list hole after a seek.
 
 ---
@@ -128,6 +129,22 @@ Supersedes parts of the v2.1 layout (the v2.1 table below describes it as it was
 - [x] Muted tracks are absent from the exported audio; unmuted voice and story sound are present and in sync.
 - [ ] A 3-minute 1080p export finishes faster than real time on the target machine; a 2-hour project exports without running out of memory.
 - [ ] Every visual mode exports.
+
+---
+
+## Themes from audio hardware ⬜ *(roadmap only; the light / dark skins are the base, D-69)*
+
+**Goal:** optional skins modelled on well-known music hardware, picked like the dark skin (never automatic).
+
+| Step | What |
+|---|---|
+| 1 ✅ | Every colour is a CSS variable; the analyser windows have their own `--scope-*` set; a skin is one block of variable values (D-69) |
+| 2 | Skin picker (replaces the light / dark button with a short list) |
+| 3 | **MPC** — MPC-style greys with the classic pad colours, red accents, LCD-green readouts in the analyser windows |
+| 4 | **Akai** (APC / MPK family) — matte black, grid-pad colour accents, amber / orange readouts |
+| 5 | Further hardware skins on request (e.g. classic mixers, Pioneer CDJ blue) |
+
+Notes: no hardware maker's logos or trademarks in the skins — colour and feel only.
 
 ---
 
