@@ -38,6 +38,72 @@ class OfflineRenderer {
     return this._lib;
   }
 
+  // AAC everywhere (D-65): the browser's own encoder, or — where there is
+  // none (Firefox) — the bundled one (FFmpeg's AAC encoder in WebAssembly).
+  // AAC plays in Windows Media Player and every editor; Opus is only the
+  // last resort.
+  async audioCodec(M) {
+    const opts = { numberOfChannels: 2, sampleRate: OfflineRenderer.SR };
+    if (await M.canEncodeAudio('aac', opts)) return 'aac';
+    try {
+      const A = await VendorLoader.aac();
+      if (!OfflineRenderer._aacRegistered) { A.registerAacEncoder(); OfflineRenderer._aacRegistered = true; }
+      if (await M.canEncodeAudio('aac', opts)) return 'aac';
+    } catch (e) { console.warn('Bundled AAC encoder unavailable:', e); }
+    return M.getFirstEncodableAudioCodec(['opus'], opts);
+  }
+
+  // H.264 setup data (avcC) repair, D-65. Firefox's encoder hands over an
+  // avcC whose SPS / PPS repeat their first byte and whose reserved bits
+  // are 0. Windows Media Player / Media Foundation then misread the stream
+  // (frame size 34 × 4294967286) and refuse the file; VLC copes because it
+  // reads the copies inside the video stream. A well-formed avcC (Chrome)
+  // is returned unchanged.
+  static fixAvcC(desc) {
+    const u = desc instanceof ArrayBuffer ? new Uint8Array(desc) : new Uint8Array(desc.buffer, desc.byteOffset, desc.byteLength);
+    if (u.length < 7 || u[0] !== 1) return desc;
+    let changed = (u[4] & 0xfc) !== 0xfc || (u[5] & 0xe0) !== 0xe0;
+    const sets = (start, count, type) => {
+      const out = []; let p = start;
+      for (let i = 0; i < count && p + 2 <= u.length; i++) {
+        const len = (u[p] << 8) | u[p + 1];
+        let nal = u.slice(p + 2, p + 2 + len);
+        if (nal.length > 1 && (nal[0] & 0x1f) === type && nal[1] === nal[0]) { nal = nal.slice(1); changed = true; }   // repeated header byte
+        out.push(nal); p += 2 + len;
+      }
+      return { out, p };
+    };
+    const sps = sets(6, u[5] & 0x1f, 7);
+    if (!changed || !sps.out.length || sps.p >= u.length) return desc;
+    const pps = sets(sps.p + 1, u[sps.p], 8);
+    const s0 = sps.out[0];
+    const bytes = [1, s0[1], s0[2], s0[3], 0xfc | (u[4] & 3), 0xe0 | sps.out.length];
+    sps.out.forEach(n => bytes.push(n.length >> 8, n.length & 255, ...n));
+    bytes.push(pps.out.length);
+    pps.out.forEach(n => bytes.push(n.length >> 8, n.length & 255, ...n));
+    if ([100, 110, 122, 144].includes(s0[1])) bytes.push(0xfd, 0xf8, 0xf8, 0);   // 4:2:0, 8-bit, no SPS-ext
+    return new Uint8Array(bytes).buffer;
+  }
+
+  // While exporting, the encoder Mediabunny creates passes its setup data
+  // through fixAvcC. Returns a function that puts the original back.
+  static patchEncoder() {
+    const Native = window.VideoEncoder;
+    if (!Native || Native.__bssmnt) return () => {};
+    class Fixed extends Native {
+      constructor(init) {
+        super({ ...init, output: (chunk, meta) => {
+          const d = meta && meta.decoderConfig;
+          if (d && d.description && /^avc[13]/.test(d.codec || '')) meta = { ...meta, decoderConfig: { ...d, description: OfflineRenderer.fixAvcC(d.description) } };
+          init.output(chunk, meta);
+        } });
+      }
+    }
+    Fixed.__bssmnt = true;
+    window.VideoEncoder = Fixed;
+    return () => { window.VideoEncoder = Native; };
+  }
+
   static supported() {
     return typeof VideoEncoder !== 'undefined' && typeof AudioEncoder !== 'undefined' && typeof OfflineAudioContext !== 'undefined';
   }
@@ -98,6 +164,7 @@ class OfflineRenderer {
     const mainP5 = app.visualizer.p5Instance;
     if (mainP5) mainP5.noLoop();       // free the GPU for the export
     let output = null;
+    const unpatch = OfflineRenderer.patchEncoder();
     try {
       const M = await this.lib();
       const target = writable ? new M.StreamTarget(writable, { chunked: true }) : new M.BufferTarget();
@@ -105,7 +172,7 @@ class OfflineRenderer {
 
       const vcodec = await M.getFirstEncodableVideoCodec(['avc', 'vp9', 'av1'], { width: W, height: H });
       if (!vcodec) throw new Error(`This machine can't encode ${W}×${H} video. Try a smaller size.`);
-      const acodec = await M.getFirstEncodableAudioCodec(['aac', 'opus'], { numberOfChannels: 2, sampleRate: OfflineRenderer.SR });
+      const acodec = await this.audioCodec(M);
       const quality = { standard: M.QUALITY_MEDIUM, high: M.QUALITY_HIGH, max: M.QUALITY_VERY_HIGH }[opts.quality] || M.QUALITY_HIGH;
 
       const frame = document.createElement('canvas');
@@ -169,6 +236,7 @@ class OfflineRenderer {
       throw e;
     } finally {
       this.busy = false;
+      unpatch();
       if (mainP5) mainP5.loop();
     }
   }

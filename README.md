@@ -46,7 +46,10 @@ Everything the app needs is in this folder (`vendor/` holds the libraries and fo
 
 **Browsers:** Chrome, Edge and Firefox (tested: Firefox 156).
 - Chrome / Edge ask where to save projects and exports, and can write long exports straight to disk. Exports have AAC sound.
-- Firefox has no save dialog for web pages, so projects and exports download to your Downloads folder. Exports are built in memory first (fine for songs; very long sets need more RAM) and carry Opus sound, which plays in browsers, VLC and Windows Media Player but not in every editor — use Chrome or Edge when an editor needs AAC.
+- Firefox has no save dialog for web pages, so projects and exports download to your Downloads folder. Exports are built in memory first (fine for songs; very long sets need more RAM).
+- Exports are MP4 (H.264 video + AAC sound) in every browser and play in Windows Media Player, VLC, browsers and editors.
+
+**Projects (.mnt):** with **Pack media** on (the default), the music, video and image files are saved inside the project, so it reopens anywhere with nothing to reconnect. Turn it off to keep the file small and link the media instead (reopening then asks you to point at the files or their folder).
 
 ## Project Structure
 ```

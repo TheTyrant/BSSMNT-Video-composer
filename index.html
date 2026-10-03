@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="vendor/fonts/fonts.css">
 
     <!-- External Styles -->
-    <link rel="stylesheet" href="styles/styles.css?v=2.6.2">
+    <link rel="stylesheet" href="styles/styles.css?v=2.7.1">
 
     <!-- External Libraries -->
     <script src="vendor/p5.min.js"></script>
@@ -59,7 +59,7 @@
       <aside class="sidebar" id="sidebar">
         <nav class="tab-rail" id="tabRail" aria-label="Sidebar sections"></nav>
         <div class="tab-panels" id="tabPanels">
-          <section class="control-section side-panel" id="panel-audio" data-tab="audio" data-num="01" data-label="Audio">
+          <section class="control-section side-panel" id="panel-input" data-tab="input" data-num="01" data-label="Input">
             <h3><span class="sec-num">01</span>Audio</h3>
             <div class="seg source-toggle-group" role="radiogroup" aria-label="Audio source">
               <label class="source-toggle">
@@ -109,10 +109,10 @@
                 <option value="layers">Media Layers</option>
                 <option value="clips">Clip Auto-Editor</option>
               </select>
-            </div>
+            </div><br>
 
             <!-- Voice Over (D-38–D-41): its own audio chain, follows the master timeline -->
-            <h4 class="sub-head">Voice</h4>
+            <h3><span class="sec-num">01.5</span>Voice</h3>
             <div class="voice-block">
               <div class="btn-row">
                 <button id="voiceRecord" class="btn" type="button" title="Record at the playhead">&#x25CF; Record</button>
@@ -147,7 +147,7 @@
 
           </section>
 
-          <section class="control-section side-panel" id="customMediaSection" data-tab="assets" data-num="02" data-label="Assets">
+          <section class="control-section side-panel" id="customMediaSection" data-tab="sound" data-num="02" data-label="Sound">
             <h3><span class="sec-num">02</span>Sound</h3>
 
             <!-- EQ (D-51): two views on one tab swap. Sensitivity = the band
@@ -227,8 +227,8 @@
             <div class="asset-props" id="assetProps"></div>
           </section>
 
-          <section class="control-section side-panel" id="panel-output" data-tab="output" data-num="03" data-label="Output">
-            <h3><span class="sec-num">03</span>Output</h3>
+          <section class="control-section side-panel" id="panel-output" data-tab="file" data-num="03" data-label="File">
+            <h3><span class="sec-num">03</span>File</h3>
             <!-- Project file (.mnt, D-57): reopenable and editable. Media is linked. -->
             <h4 class="sub-head sub-head-first">Project</h4>
             <div class="project-block">
@@ -242,6 +242,11 @@
                 <button id="projectOpen" class="btn" type="button" title="Open (Ctrl+O)">Open</button>
               </div>
               <input type="file" id="projectOpenInput" accept=".mnt" hidden>
+              <label class="prop-check pack-check" title="Copies the music, video and image files into the .mnt, so it reopens anywhere with nothing to reconnect">
+                <input type="checkbox" id="projectPack" checked>
+                <span>Pack media into the project file</span>
+              </label>
+              <p class="hint" id="projectPackHint"></p>
               <p class="hint" id="projectStatus">New project</p>
               <div id="projectMissing" class="project-missing" hidden>
                 <p class="hint"><b id="missingCount">0</b> media file(s) to reconnect:</p>
@@ -249,10 +254,11 @@
                 <div class="btn-row">
                   <button id="reconnectAuto" class="btn" type="button" title="Reconnect files this browser remembers">Reconnect</button>
                   <button id="reconnectFolder" class="btn" type="button" title="Pick a folder; files are matched by name and size">Find in folder</button>
+                  <input type="file" id="reconnectFolderInput" webkitdirectory multiple hidden>
                 </div>
                 <label class="btn btn-file btn-block" title="Pick the files; they are matched by name and size">Choose files<input type="file" id="reconnectFiles" multiple></label>
               </div>
-              <p class="hint">Saves assets, settings, Story, voice and the session record as one <b>.mnt</b> file. Video, image and music files are linked, not copied.</p>
+              <p class="hint">Saves assets, settings, positions, text, voice and the session record as one <b>.mnt</b> file. With <b>Pack media</b> on, the music, video and image files go inside too, so the project reopens on any computer with nothing to reconnect. Off: they are linked by name and size.</p>
             </div>
 
             <!-- Export video (D-61): rendered on this computer from the session record -->
@@ -294,8 +300,8 @@
           </section>
 
           <!-- 04 Text (D-60): titles, credits and general text over every mode -->
-          <section class="control-section side-panel" id="panel-text" data-tab="text" data-num="04" data-label="Text">
-            <h3><span class="sec-num">04</span>Text</h3>
+          <section class="control-section side-panel" id="panel-overlays" data-tab="overlays" data-num="04" data-label="Overlays">
+            <h3><span class="sec-num">04</span>Overlays</h3>
             <div class="btn-row text-add">
               <button id="textAddTitle" class="btn" type="button" title="Add a title">+ Title</button>
               <button id="textAddCredits" class="btn" type="button" title="Add rolling credits">+ Credits</button>
@@ -508,29 +514,29 @@
     </div>
 
     <!-- Application Modules -->
-    <script src="app/vendorLoader.js?v=2.6.2"></script>
-    <script src="app/audioProcessor.js?v=2.6.2"></script>
-    <script src="app/videoOrientation.js?v=2.6.2"></script>
-    <script src="app/visualizer.js?v=2.6.2"></script>
-    <script src="app/trackSource.js?v=2.6.2"></script>
-    <script src="app/analysisEq.js?v=2.6.2"></script>
-    <script src="app/voiceTrack.js?v=2.6.2"></script>
-    <script src="app/musicalTime.js?v=2.6.2"></script>
-    <script src="app/transitions.js?v=2.6.2"></script>
-    <script src="app/clipEngine.js?v=2.6.2"></script>
-    <script src="app/sessionRecord.js?v=2.6.2"></script>
-    <script src="app/mediaLibrary.js?v=2.6.2"></script>
-    <script src="app/projectFile.js?v=2.6.2"></script>
-    <script src="app/textOverlay.js?v=2.6.2"></script>
-    <script src="app/textPanel.js?v=2.6.2"></script>
-    <script src="app/renderer.js?v=2.6.2"></script>
-    <script src="app/displaySize.js?v=2.6.2"></script>
-    <script src="app/exportPanel.js?v=2.6.2"></script>
-    <script src="app/timelinePanel.js?v=2.6.2"></script>
-    <script src="app/sidebar.js?v=2.6.2"></script>
-    <script src="app/headerPickers.js?v=2.6.2"></script>
-    <script src="app/assetPanel.js?v=2.6.2"></script>
-    <script src="app/eqPanel.js?v=2.6.2"></script>
-    <script src="app/app.js?v=2.6.2"></script>
+    <script src="app/vendorLoader.js?v=2.7.1"></script>
+    <script src="app/audioProcessor.js?v=2.7.1"></script>
+    <script src="app/videoOrientation.js?v=2.7.1"></script>
+    <script src="app/visualizer.js?v=2.7.1"></script>
+    <script src="app/trackSource.js?v=2.7.1"></script>
+    <script src="app/analysisEq.js?v=2.7.1"></script>
+    <script src="app/voiceTrack.js?v=2.7.1"></script>
+    <script src="app/musicalTime.js?v=2.7.1"></script>
+    <script src="app/transitions.js?v=2.7.1"></script>
+    <script src="app/clipEngine.js?v=2.7.1"></script>
+    <script src="app/sessionRecord.js?v=2.7.1"></script>
+    <script src="app/mediaLibrary.js?v=2.7.1"></script>
+    <script src="app/projectFile.js?v=2.7.1"></script>
+    <script src="app/textOverlay.js?v=2.7.1"></script>
+    <script src="app/textPanel.js?v=2.7.1"></script>
+    <script src="app/renderer.js?v=2.7.1"></script>
+    <script src="app/displaySize.js?v=2.7.1"></script>
+    <script src="app/exportPanel.js?v=2.7.1"></script>
+    <script src="app/timelinePanel.js?v=2.7.1"></script>
+    <script src="app/sidebar.js?v=2.7.1"></script>
+    <script src="app/headerPickers.js?v=2.7.1"></script>
+    <script src="app/assetPanel.js?v=2.7.1"></script>
+    <script src="app/eqPanel.js?v=2.7.1"></script>
+    <script src="app/app.js?v=2.7.1"></script>
   </body>
 </html>

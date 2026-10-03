@@ -1122,3 +1122,7 @@ select option:disabled { color: var(--ink-3); }
 .prop-row.is-override .prop-row-label::after { content: ''; display: inline-block; width: 6px; height: 6px; margin-left: 5px; background: var(--live); vertical-align: middle; }
 .text-handle.is-clipped { border-color: var(--live); outline-color: var(--live); }
 .text-handle.is-clipped .text-handle-tag { background: var(--live); color: #fff; }
+
+/* Pack media (D-65) */
+.pack-check { display: flex; margin-top: 12px; }
+#projectPackHint:empty { display: none; }

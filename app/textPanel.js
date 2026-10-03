@@ -17,7 +17,7 @@ class TextPanel {
     $('textAddText').addEventListener('click', () => this.text.add('text'));
     this.text.on((type) => { if (type !== 'tick') this.render(); });
     // Preview the selected item on screen while this panel is open.
-    if (this.app.sidebar) this.app.sidebar.on((open) => { this.text.previewing = open.includes('text'); });
+    if (this.app.sidebar) this.app.sidebar.on(() => { this.text.previewing = this.app.sidebar.isOpen('text'); });
     this.render();
   }
 

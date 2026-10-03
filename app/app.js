@@ -58,7 +58,7 @@ class DJVisualizerApp {
     // Modular tab sidebar (v2.1, D-42)
     // Left tabs (stack up to 2 panels) and the right Auto-Editor sidebar.
     // Both start closed and only span the viewport row (D-48).
-    [['panel-audio', 'Ctrl+1'], ['customMediaSection', 'Ctrl+2'], ['panel-output', 'Ctrl+3'], ['panel-text', 'Ctrl+4'], ['panel-autoedit', 'Shift+A']]
+    [['panel-input', 'Ctrl+1'], ['panel-audio', 'Ctrl+1'], ['customMediaSection', 'Ctrl+2'], ['panel-output', 'Ctrl+3'], ['panel-overlays', 'Ctrl+4'], ['panel-text', 'Ctrl+4'], ['panel-autoedit', 'Shift+A']]
       .forEach(([id, key]) => { const el = document.getElementById(id); if (el) el.dataset.key = key; });
     this.sidebar = new Sidebar('sidebar', 'tabPanels', 'tabRail', { maxOpen: 1 });
     this.sidebar.init();

@@ -41,9 +41,29 @@ class Sidebar {
     this.apply();
   }
 
-  isOpen(tab) { return this.openTabs.includes(tab); }
+  // Panels can be renamed in the page (data-tab / data-label) without
+  // breaking code: code may use a panel's tab name or its usual name, which
+  // is looked up by the panel's id (D-65).
+  // Each entry: every name code may use, and every id the panel has had.
+  static GROUPS = [
+    { names: ['audio', 'input'], ids: ['panel-input', 'panel-audio'] },
+    { names: ['assets', 'sound'], ids: ['customMediaSection'] },
+    { names: ['output', 'file'], ids: ['panel-output'] },
+    { names: ['text', 'overlays'], ids: ['panel-overlays', 'panel-text'] },
+    { names: ['autoedit'], ids: ['panel-autoedit'] },
+  ];
+
+  resolve(name) {
+    if (this.panels.some(p => p.dataset.tab === name)) return name;
+    const g = Sidebar.GROUPS.find(x => x.names.includes(name));
+    const p = g && this.panels.find(x => g.ids.includes(x.id) || g.names.includes(x.dataset.tab));
+    return p ? p.dataset.tab : name;
+  }
+
+  isOpen(tab) { return this.openTabs.includes(this.resolve(tab)); }
 
   toggle(tab) {
+    tab = this.resolve(tab);
     if (this.isOpen(tab)) this.openTabs = this.openTabs.filter(t => t !== tab);
     else this.push(tab);
     this.apply();
@@ -52,6 +72,7 @@ class Sidebar {
   // Programmatic open (e.g. selecting an asset opens 02 Assets). Leaves the
   // panel where it is if it's already open.
   open(tab) {
+    tab = this.resolve(tab);
     if (!this.isOpen(tab)) this.push(tab);
     this.apply();
   }

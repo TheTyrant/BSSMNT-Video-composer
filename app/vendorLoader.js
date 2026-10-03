@@ -19,5 +19,7 @@ const VendorLoader = (() => {
   return {
     zip: () => load('fflate.js', 'fflate'),
     media: () => load('mediabunny.js', 'Mediabunny'),
+    // AAC encoder add-on; needs Mediabunny loaded first.
+    aac: () => load('mediabunny.js', 'Mediabunny').then(() => load('mediabunny-aac.js', 'MediabunnyAacEncoder')),
   };
 })();
