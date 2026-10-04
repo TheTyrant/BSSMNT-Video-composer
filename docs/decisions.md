@@ -403,6 +403,13 @@ The brief's four questions were not answered before the build. Rather than guess
 - **Verified on the built app** (driven over DevTools): can't be run as Node; app, fonts, save dialog and video encoder present; live mode — microphone allowed, analysis running, input recorded; track + clip export H.264 + AAC (3.3× real time); packed project saves; pop-out opens as a second window; no page errors.
 - **Roadmap:** live video input (cameras / capture cards as live assets, recorded for export, multi-cam on the beat).
 
+
+### D-71 · Fix: choosing a track did nothing after using live mode *(Accepted — built)*
+- **Reported (Omar):** after the live-input update, the editor "plays the video straight out" (no cuts) and audio wouldn't import in the dev environment.
+- **Cause:** the Track file picker was never cleared after a pick. Browsers only report a *changed* pick, so choosing the same track again — e.g. after going live and switching back — fired nothing: no track loaded, no message. With no track there is no BPM, so the Clip Auto-Editor never cuts and the first clip plays straight through. (The voice and asset pickers already cleared themselves.)
+- **Fix:** the Track file picker is cleared on every pick, so the same file always loads again.
+- **Checked:** import after live running / live stopped / fresh now loads every time (Chrome; Electron app from source, including the native file dialog, which opens with the "Media" filter). Clip editing after live mode matches a fresh session (BPM lock 14 s, 12–13 cuts in 25 s, A/B/C rotating) and the build before the live work (041ddfc) in a side-by-side run. Note: cuts start once the tempo is found (about 14 s into this test track — "Listening for tempo…"); until then the first clip plays, as before.
+
 ## I. Known carry-overs (pre-existing on `main`, not changed)
 - Placeholder text drawn with `p.text()` in WebGL mode doesn't render, because no font is loaded (affects the Media Layers "Upload images…" prompt). v2 uses a DOM overlay for its own hints.
 - `visualizer.js` has duplicate `drawAudioWaves` / `drawMandala` / `drawTunnel` definitions (the later ones win), plus unused snake-game code.

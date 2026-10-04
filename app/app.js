@@ -98,6 +98,9 @@ class DJVisualizerApp {
 
     this.audioFileInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
+      // Clear the picker, so choosing the same file again (e.g. after going
+      // live and back) still loads it — browsers only report a *changed* pick.
+      e.target.value = '';
       if (file) this.loadAudioFile(file);
     });
     this.wireDropZone(this.audioDropZone, (file) => this.loadAudioFile(file));
