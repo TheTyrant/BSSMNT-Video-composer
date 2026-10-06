@@ -428,6 +428,11 @@ The brief's four questions were not answered before the build. Rather than guess
 - **No audio after reopening (browser):** saving with SRC on Live left the parked track (D-62) out of the project. The parked track and its session are now saved and restored parked.
 - **Verified headless:** parked track saved and restored; Link save records paths and the .asf origin; reopen with the desktop bridge stubbed finds all three clips and the track with nothing to reconnect; earlier suites pass. The close dialog and real paths need the desktop app itself (not opened during testing).
 
+
+### D-75 · Bug-fix update stays BASSMNTalphaV1 *(Accepted — Omar)*
+- Bug fixes are released as an update of the same alpha, not a new version number: builds are named alphaV1 again (the alphaV1.1–1.3 names and the BASSMNTalphaV1.3 tag are withdrawn). Changes are listed in CHANGELOG.md.
+- Every download carries **README-BSSMNT.txt** (getting started, all shortcuts, controls): next to the app in the installer and the zip, as its own release download, and in the source. The in-app help (?) now shows the current panel names and Save / Save as / Open.
+
 ## I. Known carry-overs (pre-existing on `main`, not changed)
 - Placeholder text drawn with `p.text()` in WebGL mode doesn't render, because no font is loaded (affects the Media Layers "Upload images…" prompt). v2 uses a DOM overlay for its own hints.
 - `visualizer.js` has duplicate `drawAudioWaves` / `drawMandala` / `drawTunnel` definitions (the later ones win), plus unused snake-game code.
