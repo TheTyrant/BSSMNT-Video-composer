@@ -234,6 +234,7 @@ class ClipEngine {
       asClip: saved.asClip, layer: saved.layer, band: saved.band, pace: saved.pace,
       importance: saved.importance, story: saved.story, storyHold: saved.storyHold, rotation: saved.rotation || 0,
       fade: { on: false, curve: 'smooth', bars: 1, ...(saved.fade || {}) },
+      path: saved.path || null, origin: saved.origin || null,   // where it lives / came from (D-74)
     };
     this.assets.push(asset);
     this.emit('clips');

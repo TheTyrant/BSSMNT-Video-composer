@@ -260,10 +260,12 @@ class DJVisualizerApp {
       if (e.target && e.target.closest && e.target.closest('#sidebar, #rightbar, .channels') && e.target.id !== 'projectName' && e.target.type !== 'file') this.project.markDirty();   // file pickers aren't edits (adding media marks dirty on its own)
     }, true));
     // Choosers go through the picker that remembers files, so projects can reconnect them.
-    const MEDIA = { 'video/*': ['.mp4', '.m4v', '.mov', '.webm', '.mkv'], 'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp'] };
-    MediaLibrary.usePicker(document.getElementById('assetUpload'), MEDIA, (files) => this.assetPanel.addAndSelect(files));
-    MediaLibrary.usePicker(document.getElementById('clipUpload'), MEDIA, (files) => this.addDroppedFiles(files));
-    MediaLibrary.usePicker(this.audioFileInput, { 'audio/*': ['.mp3', '.wav', '.m4a', '.aac', '.ogg', '.flac'] }, (files) => this.loadAudioFile(files[0]));
+    MediaConvert.init();
+    const MEDIA = { 'video/*': ['.mp4', '.m4v', '.mov', '.webm', '.mkv', '.asf', '.wmv'], 'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp'] };
+    MediaLibrary.usePicker(document.getElementById('assetUpload'), MEDIA, (files) => this.assetPanel.addAndSelect(files), (msg) => this.notify(msg));
+    MediaLibrary.usePicker(document.getElementById('clipUpload'), MEDIA, (files) => this.addDroppedFiles(files), (msg) => this.notify(msg));
+    MediaLibrary.usePicker(this.audioFileInput, { 'audio/*': ['.mp3', '.wav', '.m4a', '.aac', '.ogg', '.flac', '.wma', '.asf'] }, (files) => this.loadAudioFile(files[0]),
+      (msg) => { this.audioFileStatus.textContent = msg; this.notify(msg); });
 
     // Text (04 Text tab + overlay on the viewport)
     this.text.attach(document.getElementById('stage') || document.querySelector('.visualizer-container'));
@@ -482,8 +484,30 @@ class DJVisualizerApp {
     return true;
   }
 
+  // Windows Media files are converted first (D-73), then added the same way.
+  convertThenAdd(files, add) {
+    if (!files.length) return;
+    if (!MediaConvert.available()) { this.notify(MediaConvert.unsupportedMessage(files), 9000); return; }
+    (async () => {
+      for (const f of files) {
+        try {
+          this.notify(`Converting ${f.name} for playback…`, 600000);
+          const c = await MediaConvert.convert(f, 'video', (pct) => this.notify(`Converting ${f.name} for playback… ${pct}%`, 600000));
+          add([c]);
+        } catch (e) {
+          console.error(e);
+          this.notify(`Couldn't convert ${f.name}: ${e.message || e}`, 9000);
+        }
+      }
+    })();
+  }
+
   addDroppedFiles(files) {
     if (this.openIfProject(files)) return { added: [], rejected: [] };
+    const split = MediaConvert.split(files);
+    this.convertThenAdd(split.later, (fs) => this.addDroppedFiles(fs));
+    files = split.now;
+    if (!files.length) return { added: [], rejected: [] };
     const { added, rejected } = this.clipEngine.addFiles(files);
     if (added.length) {
       this.clipEngine.select(added[0].id);
@@ -768,6 +792,7 @@ class DJVisualizerApp {
     this.parkedTrack = {
       file: this.trackSource.file,
       time: this.trackSource.currentTime,
+      duration: this.trackSource.duration,
       record: this.record.toBytes(),
       engine: {
         segments: e.segments.map(s => ({ ...s })), beats: e.beats.map(b => ({ ...b })),
@@ -810,6 +835,18 @@ class DJVisualizerApp {
   }
 
   async loadAudioFile(file, { autoplay = true, keepSession = false } = {}) {
+    if (MediaConvert.needs(file)) {
+      // Windows Media track: convert the sound to M4A first (D-73).
+      if (!MediaConvert.available()) { this.audioFileStatus.textContent = MediaConvert.unsupportedMessage([file]); return; }
+      try {
+        this.audioFileStatus.textContent = `Converting ${file.name}…`;
+        file = await MediaConvert.convert(file, 'audio', (pct) => { this.audioFileStatus.textContent = `Converting ${file.name}… ${pct}%`; });
+      } catch (e) {
+        console.error(e);
+        this.audioFileStatus.textContent = `Couldn't convert ${file.name}: ${e.message || e}`;
+        return;
+      }
+    }
     this.audioFileStatus.textContent = `Loading: ${file.name}...`;
     try {
       await this.trackSource.load(file);
@@ -1143,8 +1180,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   await djApp.init();
 });
 
-// Clean up on page unload
-window.addEventListener('beforeunload', () => {
+// Clean up when the page really goes away (not on beforeunload: the
+// 'unsaved changes' prompt can still cancel the close there).
+window.addEventListener('pagehide', () => {
   if (djApp) {
     djApp.destroy();
   }

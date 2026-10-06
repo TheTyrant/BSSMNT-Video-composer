@@ -82,7 +82,7 @@ class ProjectFile {
     // picker everywhere else (Firefox) — either way, one folder, every file
     // matched by name and size (D-65).
     this.el.folder.addEventListener('click', () => {
-      if (window.showDirectoryPicker) this.reconnect('folder').catch(fail);
+      if (MediaLibrary.canUse('showDirectoryPicker')) this.reconnect('folder').catch(fail);
       else if (this.el.folderInput) this.el.folderInput.click();
     });
     if (this.el.folderInput) {
@@ -97,7 +97,7 @@ class ProjectFile {
       e.target.value = '';
       this.reconnect('files', fs).catch(fail);
     });
-    this.el.auto.hidden = !window.showOpenFilePicker;   // remembered files exist only where the browser keeps file handles
+    this.el.auto.hidden = !MediaLibrary.canUse('showOpenFilePicker');   // remembered files exist only where the browser keeps file handles
     window.addEventListener('beforeunload', (e) => {
       if (!this.dirty) return;
       e.preventDefault();
@@ -131,7 +131,7 @@ class ProjectFile {
   // Media the project would pack (track + every connected asset).
   packable() {
     const out = [];
-    const tf = this.app.trackSource.file;
+    const tf = this.app.trackSource.file || (this.app.parkedTrack && this.app.parkedTrack.file);
     if (tf) out.push(tf);
     this.app.clipEngine.assets.forEach(a => { if (a.file && !a.offline) out.push(a.file); });
     return out;
@@ -205,6 +205,8 @@ class ProjectFile {
       }
       assets.push({
         id: a.id, name: a.name, kind: a.kind, ref: a.file ? MediaLibrary.ref(a.file) : a.ref, packed,
+        path: a.file ? DesktopFiles.pathOf(a.file) : (a.path || null),
+        origin: a.file ? (a.file.__origin || null) : (a.origin || null),
         asClip: a.asClip, layer: a.layer, band: a.band, pace: a.pace, importance: a.importance,
         story: a.story, storyHold: a.storyHold, fade: { ...(a.fade || {}) }, duration: a.duration, width: a.width, height: a.height,
         rotation: a.rotation || 0, thumb,
@@ -223,7 +225,9 @@ class ProjectFile {
       live = { file: ProjectFile.livePath(take.type), type: take.type, offset: take.offset };
       out.push({ name: live.file, data: take.blob });
     }
-    const tf = app.trackSource.file;
+    // The track: the loaded one, or one parked while SRC is on Live (D-74).
+    const pk = app.trackSource.file ? null : app.parkedTrack;
+    const tf = app.trackSource.file || (pk && pk.file) || null;
     let trackPacked = null;
     if (tf && packSet.has(tf)) {
       trackPacked = `media/track/${ProjectFile.safeName(tf.name)}`;
@@ -241,7 +245,10 @@ class ProjectFile {
         mode: app.audioSourceMode,
         track: tf ? MediaLibrary.ref(tf) : (this.trackRef || null),
         packed: trackPacked,
-        duration: app.trackSource.duration || (this.trackRef && this.trackDuration) || 0,
+        path: tf ? DesktopFiles.pathOf(tf) : (this.trackPath || null),
+        origin: tf ? (tf.__origin || null) : (this.trackOrigin || null),
+        parked: pk ? { time: pk.time, engine: pk.engine, record: 'record/parked-frames.bin' } : null,
+        duration: app.trackSource.duration || (pk && pk.duration) || (this.trackRef && this.trackDuration) || 0,
       },
       visualMode: viz.currentMode,
       display: app.display ? app.display.key : 'original',
@@ -266,6 +273,7 @@ class ProjectFile {
     // ~8.6 KB per second stored, small next to the media (D-65).
     out.unshift({ name: 'project.json', data: strToU8(JSON.stringify(project, null, 1)), level: 0 });
     out.splice(1, 0, { name: 'record/frames.bin', data: app.record.toBytes(), level: 0 });
+    if (pk) out.push({ name: 'record/parked-frames.bin', data: pk.record });
     return out;
   }
 
@@ -307,7 +315,7 @@ class ProjectFile {
       if (status && total > 50e6) status.textContent = `Saving… ${pct}% (${(done / 1e9).toFixed(2)} of ${(total / 1e9).toFixed(2)} GB)`;
     };
     let size = 0;
-    if (window.showSaveFilePicker) {
+    if (MediaLibrary.canUse('showSaveFilePicker')) {
       // Chrome / Edge: straight to the chosen file.
       if (as || !this.handle) {
         this.handle = await window.showSaveFilePicker({
@@ -376,7 +384,7 @@ class ProjectFile {
   // ---- open -----------------------------------------------------------------
 
   async openPicker() {
-    if (window.showOpenFilePicker) {
+    if (MediaLibrary.canUse('showOpenFilePicker')) {
       let hs;
       try {
         hs = await window.showOpenFilePicker({ types: [{ description: 'BSSMNT project', accept: { [ProjectFile.MIME]: ['.mnt'] } }] });
@@ -464,11 +472,21 @@ class ProjectFile {
     app.parkedTrack = null;
     this.missing = [];
     this.trackRef = project.source.track || null;
+    this.trackPath = project.source.path || null;
+    this.trackOrigin = project.source.origin || null;
     this.trackDuration = project.source.duration || 0;
+    const findTrack = async () => (await this.packedFile(zr, project.source.packed, this.trackRef))
+      || await MediaLibrary.fromHandle(this.trackRef, false)
+      || await DesktopFiles.find(this.trackRef, this.trackPath, this.trackOrigin);
     if (wantFile && this.trackRef) {
-      const f = (await this.packedFile(zr, project.source.packed, this.trackRef)) || await MediaLibrary.fromHandle(this.trackRef, false);
+      const f = await findTrack();
       if (f) await app.loadAudioFile(f, { autoplay: false, keepSession: true });
-      else this.missing.push({ type: 'track', ref: this.trackRef });
+      else this.missing.push({ type: 'track', ref: this.trackRef, path: this.trackPath, origin: this.trackOrigin });
+    } else if (!wantFile && this.trackRef && project.source.parked) {
+      // Saved on Live with a track parked: it comes back parked (D-74).
+      const f = await findTrack();
+      const pk = project.source.parked;
+      if (f) app.parkedTrack = { file: f, time: pk.time || 0, engine: pk.engine, record: (zr.has(pk.record) && await zr.bytes(pk.record)) || new Uint8Array(0), energy: [] };
     }
 
     // 4. Assets: placeholders keep ids + settings; connect what we can.
@@ -479,9 +497,11 @@ class ProjectFile {
     }
     e.renumber();
     for (const saved of project.assets) {
-      const f = (await this.packedFile(zr, saved.packed, saved.ref)) || (saved.ref ? await MediaLibrary.fromHandle(saved.ref, false) : null);
+      const f = (await this.packedFile(zr, saved.packed, saved.ref))
+        || (saved.ref ? await MediaLibrary.fromHandle(saved.ref, false) : null)
+        || await DesktopFiles.find(saved.ref, saved.path, saved.origin);
       if (f) e.relinkAsset(saved.id, f);
-      else this.missing.push({ type: 'asset', id: saved.id, ref: saved.ref });
+      else this.missing.push({ type: 'asset', id: saved.id, ref: saved.ref, path: saved.path, origin: saved.origin });
     }
 
     // 5. Voice (always stored inside the project; copied out so a later save
@@ -587,7 +607,9 @@ class ProjectFile {
 
   async reconnect(method, picked) {
     if (!this.missing.length) return;
-    const refs = this.missing.map(m => m.ref);
+    // Converted items (ASF / WMV) are found by their original file (D-74).
+    const keyRef = (m) => (m.origin && m.origin.ref) || m.ref;
+    const refs = this.missing.map(keyRef);
     let found = new Map();
     if (method === 'handles') {
       for (const r of refs) {
@@ -602,8 +624,12 @@ class ProjectFile {
     let n = 0;
     this.quiet(6000);
     for (const m of this.missing.slice()) {
-      const f = found.get(MediaLibrary.key(m.ref));
+      let f = found.get(MediaLibrary.key(keyRef(m)));
       if (!f) continue;
+      if (m.origin) {
+        if (!MediaConvert.available()) continue;
+        try { f = await MediaConvert.convert(f, m.origin.kind || (m.type === 'track' ? 'audio' : 'video')); } catch (err) { console.warn(err); continue; }
+      }
       if (m.type === 'track') await this.app.loadAudioFile(f, { autoplay: false, keepSession: true });
       else this.app.clipEngine.relinkAsset(m.id, f);
       this.missing = this.missing.filter(x => x !== m);

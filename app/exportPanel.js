@@ -59,7 +59,7 @@ class ExportPanel {
     el.start.disabled = true;
     el.progress.hidden = false;
     el.bar.style.width = '0%';
-    el.status.textContent = window.showSaveFilePicker ? 'Choose where to save…' : 'Preparing…';
+    el.status.textContent = MediaLibrary.canUse('showSaveFilePicker') ? 'Choose where to save…' : 'Preparing…';
     try {
       const res = await this.app.renderer.export({
         size: el.size.value, range: el.range.value, fps: parseInt(el.fps.value, 10), quality: el.quality.value, name: this.app.project.name,

@@ -153,7 +153,7 @@ class OfflineRenderer {
 
     // The save dialog has to open straight from the click.
     let handle = null, writable = null, tmp = null;
-    if (window.showSaveFilePicker && !opts.toMemory) {
+    if (MediaLibrary.canUse('showSaveFilePicker') && !opts.toMemory) {
       handle = await window.showSaveFilePicker({ suggestedName: `${name}.mp4`, types: [{ description: 'MP4 video', accept: { 'video/mp4': ['.mp4'] } }] });
       writable = await handle.createWritable();
     } else if (!opts.toMemory) {

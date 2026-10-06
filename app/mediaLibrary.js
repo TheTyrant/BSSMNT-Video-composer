@@ -65,29 +65,51 @@ const MediaLibrary = {
     if (ps.length) Promise.all(ps).then(hs => this.remember(hs));
   },
 
-  // The picker that also gives us handles (Chrome / Edge); null elsewhere.
+  // The picker that also gives us handles (Chrome / Edge). Only in a
+  // top-level window: inside a frame (VS Code's Simple Browser, embeds) the
+  // dialog may open but the page isn't allowed to read the file (D-72).
+  // Save / folder dialogs that write or read through handles: top-level only.
+  canUse(fn) {
+    let top = false;
+    try { top = window.self === window.top; } catch (e) { top = false; }
+    return !!window[fn] && top;
+  },
+
+  handlesOK() {
+    let top = false;
+    try { top = window.self === window.top; } catch (e) { top = false; }
+    return !!window.showOpenFilePicker && top && !this.pickerBroken;
+  },
+
+  // Files chosen, [] if cancelled, null if this picker can't be used here.
   async pick({ multiple = false, accept = {} } = {}) {
-    if (!window.showOpenFilePicker) return null;
+    if (!this.handlesOK()) return null;
     try {
       const hs = await window.showOpenFilePicker({ multiple, types: Object.keys(accept).length ? [{ description: 'Media', accept }] : undefined });
+      const files = await Promise.all(hs.map(h => h.getFile()));
       this.remember(hs);
-      return Promise.all(hs.map(h => h.getFile()));
+      return files;
     } catch (e) {
       if (e && e.name === 'AbortError') return [];
+      console.warn('File picker unavailable here, using the standard one:', e);
+      this.pickerBroken = true;
       return null;
     }
   },
 
-  // Route a file <input> through pick() when available, so files chosen
-  // with the chooser are remembered too. Falls back to the normal input.
-  usePicker(input, accept, onFiles) {
+  // Route a file <input> through pick() when it works here, so files chosen
+  // with the chooser are remembered too; otherwise the input's own dialog.
+  // onFail(message) is told when the pick had to be redone.
+  usePicker(input, accept, onFiles, onFail) {
     if (!input) return;
     input.addEventListener('click', (e) => {
-      if (!window.showOpenFilePicker) return;
+      if (!this.handlesOK()) return;              // standard dialog
       e.preventDefault();
       this.pick({ multiple: input.multiple, accept }).then((files) => {
-        if (files === null) input.showPicker ? input.showPicker() : null;
-        else if (files.length) onFiles(files);
+        if (files === null) {
+          // Couldn't read the pick: open the standard dialog (or ask to click again).
+          try { input.showPicker(); } catch (err) { if (onFail) onFail('This window could not read that file. Click Choose file again.'); }
+        } else if (files.length) onFiles(files);
       });
     });
   },

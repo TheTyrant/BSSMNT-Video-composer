@@ -2,8 +2,11 @@
 // Chromium engine it was tested against built in. It loads index.html from
 // the app folder (the file:// path, D-64), so nothing needs a server or the
 // internet.
-const { app, BrowserWindow, session, shell, Menu } = require('electron');
+const { app, BrowserWindow, session, shell, Menu, dialog } = require('electron');
 const path = require('path');
+const convert = require('./convert');   // ASF / WMV / WMA import (D-73)
+
+convert.registerScheme();
 
 // Media plays without a click first (tracks, previews), as in the browser
 // version; exports keep running while the window is in the background.
@@ -30,6 +33,7 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       backgroundThrottling: false,
+      preload: path.join(__dirname, 'preload.js'),
     },
   });
   win.removeMenu();
@@ -48,6 +52,16 @@ function createWindow() {
     };
   });
 
+  // Unsaved changes: the page asks before leaving. Electron would cancel the
+  // close silently (the app couldn't be closed), so ask here instead (D-74).
+  win.webContents.on('will-prevent-unload', (e) => {
+    const choice = dialog.showMessageBoxSync(win, {
+      type: 'warning', buttons: ['Close without saving', 'Cancel'], defaultId: 1, cancelId: 1,
+      title: 'Unsaved changes', message: 'This project has unsaved changes.', detail: 'Close BSS MNT without saving them?',
+    });
+    if (choice === 0) e.preventDefault();   // = let the window close
+  });
+
   win.loadFile(path.join(ROOT, 'index.html'));
   return win;
 }
@@ -57,6 +71,7 @@ app.whenReady().then(() => {
   const s = session.defaultSession;
   s.setPermissionRequestHandler((wc, permission, callback) => callback(ALLOWED.has(permission)));
   s.setPermissionCheckHandler((wc, permission) => ALLOWED.has(permission));
+  convert.setup();
   createWindow();
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });

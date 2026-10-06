@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="vendor/fonts/fonts.css">
 
     <!-- External Styles -->
-    <link rel="stylesheet" href="styles/styles.css?v=2.10.2">
+    <link rel="stylesheet" href="styles/styles.css?v=2.11.1">
 
     <!-- External Libraries -->
     <script src="vendor/p5.min.js"></script>
@@ -103,7 +103,7 @@
             <div id="fileSourceControls" class="hidden">
               <div class="field dropzone" id="audioDropZone">
                 <label for="audioFileUpload">Song / track</label>
-                <input type="file" id="audioFileUpload" accept="audio/*">
+                <input type="file" id="audioFileUpload" accept="audio/*,.wma,.asf">
                 <span id="audioFileStatus" class="custom-media-status">No file selected</span>
               </div>
             </div>
@@ -236,7 +236,7 @@
             <h3><span class="sec-num">02.5</span>Assets</h3>
             <!-- One bin for images and video (D-44). -->
             <label class="asset-drop dropzone" id="assetDrop" title="Drop images or video here, or click to choose">
-              <input type="file" id="assetUpload" accept="image/*,video/*" multiple>
+              <input type="file" id="assetUpload" accept="image/*,video/*,.asf,.wmv" multiple>
               <span class="bin-add-plus">+</span>
               <span>Drop images or video<br>or choose files</span>
             </label>
@@ -493,7 +493,7 @@
               <div class="ch ch-bin"><span class="ch-name">Action</span><span class="ch-sub" id="binCount">0 clips</span><span class="ch-sub ch-hint">Drag to reorder.<br>Top = most important</span></div>
               <div class="clip-bin dropzone" id="clipBin">
                 <label class="bin-add" title="Add images or video (also in 02 Assets)">
-                  <input type="file" id="clipUpload" accept="image/*,video/*" multiple>
+                  <input type="file" id="clipUpload" accept="image/*,video/*,.asf,.wmv" multiple>
                   <span class="bin-add-plus">+</span>
                   <span>Add clips</span>
                 </label>
@@ -537,32 +537,33 @@
     </div>
 
     <!-- Application Modules -->
-    <script src="app/vendorLoader.js?v=2.10.2"></script>
-    <script src="app/audioProcessor.js?v=2.10.2"></script>
-    <script src="app/videoOrientation.js?v=2.10.2"></script>
-    <script src="app/visualizer.js?v=2.10.2"></script>
-    <script src="app/trackSource.js?v=2.10.2"></script>
-    <script src="app/analysisEq.js?v=2.10.2"></script>
-    <script src="app/voiceTrack.js?v=2.10.2"></script>
-    <script src="app/musicalTime.js?v=2.10.2"></script>
-    <script src="app/transitions.js?v=2.10.2"></script>
-    <script src="app/clipEngine.js?v=2.10.2"></script>
-    <script src="app/sessionRecord.js?v=2.10.2"></script>
-    <script src="app/mediaLibrary.js?v=2.10.2"></script>
-    <script src="app/zip64.js?v=2.10.2"></script>
-    <script src="app/projectFile.js?v=2.10.2"></script>
-    <script src="app/textOverlay.js?v=2.10.2"></script>
-    <script src="app/textPanel.js?v=2.10.2"></script>
-    <script src="app/liveRecorder.js?v=2.10.2"></script>
-    <script src="app/renderer.js?v=2.10.2"></script>
-    <script src="app/displaySize.js?v=2.10.2"></script>
-    <script src="app/exportPanel.js?v=2.10.2"></script>
-    <script src="app/scope.js?v=2.10.2"></script>
-    <script src="app/timelinePanel.js?v=2.10.2"></script>
-    <script src="app/sidebar.js?v=2.10.2"></script>
-    <script src="app/headerPickers.js?v=2.10.2"></script>
-    <script src="app/assetPanel.js?v=2.10.2"></script>
-    <script src="app/eqPanel.js?v=2.10.2"></script>
-    <script src="app/app.js?v=2.10.2"></script>
+    <script src="app/vendorLoader.js?v=2.11.1"></script>
+    <script src="app/audioProcessor.js?v=2.11.1"></script>
+    <script src="app/videoOrientation.js?v=2.11.1"></script>
+    <script src="app/visualizer.js?v=2.11.1"></script>
+    <script src="app/trackSource.js?v=2.11.1"></script>
+    <script src="app/analysisEq.js?v=2.11.1"></script>
+    <script src="app/voiceTrack.js?v=2.11.1"></script>
+    <script src="app/musicalTime.js?v=2.11.1"></script>
+    <script src="app/transitions.js?v=2.11.1"></script>
+    <script src="app/clipEngine.js?v=2.11.1"></script>
+    <script src="app/sessionRecord.js?v=2.11.1"></script>
+    <script src="app/mediaLibrary.js?v=2.11.1"></script>
+    <script src="app/mediaConvert.js?v=2.11.1"></script>
+    <script src="app/zip64.js?v=2.11.1"></script>
+    <script src="app/projectFile.js?v=2.11.1"></script>
+    <script src="app/textOverlay.js?v=2.11.1"></script>
+    <script src="app/textPanel.js?v=2.11.1"></script>
+    <script src="app/liveRecorder.js?v=2.11.1"></script>
+    <script src="app/renderer.js?v=2.11.1"></script>
+    <script src="app/displaySize.js?v=2.11.1"></script>
+    <script src="app/exportPanel.js?v=2.11.1"></script>
+    <script src="app/scope.js?v=2.11.1"></script>
+    <script src="app/timelinePanel.js?v=2.11.1"></script>
+    <script src="app/sidebar.js?v=2.11.1"></script>
+    <script src="app/headerPickers.js?v=2.11.1"></script>
+    <script src="app/assetPanel.js?v=2.11.1"></script>
+    <script src="app/eqPanel.js?v=2.11.1"></script>
+    <script src="app/app.js?v=2.11.1"></script>
   </body>
 </html>

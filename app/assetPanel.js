@@ -58,6 +58,10 @@ class AssetPanel {
 
   addAndSelect(files) {
     if (this.app.openIfProject(files)) return;
+    const split = MediaConvert.split(files);
+    this.app.convertThenAdd(split.later, (fs) => this.addAndSelect(fs));   // Windows Media (D-73)
+    files = split.now;
+    if (!files.length) return;
     const { added, rejected } = this.engine.addFiles(files);
     if (added.length) this.engine.select(added[0].id);
     this.app.notify(this.app.addedMessage(added, rejected));
