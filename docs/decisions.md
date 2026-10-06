@@ -410,6 +410,24 @@ The brief's four questions were not answered before the build. Rather than guess
 - **Fix:** the Track file picker is cleared on every pick, so the same file always loads again.
 - **Checked:** import after live running / live stopped / fresh now loads every time (Chrome; Electron app from source, including the native file dialog, which opens with the "Media" filter). Clip editing after live mode matches a fresh session (BPM lock 14 s, 12–13 cuts in 25 s, A/B/C rotating) and the build before the live work (041ddfc) in a side-by-side run. Note: cuts start once the tempo is found (about 14 s into this test track — "Listening for tempo…"); until then the first clip plays, as before.
 
+
+### D-72 · Fix: Choose file did nothing inside VS Code's preview *(Accepted — built)*
+- **Cause:** file pickers go through the browser's newer picker (it remembers files for reconnecting projects). Inside a frame — VS Code's Simple Browser, embeds — that dialog opens but the page may not read the chosen file; the error wasn't caught, so nothing loaded and nothing was said.
+- **Fix:** that picker (and the save / open / folder dialogs) is used only in a top-level window; in a frame the standard picker is used. If it ever fails to read a file, the app switches to the standard picker and says to click again.
+- **Verified** with a real click on Choose file and the real Windows dialog in VS Code's Simple Browser (VS Code 1.140): the track loaded and played.
+
+### D-73 · Windows Media (ASF / WMV / WMA) converted on import *(Accepted — built)*
+- **Why (Omar):** screen recordings arrive as .asf (WMV3 video, WMA audio); no browser engine decodes them, so they came in blank with no duration.
+- **Desktop app:** FFmpeg is bundled (`resources/ffmpeg`, GPL — `vendor/licenses/NOTICE-ffmpeg.txt`). Adding an .asf / .wmv / .wma as a clip converts it to MP4 (H.264 + AAC), as the track to M4A (AAC), with progress; results are cached in the app's data folder (same file = instant). Source frame timing is kept (`-fps_mode vfr`): these recorders declare a 1000 fps timebase, and constant-rate output took 331 s and 76 MB for a 3½-min file instead of 8 s and 7.5 MB.
+- **Browser:** a clear message (desktop app, or convert to MP4 first) instead of a blank clip.
+- **Verified:** FFmpeg on Omar's recordings (WMV3 1280×892 / 2880×1776, WMA2); headless app flow with the bridge stubbed — clips ready with picture and duration, .asf as track plays, editor cuts and export renders from them.
+
+### D-74 · Desktop fixes: closing, linked media, parked track *(Accepted — built)*
+- **Couldn't close the app:** with unsaved changes the page asks before leaving; Electron cancelled the close silently. The launcher now shows "Unsaved changes — Close without saving / Cancel". The page's clean-up moved from beforeunload to pagehide, so Cancel no longer leaves a torn-down app.
+- **Linked projects lost files (9 of 22):** browsers never expose file paths, so reopening relied on remembered permissions or name + size matching — which never matched converted .asf clips (the project stored the converted MP4). The desktop app now saves each file's **real path**, and for converted clips the **original .asf**; reopening loads them from disk (re-converting from the cache). Find in folder / Choose files match converted clips by their original.
+- **No audio after reopening (browser):** saving with SRC on Live left the parked track (D-62) out of the project. The parked track and its session are now saved and restored parked.
+- **Verified headless:** parked track saved and restored; Link save records paths and the .asf origin; reopen with the desktop bridge stubbed finds all three clips and the track with nothing to reconnect; earlier suites pass. The close dialog and real paths need the desktop app itself (not opened during testing).
+
 ## I. Known carry-overs (pre-existing on `main`, not changed)
 - Placeholder text drawn with `p.text()` in WebGL mode doesn't render, because no font is loaded (affects the Media Layers "Upload images…" prompt). v2 uses a DOM overlay for its own hints.
 - `visualizer.js` has duplicate `drawAudioWaves` / `drawMandala` / `drawTunnel` definitions (the later ones win), plus unused snake-game code.

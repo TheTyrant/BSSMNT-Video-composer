@@ -13,6 +13,7 @@ Built on the open-source *JS DJ Audio Visualizer* (credited below). Performed li
 - **Offline export:** MP4 (H.264 + AAC) at 720p / 1080p / 4K, vertical or square, faster than real time on a GPU; replays exactly what was recorded (cuts, motion, text, fades, voice; muted tracks left out).
 - **Live mode recording** *(untested in real-world use)*: records the live input so live exports have sound; crash-safe.
 - **Projects (.mnt):** save and reopen everything. **Pack** puts the media inside (any size, opens anywhere) or **Link** keeps the file small; the projected file size shows before you save.
+- **Screen recordings (.asf / .wmv / .wma):** the desktop app converts them on import (bundled FFmpeg); linked projects in the desktop app reopen media from its real location.
 - **Dynamic EQ** for what the analysis hears, an analyser-style EQ graph and session lanes, and a **dark skin** (header button).
 
 ## Download (Windows)
