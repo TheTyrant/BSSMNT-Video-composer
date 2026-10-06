@@ -39,6 +39,16 @@ const MediaLibrary = {
     } catch (e) { /* storage blocked: reconnecting will ask instead */ }
   },
 
+  async del(ref) {
+    try {
+      const db = await this.db();
+      await new Promise((res) => { const tx = db.transaction(this.STORE, 'readwrite'); tx.objectStore(this.STORE).delete(this.key(ref)); tx.oncomplete = tx.onerror = res; });
+    } catch (e) { /* nothing stored */ }
+  },
+
+  // Stored handle by its key name (e.g. recent projects).
+  async getRaw(name) { return this.get({ name, size: 0, lastModified: 0 }); },
+
   async get(ref) {
     try {
       const db = await this.db();

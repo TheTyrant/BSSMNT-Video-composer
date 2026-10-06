@@ -42,7 +42,7 @@ No build step is needed for the web version itself — everything it uses is in 
 **Browsers:** Chrome and Edge (recommended — they save straight to your disk) and Firefox (tested: 156; projects and exports go to your Downloads folder). Safari isn't supported.
 
 ## Controls and shortcuts
-See **[README-BSSMNT.txt](README-BSSMNT.txt)** (also included with every download) and the in-app help (**?**). Main keys: **Space** play/pause · **F** fullscreen · **1–9** visual modes · **0** Clip Auto-Editor · **Ctrl+1–4** panels · **Shift+A** Auto-Editor · **Ctrl+S / Ctrl+Shift+S / Ctrl+O** save / save as / open · **R** reset sensitivity · **?** help.
+See **[README-BSSMNT.txt](README-BSSMNT.txt)** (also included with every download) and the in-app help (**?**). Main keys: **Space** play/pause · **F** fullscreen · **1–9** visual modes · **0** Clip Auto-Editor · **Ctrl+1–4** File / Input / Sound / Effects · **Ctrl+N** new project (browser Alt+N) · **Shift+A** Auto-Editor · **Ctrl+S / Ctrl+Shift+S / Ctrl+O** save / save as / open · **R** reset sensitivity · **?** help.
 
 Changes: [CHANGELOG.md](CHANGELOG.md).
 

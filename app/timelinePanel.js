@@ -217,7 +217,7 @@ class TimelinePanel {
     const s = this.engine.settings;
     if (!s.storyMode) return 'Free Mode: the automation runs unrestricted.';
     const used = this.engine.assets.filter(a => a.story !== 'none').length;
-    if (!used) return 'No positions set. Give up to three clips a position (Hook, Result / Climax, CTA) in 02 Assets › Asset timing; everything else stays automated.';
+    if (!used) return 'No positions set. Give up to three clips a position (Hook, Result / Climax, CTA) in 03 Sound › Asset timing; everything else stays automated.';
     const roles = { hook: 'Hook', result: 'Result', cta: 'CTA' };
     const set = Object.keys(roles).map(r => {
       const a = this.engine.assets.find(x => x.story === r);

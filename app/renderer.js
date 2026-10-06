@@ -123,7 +123,7 @@ class OfflineRenderer {
     const missing = Math.max(0, frames - recorded) / SessionRecord.FPS;
     if (duration > 0 && missing > 0.5) warnings.push(`${fmtTime(missing, false)} of the timeline hasn't been played yet, so it has no recorded motion (shown still). Play it through once to record it.`);
     if (!track && duration > 0 && !(app.live && app.live.take)) warnings.push(app.live && !app.live.enabled
-      ? 'Live mode: Record input for export is off (01 Input), so the export has no input sound.'
+      ? 'Live mode: Record input for export is off (02 Input), so the export has no input sound.'
       : 'Live mode: no input recording for this session, so the export has no input sound.');
     const usesClips = this.modesUsed(frames).has('clips');
     if (usesClips && !edl.length) warnings.push('Clip Auto-Editor was on but no cuts were recorded.');

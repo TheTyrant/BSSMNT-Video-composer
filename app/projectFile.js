@@ -61,7 +61,8 @@ class ProjectFile {
       openInput: $('projectOpenInput'), status: $('projectStatus'), missing: $('projectMissing'),
       missingCount: $('missingCount'), missingList: $('missingList'), auto: $('reconnectAuto'),
       folder: $('reconnectFolder'), folderInput: $('reconnectFolderInput'), files: $('reconnectFiles'),
-      media: $('projectMedia'), packHint: $('projectPackHint'),
+      media: $('projectMedia'), packHint: $('projectPackHint'), newBtn: $('projectNew'), newKey: $('projectNewKey'),
+      recent: $('projectRecent'), exportMenu: $('exportMenu'),
     };
     if (!this.el.save) return;
     const fail = (e) => { console.error(e); if (e && e.name !== 'AbortError') alert('Project: ' + (e.message || e)); };
@@ -75,8 +76,22 @@ class ProjectFile {
       if (f) this.open(f).catch(fail);
     });
     if (this.el.media) {
-      this.el.media.querySelectorAll('button').forEach(b => b.addEventListener('click', () => this.setPack(b.dataset.v === 'pack')));
+      this.el.media.querySelectorAll('input[type=radio]').forEach(r => r.addEventListener('change', () => this.setPack(r.value === 'pack')));
     }
+    // New project / Open recent (D-76)
+    if (this.el.newBtn) this.el.newBtn.addEventListener('click', () => this.app.newProject());
+    if (this.el.newKey) this.el.newKey.textContent = window.bssmntDesktop ? 'Ctrl+N' : 'Alt+N';
+    if (this.el.recent) {
+      this.el.recent.addEventListener('change', () => {
+        const id = this.el.recent.value;
+        this.el.recent.value = '';
+        if (id) this.openRecent(id).catch(fail);
+      });
+      this.renderRecent();
+    }
+    try {
+      if (sessionStorage.getItem('bssmnt.newProject')) { sessionStorage.removeItem('bssmnt.newProject'); setTimeout(() => this.app.notify('New project'), 300); }
+    } catch (e) { /* storage blocked */ }
     this.el.auto.addEventListener('click', () => this.reconnect('handles').catch(fail));
     // Find in folder: the folder dialog (Chrome / Edge), or a folder upload
     // picker everywhere else (Firefox) — either way, one folder, every file
@@ -148,11 +163,7 @@ class ProjectFile {
     if (rec > 0) parts.push(`${fmtTime(rec, false)} recorded`);
     this.el.status.textContent = parts.join(' · ');
     if (this.el.media) {
-      this.el.media.querySelectorAll('button').forEach(b => {
-        const on = (b.dataset.v === 'pack') === this.pack;
-        b.classList.toggle('on', on);
-        b.setAttribute('aria-checked', String(on));
-      });
+      this.el.media.querySelectorAll('input[type=radio]').forEach(r => { r.checked = (r.value === 'pack') === this.pack; });
     }
     if (this.el.packHint) {
       const size = (b) => (b >= 1e9 ? `${(b / 1e9).toFixed(2)} GB` : b >= 1e6 ? `${(b / 1e6).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1e3))} KB`);
@@ -329,6 +340,7 @@ class ProjectFile {
         await w.close();
       } catch (e) { try { await w.abort(); } catch (_) { /* closed */ } throw e; }
       this.name = this.handle.name.replace(/\.mnt$/i, '');
+      this.addRecent({ name: this.handle.name, handle: this.handle });
       // Media opened from this same .mnt now has to read from the new file.
       if (this.sourceHandle && await this.handle.isSameEntry(this.sourceHandle)) await this.repointPacked(await this.handle.getFile());
     } else {
@@ -348,6 +360,7 @@ class ProjectFile {
         size = await this.writeZip(entries, (c) => { chunks.push(c); }, progress);
         blob = new Blob(chunks, { type: ProjectFile.MIME });
       }
+      this.addRecent({ name: this.fileName(), file: new File([blob], this.fileName(), { type: ProjectFile.MIME }) });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = this.fileName();
@@ -414,12 +427,14 @@ class ProjectFile {
     }
     this.handle = handle;
     this.sourceHandle = handle;      // packed media plays from this file
-    this.name = project.name || file.name.replace(/\.mnt$/i, '');
+    // The project is named after its file, as in other software (D-76).
+    this.name = file.name.replace(/\.mnt$/i, '') || project.name || 'Untitled';
     this.dirty = false;
     this.savedAt = Date.parse(project.saved) || Date.now();
+    this.addRecent({ name: file.name, handle, path: DesktopFiles.pathOf(file), file });
     this.app.sidebar.open('output');
     this.app.notify(this.missing.length
-      ? `Opened ${file.name} · ${this.missing.length} media file${this.missing.length === 1 ? '' : 's'} to reconnect (03 Output)`
+      ? `Opened ${file.name} · ${this.missing.length} media file${this.missing.length === 1 ? '' : 's'} to reconnect (01 File)`
       : `Opened ${file.name}`);
     this.render();
     return true;
@@ -601,6 +616,87 @@ class ProjectFile {
       c.getContext('2d').drawImage(bmp, 0, 0);
       return c;
     } catch (e) { return null; }
+  }
+
+  // ---- open recent (D-76) ------------------------------------------------------
+  // The last projects opened or saved: name and time in localStorage; the
+  // file handle (Chrome / Edge / desktop) in IndexedDB; the real path in the
+  // desktop app. A browser that gives neither can only list them.
+
+  recentList() {
+    try { return JSON.parse(localStorage.getItem('bssmnt.recent') || '[]'); } catch (e) { return []; }
+  }
+
+  // Every project opened or saved is logged. Where the browser gives no
+  // reusable handle or path (Firefox, VS Code's preview), a copy of the
+  // project file is kept in the browser's storage (up to RECENT_COPY_MAX).
+  static RECENT_COPY_MAX = 300e6;
+
+  async addRecent({ name, handle, path, file }) {
+    if (!name) return;
+    const old = this.recentList();
+    const same = old.filter(r => r.name === name);
+    const list = old.filter(r => r.name !== name);
+    const id = String(Date.now());
+    let copy = false;
+    if (!handle && !path && file && file.size <= ProjectFile.RECENT_COPY_MAX) {
+      try { await MediaLibrary.put({ name: 'recent-copy:' + id, size: 0, lastModified: 0 }, file); copy = true; } catch (e) { copy = false; }
+    }
+    if (handle) { try { await MediaLibrary.put({ name: 'recent:' + id, size: 0, lastModified: 0 }, handle); } catch (e) { handle = null; } }
+    list.unshift({ id, name, path: path || null, hasHandle: !!handle, hasCopy: copy, at: Date.now() });
+    const keep = list.slice(0, 8);
+    try { localStorage.setItem('bssmnt.recent', JSON.stringify(keep)); } catch (e) { /* storage blocked */ }
+    // drop stored handles / copies of entries that left the list
+    for (const r of [...same, ...old.slice(7)]) {
+      if (keep.some(k => k.id === r.id)) continue;
+      MediaLibrary.del && MediaLibrary.del({ name: 'recent:' + r.id, size: 0, lastModified: 0 });
+      MediaLibrary.del && MediaLibrary.del({ name: 'recent-copy:' + r.id, size: 0, lastModified: 0 });
+    }
+    this.renderRecent();
+  }
+
+  renderRecent() {
+    const sel = this.el && this.el.recent;
+    if (!sel) return;
+    const list = this.recentList();
+    sel.textContent = '';
+    sel.add(new Option(list.length ? 'Choose a project…' : 'No recent projects', ''));
+    list.forEach(r => sel.add(new Option(`${r.name.replace(/\.mnt$/i, '')}  ·  ${new Date(r.at).toLocaleDateString()}`, r.id)));
+    sel.disabled = !list.length;
+  }
+
+  async openRecent(id) {
+    const r = this.recentList().find(x => x.id === id);
+    if (!r) return;
+    let file = null, handle = null;
+    if (r.hasHandle) {
+      try {
+        handle = await MediaLibrary.getRaw('recent:' + id);
+        if (handle) {
+          let p = await handle.queryPermission({ mode: 'readwrite' });
+          if (p !== 'granted') p = await handle.requestPermission({ mode: 'readwrite' });
+          if (p === 'granted') file = await handle.getFile(); else handle = null;
+        }
+      } catch (e) { handle = null; }
+    }
+    if (!file && r.path) file = await DesktopFiles.open(r.path);
+    if (!file && r.hasCopy) {
+      const blob = await MediaLibrary.getRaw('recent-copy:' + id).catch(() => null);
+      if (blob) file = blob instanceof File ? blob : new File([blob], r.name, { type: ProjectFile.MIME });
+    }
+    if (!file && !r.hasHandle && !r.path && !r.hasCopy) {
+      // Too big to keep a copy, and no handle / path here: choose it again.
+      this.app.notify(`Choose ${r.name} again — this browser can't reopen it by itself.`, 8000);
+      return this.openPicker();
+    }
+    if (!file) {
+      const list = this.recentList().filter(x => x.id !== id);
+      try { localStorage.setItem('bssmnt.recent', JSON.stringify(list)); } catch (e) { /* storage blocked */ }
+      this.renderRecent();
+      this.app.notify(`Couldn't find ${r.name} (moved or deleted?) — use Open… to find it.`, 8000);
+      return;
+    }
+    await this.open(file, handle);
   }
 
   // ---- reconnect media ------------------------------------------------------

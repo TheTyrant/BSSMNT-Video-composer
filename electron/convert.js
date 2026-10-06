@@ -44,7 +44,7 @@ function setup() {
   });
 
   // Reopen a linked media file from its saved path (media files only).
-  const MEDIA = /\.(mp4|m4v|mov|webm|mkv|ogv|3gp|avi|asf|wmv|wma|mp3|wav|m4a|aac|ogg|oga|flac|opus|png|jpe?g|gif|webp|bmp|avif)$/i;
+  const MEDIA = /\.(mp4|m4v|mov|webm|mkv|ogv|3gp|avi|asf|wmv|wma|mp3|wav|m4a|aac|ogg|oga|flac|opus|png|jpe?g|gif|webp|bmp|avif|mnt)$/i;
   ipcMain.handle('bssmnt:open', async (event, p) => {
     if (typeof p !== 'string' || !MEDIA.test(p)) return null;
     let st;

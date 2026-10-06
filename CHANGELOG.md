@@ -9,8 +9,16 @@ Same version (alpha V1); fixes and one import addition.
 - **Reopened projects had no audio** when they were saved with SRC on Live: the parked track is now saved with the project.
 - **Choose file did nothing** inside VS Code's preview; it now uses the standard file dialog there.
 - **Re-choosing the same song** after using live mode did nothing; it now loads.
+- **Open recent didn't list projects** opened or saved in browsers without file handles (Firefox, VS Code's preview). Every project is now logged; where needed a copy (up to 300 MB) is kept so it reopens.
+- **Voice recording's REC timer** drove the live-input REC badge in the header (two controls shared an id); each badge is now separate.
+- **Pack / Link** radio clicks were undone by the unsaved-changes tracker; fixed. A reopened project now takes its file's name.
+- **Dark skin lines** were heavy: thinner (0.5 px / 1 px) and a softer tone.
 
 ### Added
+- **File menu** (01 File, now the first tab): New project, Open…, Open recent, Save with Pack / Link and the file size, Save as…, Export video (options in dropdowns), Output window — a list like traditional software, with the project name on top. Tabs are now 01 File, 02 Input, 03 Sound, 04 Effects (was Overlays); Ctrl / Alt + 1–4 follow that order.
+- **New project** (Ctrl+N in the desktop app, Alt+N in a browser) — asks first if there are unsaved changes.
+- **Effects** (was Overlays) is a list too, and every option is a dropdown instead of rows of buttons.
+- A reopened project takes its file's name.
 - **Screen recordings (.asf / .wmv / .wma)** are converted on import in the desktop app (bundled FFmpeg), instead of arriving blank. The browser version explains why it can't play them.
 - **README-BSSMNT.txt** with controls and shortcuts, included with every download.
 

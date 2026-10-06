@@ -49,7 +49,7 @@ class Sidebar {
     { names: ['audio', 'input'], ids: ['panel-input', 'panel-audio'] },
     { names: ['assets', 'sound'], ids: ['customMediaSection'] },
     { names: ['output', 'file'], ids: ['panel-output'] },
-    { names: ['text', 'overlays'], ids: ['panel-overlays', 'panel-text'] },
+    { names: ['text', 'overlays', 'effects'], ids: ['panel-overlays', 'panel-text'] },
     { names: ['autoedit'], ids: ['panel-autoedit'] },
   ];
 

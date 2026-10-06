@@ -188,20 +188,14 @@ class TextPanel {
     return r;
   }
 
+  // Every option is a dropdown (D-76): less space than rows of buttons.
   segment(options, value, onPick, id) {
-    const seg = document.createElement('div');
-    seg.className = 'seg seg-btns';
-    if (id) seg.id = id;
-    options.forEach(([v, l]) => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.dataset.v = v;
-      b.textContent = l;
-      b.classList.toggle('on', v === value);
-      b.addEventListener('click', () => onPick(v));
-      seg.appendChild(b);
-    });
-    return seg;
+    const sel = document.createElement('select');
+    if (id) sel.id = id;
+    options.forEach(([v, l]) => sel.add(new Option(l, v)));
+    sel.value = value;
+    sel.addEventListener('change', () => onPick(sel.value));
+    return sel;
   }
 
   num(value, min, step, onChange, id) {

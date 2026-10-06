@@ -310,7 +310,7 @@ class AssetPanel {
       ['Length', a.kind === 'image' ? 'Still' : (a.duration ? fmtTime(a.duration, true) : '…')],
       ['Size', a.width ? `${a.width}×${a.height}` : '…'],
       ['Rotation', a.kind === 'video' ? (a.rotation ? `${a.rotation}° (corrected)` : 'None') : '—'],
-      ['Decode', a.offline ? 'Offline: reconnect in 03 Output' : a.error ? 'ERR' : a.ready ? 'OK' : 'Loading…'],
+      ['Decode', a.offline ? 'Offline: reconnect in 01 File' : a.error ? 'ERR' : a.ready ? 'OK' : 'Loading…'],
       ['On air', onAir ? 'Yes' : 'No'],
       ['Role', roles.join(' · ') || 'Unused'],
     ];

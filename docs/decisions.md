@@ -433,6 +433,22 @@ The brief's four questions were not answered before the build. Rather than guess
 - Bug fixes are released as an update of the same alpha, not a new version number: builds are named alphaV1 again (the alphaV1.1–1.3 names and the BASSMNTalphaV1.3 tag are withdrawn). Changes are listed in CHANGELOG.md.
 - Every download carries **README-BSSMNT.txt** (getting started, all shortcuts, controls): next to the app in the installer and the zip, as its own release download, and in the source. The in-app help (?) now shows the current panel names and Save / Save as / Open.
 
+
+### D-76 · File menu, tab order, New project, Open recent, Effects as a list *(Accepted — Omar)*
+- **Tabs:** 01 File, 02 Input, 03 Sound, 04 Effects (Overlays renamed); Ctrl / Alt + 1–4 in that order. The sidebar still resolves the old names.
+- **01 File** is a traditional list menu, the project name field on top: New project · Open… · Open recent (dropdown) · Save, with Pack / Link radios beside it and the projected size underneath · Save as… · Export video (expands; options are dropdowns) · Output window. Choosing Pack / Link is not an unsaved edit.
+- **New project** asks if there are unsaved changes, finishes any live recording, and restarts the app fresh (all settings default; skin, Pack / Link and the recent list kept). Ctrl+N in the desktop app; Alt+N in browsers (they keep Ctrl+N).
+- **Open recent:** the last 8 projects opened or saved — the file handle where the browser keeps one (Chrome / Edge / desktop), the real path in the desktop app; a missing file is dropped from the list with a message.
+- **Name follows the file:** a reopened project is named after its .mnt (Save as used to leave the old name inside).
+- **04 Effects:** Add title / Add credits / Add text as a list; every text option (lock, size, align, backing, font, position, animation) is a dropdown.
+
+
+### D-77 · Fixes before showing: recent projects, REC badges, dark-skin strokes *(Accepted — built)*
+- **Open recent** logs every project opened or saved. Where the browser gives no reusable handle or path (Firefox, VS Code's preview), a copy of the .mnt (up to 300 MB) is kept in the browser's storage so it reopens; larger ones open the Open dialog.
+- **REC badges:** the header live-input badge and the timeline voice badge shared the id recBadge, so voice recording drove the header badge. The header one is now liveRecBadge.
+- **Dark skin strokes:** 1 px → 0.5 px, the heavy 2–3 px lines → 1 px, and lines use --line (ivory at 48 %) so they read thin at 134 % scaling, where nothing can be thinner than one screen pixel. Focus rings unchanged. Light skin unchanged (--line = ink).
+- **Basics check** (headless, every tab through its real controls): header SRC / MODE / SIZE / skin / help; 01 File name, New, Open, Open recent, Save, Pack / Link + size, Save as, Export (dropdowns, renders), Output window; 02 Input source, track, play / pause, mode, voice import / volume / normalize / offset, record-input; 03 Sound sensitivity + R, Dynamic tab, preset, Use = Blend, Flat, clips + image, Pace, Position, Auto fade, Media Layer, Importance; 04 Effects add three kinds, every dropdown, delete; Auto-Editor order / transition; timeline play / stop / home / mutes; keys Alt+1–4, Shift+A, digits, Space — 89 / 89 with file handles, 89 / 89 without; Firefox 157 save → new → open recent. Earlier suites pass.
+
 ## I. Known carry-overs (pre-existing on `main`, not changed)
 - Placeholder text drawn with `p.text()` in WebGL mode doesn't render, because no font is loaded (affects the Media Layers "Upload images…" prompt). v2 uses a DOM overlay for its own hints.
 - `visualizer.js` has duplicate `drawAudioWaves` / `drawMandala` / `drawTunnel` definitions (the later ones win), plus unused snake-game code.

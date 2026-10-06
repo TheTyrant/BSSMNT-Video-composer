@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="vendor/fonts/fonts.css">
 
     <!-- External Styles -->
-    <link rel="stylesheet" href="styles/styles.css?v=2.11.2">
+    <link rel="stylesheet" href="styles/styles.css?v=2.12.2">
 
     <!-- External Libraries -->
     <script src="vendor/p5.min.js"></script>
@@ -28,11 +28,11 @@
         </div>
         <div class="topbar-readouts">
           <!-- Original readouts; click the value (or the caret) for a quick
-               dropdown. Same controls live in 01 Audio. -->
+               dropdown. Same controls live in 02 Input. -->
           <div class="readout hdr-pick" id="srcPick">
             <span class="readout-k">SRC</span>
             <span class="activity-light" id="srcLight" title="Lights up when audio is coming in"></span>
-            <span class="rec-badge" id="recBadge" title="Recording the live input for export (untested in real-world use)" hidden>REC</span>
+            <span class="rec-badge" id="liveRecBadge" title="Recording the live input for export (untested in real-world use)" hidden>REC</span>
             <button type="button" class="hdr-btn" id="srcBtn" aria-haspopup="listbox" aria-expanded="false" aria-controls="srcMenu" aria-label="Audio source">
               <span id="topSource">LIVE</span><span class="caret" aria-hidden="true">&#x25BE;</span>
             </button>
@@ -65,8 +65,83 @@
       <aside class="sidebar" id="sidebar">
         <nav class="tab-rail" id="tabRail" aria-label="Sidebar sections"></nav>
         <div class="tab-panels" id="tabPanels">
-          <section class="control-section side-panel" id="panel-input" data-tab="input" data-num="01" data-label="Input">
-            <h3><span class="sec-num">01</span>Audio</h3>
+          <!-- 01 File (D-76): a traditional file menu. The project name stays on top. -->
+          <section class="control-section side-panel" id="panel-output" data-tab="file" data-num="01" data-label="File">
+            <h3><span class="sec-num">01</span>File</h3>
+            <div class="field file-name">
+              <label for="projectName">Project name</label>
+              <input type="text" id="projectName" value="Untitled" spellcheck="false">
+            </div>
+            <ul class="menu-list" role="menu" aria-label="File">
+              <li role="none"><button type="button" class="menu-item" role="menuitem" id="projectNew" title="Start a new, empty project"><span>New project</span><kbd id="projectNewKey">Ctrl+N</kbd></button></li>
+              <li role="none"><button type="button" class="menu-item" role="menuitem" id="projectOpen" title="Open a .mnt project"><span>Open…</span><kbd>Ctrl+O</kbd></button></li>
+              <li role="none" class="menu-item menu-select">
+                <label for="projectRecent">Open recent</label>
+                <select id="projectRecent" title="Projects you opened or saved recently"><option value="">No recent projects</option></select>
+              </li>
+              <li role="separator" class="menu-sep"></li>
+              <li role="none" class="menu-save">
+                <button type="button" class="menu-item" role="menuitem" id="projectSave" title="Save (Ctrl+S)"><span>Save</span><kbd>Ctrl+S</kbd></button>
+                <div class="media-radios" id="projectMedia" role="radiogroup" aria-label="Media in the saved file">
+                  <label title="Pack: the music, video and image files are copied into the .mnt. One file to keep, move or share — it reopens on any computer with nothing to reconnect. The file is as big as your media."><input type="radio" name="projectMedia" value="pack"> Pack</label>
+                  <label title="Link: the .mnt stays small. It only remembers each media file's name, size and date (and, in the desktop app, where it is); your files stay where they are and are found again when you reopen. If a file was moved or you open the project on another computer, you point to it once."><input type="radio" name="projectMedia" value="link"> Link</label>
+                </div>
+              </li>
+              <li role="none" class="menu-info"><p class="hint project-size" id="projectPackHint"></p></li>
+              <li role="none"><button type="button" class="menu-item" role="menuitem" id="projectSaveAs" title="Save under a new name"><span>Save as…</span><kbd>Ctrl+Shift+S</kbd></button></li>
+              <li role="separator" class="menu-sep"></li>
+              <li role="none">
+                <details class="menu-sub" id="exportMenu">
+                  <summary class="menu-item"><span>Export video</span><span class="menu-caret" aria-hidden="true">&#x25B8;</span></summary>
+                  <div class="menu-sub-body export-block">
+                  <div class="field">
+                    <label for="exportSize">Size</label>
+                    <select id="exportSize"></select>
+                  </div>
+                  <div class="field">
+                    <label for="exportRange">Range</label>
+                    <select id="exportRange"><option value="all" selected>Whole timeline</option><option value="played">Played part only</option></select>
+                  </div>
+                  <div class="field-row">
+                    <div class="field">
+                      <label for="exportFps">Frame rate</label>
+                      <select id="exportFps"><option value="30" selected>30 fps</option><option value="60">60 fps</option></select>
+                    </div>
+                    <div class="field">
+                      <label for="exportQuality">Quality</label>
+                      <select id="exportQuality"><option value="standard">Standard</option><option value="high" selected>High</option><option value="max">Max</option></select>
+                    </div>
+                  </div>
+                  <p class="hint" id="exportSummary">Nothing to export yet.</p>
+                  <ul class="export-warnings" id="exportWarnings"></ul>
+                  <button id="exportStart" class="btn btn-primary btn-block" type="button" disabled>Export MP4</button>
+                  <div id="exportProgress" class="export-progress" hidden>
+                    <div class="export-bar"><div id="exportBar"></div></div>
+                    <p class="hint" id="exportStatus"></p>
+                    <button id="exportCancel" class="btn btn-block" type="button">Cancel</button>
+                  </div>
+                  <p class="hint export-result" id="exportResult" hidden></p>
+                  </div>
+                </details>
+              </li>
+              <li role="none"><button type="button" class="menu-item" role="menuitem" id="popOutOutput" title="Opens the output (canvas only) in its own window — drag it to a projector and fullscreen it there"><span>Output window</span><span class="menu-note">pop-out</span></button></li>
+            </ul>
+            <input type="file" id="projectOpenInput" accept=".mnt" hidden>
+            <p class="hint" id="projectStatus">New project</p>
+              <div id="projectMissing" class="project-missing" hidden>
+                <p class="hint"><b id="missingCount">0</b> media file(s) to reconnect:</p>
+                <ul id="missingList" class="missing-list"></ul>
+                <div class="btn-row">
+                  <button id="reconnectAuto" class="btn" type="button" title="Reconnect files this browser remembers">Reconnect</button>
+                  <button id="reconnectFolder" class="btn" type="button" title="Pick a folder; files are matched by name and size">Find in folder</button>
+                  <input type="file" id="reconnectFolderInput" webkitdirectory multiple hidden>
+                </div>
+                <label class="btn btn-file btn-block" title="Pick the files; they are matched by name and size">Choose files<input type="file" id="reconnectFiles" multiple></label>
+              </div>
+          </section>
+
+          <section class="control-section side-panel" id="panel-input" data-tab="input" data-num="02" data-label="Input">
+            <h3><span class="sec-num">02</span>Input</h3>
             <div class="seg source-toggle-group" role="radiogroup" aria-label="Audio source">
               <label class="source-toggle">
                 <input type="radio" name="audioSource" value="mic" id="audioSourceMic" checked>
@@ -131,7 +206,7 @@
             </div><br>
 
             <!-- Voice Over (D-38–D-41): its own audio chain, follows the master timeline -->
-            <h3><span class="sec-num">01.5</span>Voice</h3>
+            <h3><span class="sec-num">02.5</span>Voice</h3>
             <div class="voice-block">
               <div class="btn-row">
                 <button id="voiceRecord" class="btn" type="button" title="Record at the playhead">&#x25CF; Record</button>
@@ -166,8 +241,8 @@
 
           </section>
 
-          <section class="control-section side-panel" id="customMediaSection" data-tab="sound" data-num="02" data-label="Sound">
-            <h3><span class="sec-num">02</span>Sound</h3>
+          <section class="control-section side-panel" id="customMediaSection" data-tab="sound" data-num="03" data-label="Sound">
+            <h3><span class="sec-num">03</span>Sound</h3>
 
             <!-- EQ (D-51): two views on one tab swap. Sensitivity = the band
                  faders (simple); Dynamic = an analysis EQ curve (advanced). The
@@ -233,7 +308,7 @@
               </div>
             </div> <br>
 
-            <h3><span class="sec-num">02.5</span>Assets</h3>
+            <h3><span class="sec-num">03.5</span>Assets</h3>
             <!-- One bin for images and video (D-44). -->
             <label class="asset-drop dropzone" id="assetDrop" title="Drop images or video here, or click to choose">
               <input type="file" id="assetUpload" accept="image/*,video/*,.asf,.wmv" multiple>
@@ -246,90 +321,15 @@
             <div class="asset-props" id="assetProps"></div>
           </section>
 
-          <section class="control-section side-panel" id="panel-output" data-tab="file" data-num="03" data-label="File">
-            <h3><span class="sec-num">03</span>File</h3>
-            <!-- Project file (.mnt, D-57): reopenable and editable. Media is linked. -->
-            <h4 class="sub-head sub-head-first">Project</h4>
-            <div class="project-block">
-              <div class="field">
-                <label for="projectName">Name</label>
-                <input type="text" id="projectName" value="Untitled" spellcheck="false">
-              </div>
-              <!-- Media: Pack or Link, with the projected file size (D-67) -->
-              <div class="field media-choice">
-                <label id="projectMediaLabel">Media</label>
-                <div class="seg seg-btns" id="projectMedia" role="radiogroup" aria-labelledby="projectMediaLabel">
-                  <button type="button" role="radio" data-v="pack" title="Pack: the music, video and image files are copied into the .mnt. One file to keep, move or share — it reopens on any computer with nothing to reconnect. The file is as big as your media.">Pack</button>
-                  <button type="button" role="radio" data-v="link" title="Link: the .mnt stays small. It only remembers each media file's name, size and date; your files stay where they are. When you reopen, the app finds them again (Reconnect, or Find in folder). If a file was moved or renamed, or you open the project on another computer, you point to it once.">Link</button>
-                </div>
-              </div>
-              <p class="hint project-size" id="projectPackHint"></p>
-              <div class="btn-row">
-                <button id="projectSave" class="btn btn-primary" type="button" title="Save (Ctrl+S)">Save</button>
-                <button id="projectSaveAs" class="btn" type="button" title="Save as (Ctrl+Shift+S)">Save as</button>
-                <button id="projectOpen" class="btn" type="button" title="Open (Ctrl+O)">Open</button>
-              </div>
-              <input type="file" id="projectOpenInput" accept=".mnt" hidden>
-              <p class="hint" id="projectStatus">New project</p>
-              <div id="projectMissing" class="project-missing" hidden>
-                <p class="hint"><b id="missingCount">0</b> media file(s) to reconnect:</p>
-                <ul id="missingList" class="missing-list"></ul>
-                <div class="btn-row">
-                  <button id="reconnectAuto" class="btn" type="button" title="Reconnect files this browser remembers">Reconnect</button>
-                  <button id="reconnectFolder" class="btn" type="button" title="Pick a folder; files are matched by name and size">Find in folder</button>
-                  <input type="file" id="reconnectFolderInput" webkitdirectory multiple hidden>
-                </div>
-                <label class="btn btn-file btn-block" title="Pick the files; they are matched by name and size">Choose files<input type="file" id="reconnectFiles" multiple></label>
-              </div>
-              <p class="hint">Saves assets, settings, positions, text, voice and the session record as one <b>.mnt</b> file. <b>Pack</b> puts the music, video and image files inside too, so it reopens on any computer with nothing to reconnect. <b>Link</b> keeps the file small and remembers where the media came from (hover each for details).</p>
-            </div>
 
-            <!-- Export video (D-61): rendered on this computer from the session record -->
-            <h4 class="sub-head">Export video</h4>
-            <div class="export-block">
-              <div class="field">
-                <label for="exportSize">Size</label>
-                <select id="exportSize"></select>
-              </div>
-              <div class="field">
-                <label for="exportRange">Range</label>
-                <select id="exportRange"><option value="all" selected>Whole timeline</option><option value="played">Played part only</option></select>
-              </div>
-              <div class="field-row">
-                <div class="field">
-                  <label for="exportFps">Frame rate</label>
-                  <select id="exportFps"><option value="30" selected>30 fps</option><option value="60">60 fps</option></select>
-                </div>
-                <div class="field">
-                  <label for="exportQuality">Quality</label>
-                  <select id="exportQuality"><option value="standard">Standard</option><option value="high" selected>High</option><option value="max">Max</option></select>
-                </div>
-              </div>
-              <p class="hint" id="exportSummary">Nothing to export yet.</p>
-              <ul class="export-warnings" id="exportWarnings"></ul>
-              <button id="exportStart" class="btn btn-primary btn-block" type="button" disabled>Export MP4</button>
-              <div id="exportProgress" class="export-progress" hidden>
-                <div class="export-bar"><div id="exportBar"></div></div>
-                <p class="hint" id="exportStatus"></p>
-                <button id="exportCancel" class="btn btn-block" type="button">Cancel</button>
-              </div>
-              <p class="hint export-result" id="exportResult" hidden></p>
-              <p class="hint">Rendered on this computer, no internet needed: the recorded cuts, motion, text and sound are replayed frame by frame. Muted tracks are left out.</p>
-            </div>
-
-            <h4 class="sub-head">Output window</h4>
-            <button id="popOutOutput" class="btn btn-block" type="button">Pop Out Output Window</button>
-            <p class="hint">Drag the pop-out to your projector and fullscreen it there. Canvas only &mdash; no controls.</p>
-          </section>
-
-          <!-- 04 Text (D-60): titles, credits and general text over every mode -->
-          <section class="control-section side-panel" id="panel-overlays" data-tab="overlays" data-num="04" data-label="Overlays">
-            <h3><span class="sec-num">04</span>Overlays</h3>
-            <div class="btn-row text-add">
-              <button id="textAddTitle" class="btn" type="button" title="Add a title">+ Title</button>
-              <button id="textAddCredits" class="btn" type="button" title="Add rolling credits">+ Credits</button>
-              <button id="textAddText" class="btn" type="button" title="Add text at the playhead">+ Text</button>
-            </div>
+          <!-- 04 Effects (D-60, D-76): titles, credits and text over every mode — list based -->
+          <section class="control-section side-panel" id="panel-overlays" data-tab="effects" data-num="04" data-label="Effects">
+            <h3><span class="sec-num">04</span>Effects</h3>
+            <ul class="menu-list" role="menu" aria-label="Add effect">
+              <li role="none"><button type="button" class="menu-item" role="menuitem" id="textAddTitle" title="A title at the start"><span>Add title</span><span class="menu-note">start</span></button></li>
+              <li role="none"><button type="button" class="menu-item" role="menuitem" id="textAddCredits" title="Rolling credits at the end"><span>Add credits</span><span class="menu-note">end · rolls</span></button></li>
+              <li role="none"><button type="button" class="menu-item" role="menuitem" id="textAddText" title="Text at the playhead"><span>Add text</span><span class="menu-note">at playhead</span></button></li>
+            </ul>
             <div class="asset-list" id="textList" role="listbox" aria-label="Text items"></div>
             <div class="asset-props" id="textProps"></div>
           </section>
@@ -435,13 +435,13 @@
                 <div class="prop prop-story">
                   <div class="prop-label">Positions</div>
                   <!-- D-58: the Free / Story switch is retired. Hook / Result / CTA
-                       positions are always available in 02 Assets › Asset timing.
+                       positions are always available in 03 Sound › Asset timing.
                   <div class="seg seg-btns" id="propStoryMode">
                     <button type="button" data-v="off">Free</button>
                     <button type="button" data-v="on">Story</button>
                   </div>
                   -->
-                  <!-- D-59: Auto Fade Music is set per locked clip in 02 Assets › Asset timing.
+                  <!-- D-59: Auto Fade Music is set per locked clip in 03 Sound › Asset timing.
                   <label class="prop-check" id="propStoryFadeRow">
                     <input type="checkbox" id="propStoryFade">
                     <span>Auto Fade Music to positioned clips</span>
@@ -492,7 +492,7 @@
               </div>
               <div class="ch ch-bin"><span class="ch-name">Action</span><span class="ch-sub" id="binCount">0 clips</span><span class="ch-sub ch-hint">Drag to reorder.<br>Top = most important</span></div>
               <div class="clip-bin dropzone" id="clipBin">
-                <label class="bin-add" title="Add images or video (also in 02 Assets)">
+                <label class="bin-add" title="Add images or video (also in 03 Sound › Assets)">
                   <input type="file" id="clipUpload" accept="image/*,video/*,.asf,.wmv" multiple>
                   <span class="bin-add-plus">+</span>
                   <span>Add clips</span>
@@ -514,15 +514,15 @@
           <p><kbd>Space</kbd> - Start/Stop Audio (play/pause in track mode)</p>
           <p><kbd>F</kbd> - Toggle Fullscreen</p>
           <p><kbd>1</kbd>&ndash;<kbd>9</kbd> - Visualization modes, in menu order &middot; <kbd>0</kbd> - Clip Auto-Editor</p>
-          <p><kbd>Ctrl</kbd>+<kbd>1</kbd> / <kbd>2</kbd> / <kbd>3</kbd> / <kbd>4</kbd> - Input / Sound / File / Overlays panel (<kbd>Alt</kbd> works too)</p>
+          <p><kbd>Ctrl</kbd>+<kbd>1</kbd> / <kbd>2</kbd> / <kbd>3</kbd> / <kbd>4</kbd> - File / Input / Sound / Effects panel (<kbd>Alt</kbd> works too)</p>
           <p><kbd>Shift</kbd>+<kbd>A</kbd> - Auto-Editor (edit controls)</p>
-          <p><kbd>Ctrl</kbd>+<kbd>S</kbd> - Save &middot; <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> - Save as &middot; <kbd>Ctrl</kbd>+<kbd>O</kbd> - Open project</p>
+          <p><kbd>Ctrl</kbd>+<kbd>S</kbd> - Save &middot; <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> - Save as &middot; <kbd>Ctrl</kbd>+<kbd>O</kbd> - Open &middot; <kbd>Ctrl</kbd>+<kbd>N</kbd> - New project (browser: <kbd>Alt</kbd>+<kbd>N</kbd>)</p>
           <p><kbd>R</kbd> - Reset All Gains to 1.0</p>
           <p><kbd>?</kbd> - Show/Hide This Help</p>
         </div>
         <div class="help-section">
           <h4>Clip Auto-Editor</h4>
-          <p>• Choose <em>Clip Auto-Editor</em> (<kbd>0</kbd>), then drop clips into 02 Sound &rsaquo; Assets or the Action Editor</p>
+          <p>• Choose <em>Clip Auto-Editor</em> (<kbd>0</kbd>), then drop clips into 03 Sound &rsaquo; Assets or the Action Editor</p>
           <p>• Cuts land on the beat grid; set the rate in the Auto-Editor panel</p>
           <p>• Track mode: click the timeline to seek. Live mode: the timeline scrolls</p>
         </div>
@@ -538,33 +538,33 @@
     </div>
 
     <!-- Application Modules -->
-    <script src="app/vendorLoader.js?v=2.11.2"></script>
-    <script src="app/audioProcessor.js?v=2.11.2"></script>
-    <script src="app/videoOrientation.js?v=2.11.2"></script>
-    <script src="app/visualizer.js?v=2.11.2"></script>
-    <script src="app/trackSource.js?v=2.11.2"></script>
-    <script src="app/analysisEq.js?v=2.11.2"></script>
-    <script src="app/voiceTrack.js?v=2.11.2"></script>
-    <script src="app/musicalTime.js?v=2.11.2"></script>
-    <script src="app/transitions.js?v=2.11.2"></script>
-    <script src="app/clipEngine.js?v=2.11.2"></script>
-    <script src="app/sessionRecord.js?v=2.11.2"></script>
-    <script src="app/mediaLibrary.js?v=2.11.2"></script>
-    <script src="app/mediaConvert.js?v=2.11.2"></script>
-    <script src="app/zip64.js?v=2.11.2"></script>
-    <script src="app/projectFile.js?v=2.11.2"></script>
-    <script src="app/textOverlay.js?v=2.11.2"></script>
-    <script src="app/textPanel.js?v=2.11.2"></script>
-    <script src="app/liveRecorder.js?v=2.11.2"></script>
-    <script src="app/renderer.js?v=2.11.2"></script>
-    <script src="app/displaySize.js?v=2.11.2"></script>
-    <script src="app/exportPanel.js?v=2.11.2"></script>
-    <script src="app/scope.js?v=2.11.2"></script>
-    <script src="app/timelinePanel.js?v=2.11.2"></script>
-    <script src="app/sidebar.js?v=2.11.2"></script>
-    <script src="app/headerPickers.js?v=2.11.2"></script>
-    <script src="app/assetPanel.js?v=2.11.2"></script>
-    <script src="app/eqPanel.js?v=2.11.2"></script>
-    <script src="app/app.js?v=2.11.2"></script>
+    <script src="app/vendorLoader.js?v=2.12.2"></script>
+    <script src="app/audioProcessor.js?v=2.12.2"></script>
+    <script src="app/videoOrientation.js?v=2.12.2"></script>
+    <script src="app/visualizer.js?v=2.12.2"></script>
+    <script src="app/trackSource.js?v=2.12.2"></script>
+    <script src="app/analysisEq.js?v=2.12.2"></script>
+    <script src="app/voiceTrack.js?v=2.12.2"></script>
+    <script src="app/musicalTime.js?v=2.12.2"></script>
+    <script src="app/transitions.js?v=2.12.2"></script>
+    <script src="app/clipEngine.js?v=2.12.2"></script>
+    <script src="app/sessionRecord.js?v=2.12.2"></script>
+    <script src="app/mediaLibrary.js?v=2.12.2"></script>
+    <script src="app/mediaConvert.js?v=2.12.2"></script>
+    <script src="app/zip64.js?v=2.12.2"></script>
+    <script src="app/projectFile.js?v=2.12.2"></script>
+    <script src="app/textOverlay.js?v=2.12.2"></script>
+    <script src="app/textPanel.js?v=2.12.2"></script>
+    <script src="app/liveRecorder.js?v=2.12.2"></script>
+    <script src="app/renderer.js?v=2.12.2"></script>
+    <script src="app/displaySize.js?v=2.12.2"></script>
+    <script src="app/exportPanel.js?v=2.12.2"></script>
+    <script src="app/scope.js?v=2.12.2"></script>
+    <script src="app/timelinePanel.js?v=2.12.2"></script>
+    <script src="app/sidebar.js?v=2.12.2"></script>
+    <script src="app/headerPickers.js?v=2.12.2"></script>
+    <script src="app/assetPanel.js?v=2.12.2"></script>
+    <script src="app/eqPanel.js?v=2.12.2"></script>
+    <script src="app/app.js?v=2.12.2"></script>
   </body>
 </html>

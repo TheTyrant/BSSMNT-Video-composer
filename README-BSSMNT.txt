@@ -9,15 +9,17 @@ your computer, offline.
 
 GETTING STARTED
 ---------------
-1. 01 Input: choose LIVE INPUT (mic / line in) or TRACK FILE (a song).
-2. 02 Sound › Assets: drop in videos and images (or click to choose).
+1. 02 Input: choose LIVE INPUT (mic / line in) or TRACK FILE (a song).
+2. 03 Sound › Assets: drop in videos and images (or click to choose).
    Screen recordings (.asf / .wmv) are converted automatically.
 3. MODE (top bar): pick Clip Auto-Editor (key 0), then press Space to play.
    Cuts start once the tempo is found ("Listening for tempo…").
 4. Play the song through once — what you see is recorded for the export.
-5. 03 File › Export video: pick a size and press Export MP4.
-6. 03 File › Project: Save (Ctrl+S). Choose PACK (media inside the file,
-   opens anywhere) or LINK (small file, media stays where it is).
+5. 01 File › Export video: pick the options and press Export MP4.
+6. 01 File › Save (Ctrl+S). Next to Save choose PACK (media inside the file,
+   opens anywhere) or LINK (small file, media stays where it is); the
+   file size is shown underneath. New project, Open, Open recent and
+   Save as are in the same list.
 
 
 KEYBOARD SHORTCUTS
@@ -29,14 +31,15 @@ F                  Fullscreen
                      4 Wave Forms      5 Mandala              6 Tunnel Vision
                      7 Galaxy          8 Polygon Collage      9 Media Layers
 0                  Clip Auto-Editor
-Ctrl+1             01 Input panel        (Alt+1 also works)
-Ctrl+2             02 Sound panel        (EQ, assets, asset timing)
-Ctrl+3             03 File panel         (project, export, output window)
-Ctrl+4             04 Overlays panel     (titles, credits, text)
+Ctrl+1             01 File panel         (Alt+1 also works)
+Ctrl+2             02 Input panel        (live / track, voice)
+Ctrl+3             03 Sound panel        (EQ, assets, asset timing)
+Ctrl+4             04 Effects panel      (titles, credits, text)
 Shift+A            Auto-Editor controls (right side)
 Ctrl+S             Save project
 Ctrl+Shift+S       Save project as…
 Ctrl+O             Open project
+Ctrl+N             New project (desktop app; in a browser Alt+N)
 R                  Reset the bass / mid / high sensitivity to 1.0
 ?                  Show / hide help
 Esc                Close help
@@ -52,10 +55,14 @@ Timeline     Play / pause, stop, back to start. Click the ruler to jump.
              exports). Drag text blocks on the Text lane to retime them.
 Action       The clip stack: drag to reorder. Top = most important (shown
 Editor       most often).
-02 Sound     EQ (Sensitivity / Dynamic), the asset list, and the selected
+01 File      New project · Open… · Open recent · Save (+ Pack / Link and the
+             file size) · Save as… · Export video (options in dropdowns) ·
+             Output window (pop-out for a projector).
+03 Sound     EQ (Sensitivity / Dynamic), the asset list, and the selected
              asset's options: Pace (how long it holds), Position lock
              (Hook / Result / CTA, three in total) with Auto fade music.
-04 Overlays  + Title, + Credits, + Text. Lock to Start / At time / End.
+04 Effects   Add title, Add credits, Add text; every option is a dropdown.
+             Lock to Start / At time / End.
              Drag the dashed box on screen to place text. Layout can
              differ per frame shape (Base / Vertical / Square).
 Live mode    "Record input for export" keeps the sound of a live set for

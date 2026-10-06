@@ -59,7 +59,7 @@ class DJVisualizerApp {
     // Modular tab sidebar (v2.1, D-42)
     // Left tabs (stack up to 2 panels) and the right Auto-Editor sidebar.
     // Both start closed and only span the viewport row (D-48).
-    [['panel-input', 'Ctrl+1'], ['panel-audio', 'Ctrl+1'], ['customMediaSection', 'Ctrl+2'], ['panel-output', 'Ctrl+3'], ['panel-overlays', 'Ctrl+4'], ['panel-text', 'Ctrl+4'], ['panel-autoedit', 'Shift+A']]
+    [['panel-output', 'Ctrl+1'], ['panel-input', 'Ctrl+2'], ['panel-audio', 'Ctrl+2'], ['customMediaSection', 'Ctrl+3'], ['panel-overlays', 'Ctrl+4'], ['panel-text', 'Ctrl+4'], ['panel-autoedit', 'Shift+A']]
       .forEach(([id, key]) => { const el = document.getElementById(id); if (el) el.dataset.key = key; });
     this.sidebar = new Sidebar('sidebar', 'tabPanels', 'tabRail', { maxOpen: 1 });
     this.sidebar.init();
@@ -115,6 +115,13 @@ class DJVisualizerApp {
     // Set up keyboard shortcuts for live performance
     document.addEventListener('keydown', (e) => {
       const t = e.target;
+      // New project (D-76): Ctrl+N in the desktop app; browsers keep Ctrl+N
+      // for a new window, so Alt+N there.
+      if (e.code === 'KeyN' && !e.shiftKey && ((e.ctrlKey || e.metaKey) || (e.altKey && !e.ctrlKey))) {
+        e.preventDefault();
+        this.newProject();
+        return;
+      }
       if ((e.ctrlKey || e.metaKey) && (e.code === 'KeyS' || e.code === 'KeyO')) {
         e.preventDefault();
         const fail = (err) => { if (err && err.name !== 'AbortError') alert('Project: ' + (err.message || err)); };
@@ -141,10 +148,10 @@ class DJVisualizerApp {
       // Selects use letters/digits for type-ahead; leave those alone.
       if (t.tagName === 'SELECT') return;
 
-      // Panels (D-52): Ctrl+1/2/3 = Audio / Assets / Output. Alt+1/2/3 does
-      // the same, because many browsers keep Ctrl+digit for switching tabs.
+      // Panels (D-52, D-76): Ctrl+1/2/3/4 = File / Input / Sound / Effects.
+      // Alt+digit does the same (many browsers keep Ctrl+digit for tabs).
       const digit = e.code.replace('Numpad', 'Digit');
-      const panelKeys = { Digit1: 'audio', Digit2: 'assets', Digit3: 'output', Digit4: 'text' };
+      const panelKeys = { Digit1: 'output', Digit2: 'audio', Digit3: 'assets', Digit4: 'text' };
       if ((e.ctrlKey || e.metaKey || e.altKey) && panelKeys[digit]) {
         e.preventDefault();
         this.sidebar.toggle(panelKeys[digit]);
@@ -257,7 +264,7 @@ class DJVisualizerApp {
     this.voice.on(() => this.project.markDirty());
     this.eq.on(() => this.project.markDirty());
     ['input', 'change'].forEach(t => document.addEventListener(t, (e) => {
-      if (e.target && e.target.closest && e.target.closest('#sidebar, #rightbar, .channels') && e.target.id !== 'projectName' && e.target.type !== 'file') this.project.markDirty();   // file pickers aren't edits (adding media marks dirty on its own)
+      if (e.target && e.target.closest && e.target.closest('#sidebar, #rightbar, .channels') && e.target.id !== 'projectName' && e.target.name !== 'projectMedia' && e.target.type !== 'file') this.project.markDirty();   // file pickers aren't edits (adding media marks dirty on its own)
     }, true));
     // Choosers go through the picker that remembers files, so projects can reconnect them.
     MediaConvert.init();
@@ -378,11 +385,24 @@ class DJVisualizerApp {
     btn.addEventListener('click', () => apply(document.documentElement.dataset.theme !== 'dark'));
   }
 
+  // New project (D-76): asks first if there are unsaved changes, finishes
+  // any live recording, then starts the app fresh (every setting back to its
+  // default; the skin and the Pack / Link choice are kept).
+  async newProject() {
+    if (this.project.dirty && !window.confirm('Start a new project? Unsaved changes in this one will be lost.')) return false;
+    try { if (this.isRunning || this.trackSource.isLoaded) this.stopAudio(); } catch (e) { /* closing anyway */ }
+    try { if (this.live) await this.live.discard(); } catch (e) { /* nothing to keep */ }
+    this.project.dirty = false;
+    try { sessionStorage.setItem('bssmnt.newProject', '1'); } catch (e) { /* notice only */ }
+    location.reload();
+    return true;
+  }
+
   // Live recording controls (D-68): switch + status in 01 Input, REC badge
   // in the header, and a recovered recording after a crash.
   initLiveUI() {
     const $ = (id) => document.getElementById(id);
-    const box = $('liveRecord'), status = $('liveRecStatus'), badge = $('recBadge');
+    const box = $('liveRecord'), status = $('liveRecStatus'), badge = $('liveRecBadge');
     const rec = $('liveRecover'), dl = $('liveRecoverDl'), dismiss = $('liveRecoverDismiss');
     if (!box) return;
     const L = this.live;
@@ -519,7 +539,7 @@ class DJVisualizerApp {
 
   addedMessage(added, rejected) {
     const parts = [];
-    if (added.length) parts.push(`Added ${added.length} file${added.length === 1 ? '' : 's'} to 02 Assets`);
+    if (added.length) parts.push(`Added ${added.length} file${added.length === 1 ? '' : 's'} to 03 Sound › Assets`);
     if (rejected.length) parts.push(`Not a video or image: ${rejected.join(', ')}`);
     return parts.join(' · ') || 'Nothing to add';
   }
