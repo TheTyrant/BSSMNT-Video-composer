@@ -16,20 +16,22 @@ Built on the open-source *JS DJ Audio Visualizer* (credited below). Performed li
 - **Screen recordings (.asf / .wmv / .wma):** the desktop app converts them on import (bundled FFmpeg); linked projects in the desktop app reopen media from its real location.
 - **Dynamic EQ** for what the analysis hears, an analyser-style EQ graph and session lanes, and a **dark skin** (header button).
 
-## Download (Windows)
-Get **BASSMNTalphaV1** from the [Releases page](https://github.com/TheTyrant/1238-djVisualizer/releases):
-- `BSSMNT-alphaV1-win-x64-Setup.exe` — installer, or
-- `BSSMNT-alphaV1-win-x64.zip` — portable: unzip and run `BSS MNT.exe`.
+## Get the app (Windows)
+The ready-to-run desktop app (installer or portable zip) is available to supporters:
+
+- **Monthly — Patreon ($7–15/month):** the prebuilt app, every update, plus early and in-progress builds as BSS MNT develops.
+- **Lifetime — one-time purchase:** the prebuilt app with all future updates included.
+- **Free — build it yourself:** the full source is right here. See [Run from source](#run-from-source-developers) below.
 
 The app isn't code-signed yet, so Windows SmartScreen may say *"Windows protected your PC"* — click **More info → Run anyway**. **macOS:** not built yet (on request, and it will be marked untested).
 
 ## Run from source (developers)
-The source download is for developers — it needs building / running with Node.js tooling (or an editor such as VS Code):
+The source is free for anyone who wants to build it themselves with Node.js tooling (or an editor such as VS Code):
 
 ```sh
-git clone https://github.com/TheTyrant/1238-djVisualizer.git
-cd 1238-djVisualizer
-git checkout v2            # or download the BASSMNTalphaV1 source from Releases
+git clone https://github.com/TheTyrant/BSSMNT-Video-composer.git
+cd BSSMNT-Video-composer   # v2 is the default branch
+                           # (or download the BASSMNTalphaV1 source zip from Releases)
 npm install                # Electron + electron-builder (dev tools)
 npm start                  # run the desktop app from source
 npm run dist:win           # build the Windows installer + zip into dist/
@@ -40,6 +42,8 @@ No build step is needed for the web version itself — everything it uses is in 
 - `node serve.js` → `http://127.0.0.1:8765` (Windows: **Start BSS MNT.bat**).
 
 **Browsers:** Chrome and Edge (recommended — they save straight to your disk) and Firefox (tested: 156; projects and exports go to your Downloads folder). Safari isn't supported.
+
+Source releases: [Releases](https://github.com/TheTyrant/BSSMNT-Video-composer/releases).
 
 ## Controls and shortcuts
 See **[README-BSSMNT.txt](README-BSSMNT.txt)** (also included with every download) and the in-app help (**?**). Main keys: **Space** play/pause · **F** fullscreen · **1–9** visual modes · **0** Clip Auto-Editor · **Ctrl+1–4** File / Input / Sound / Effects · **Ctrl+N** new project (browser Alt+N) · **Shift+A** Auto-Editor · **Ctrl+S / Ctrl+Shift+S / Ctrl+O** save / save as / open · **R** reset sensitivity · **?** help.
@@ -55,7 +59,7 @@ Changes: [CHANGELOG.md](CHANGELOG.md).
 
 ## Documentation
 - [docs/roadmap.md](docs/roadmap.md) — what's built, what's next
-- [docs/decisions.md](docs/decisions.md) — every design decision (D-01 … D-70)
+- [docs/decisions.md](docs/decisions.md) — every design decision (D-01 … D-77)
 - [docs/codemap.md](docs/codemap.md) — where everything lives in the code
 
 ## Project Structure
@@ -83,10 +87,10 @@ Contributions are welcome! Please open issues or submit pull requests for new fe
 MIT License. See [LICENSE](LICENSE) for details.
 
 ## Authors
-- [traksaw](https://github.com/traksaw) — original JS DJ Audio Visualizer
+- Waskar Paulino ([traksaw](https://github.com/traksaw)) — original JS DJ Audio Visualizer
 - Omar ([TheTyrant](https://github.com/TheTyrant)) — BSS MNT v2
 
 ## Acknowledgments
 - Inspired by the DJ and web audio community
 - Built with the Web Audio API and Canvas
-- p5.js, Mediabunny (+ its AAC encoder, FFmpeg), fflate, Boldonse / Inter Tight / JetBrains Mono — licences in `vendor/licenses/`
+- p5.js, Mediabunny (+ its AAC encoder, FFmpeg), fflate, Boldonse / Inter Tight / JetBrains Mono — licences in [vendor/licenses/](vendor/licenses/)

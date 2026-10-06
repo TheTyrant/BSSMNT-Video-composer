@@ -5,7 +5,7 @@
   "description": "BSS MNT — beat-locked video composer and DJ visualizer. Offline: renders, packs and exports on your machine.",
   "private": true,
   "main": "electron/main.js",
-  "author": "Omar",
+  "author": "Omar (TheTyrant); original by Waskar Paulino (traksaw)",
   "scripts": {
     "start": "node electron/run.js",
     "serve": "node serve.js",
@@ -86,7 +86,16 @@
       {
         "from": "CHANGELOG.md",
         "to": "CHANGELOG.md"
+      },
+      {
+        "from": "LICENSE",
+        "to": "LICENSE.txt"
       }
     ]
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TheTyrant/BSSMNT-Video-composer.git"
   }
 }
