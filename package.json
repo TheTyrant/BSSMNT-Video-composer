@@ -90,6 +90,10 @@
       {
         "from": "LICENSE",
         "to": "LICENSE.txt"
+      },
+      {
+        "from": "vendor/licenses",
+        "to": "licenses"
       }
     ]
   },

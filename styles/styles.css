@@ -1224,3 +1224,5 @@ button.menu-item:focus-visible, summary.menu-item:focus-visible { outline: 2px s
 :root[data-theme="dark"] .help-content { border-width: 1px !important; }
 :root[data-theme="dark"] .drag-over-panel, :root[data-theme="dark"] .bin-card.showing { outline-width: 1px; }
 :root[data-theme="dark"] .visualizer-container.is-framed .stage { box-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.28); }
+
+.help-credit { margin-top: 10px; font: 10px/1.4 var(--font-mono); color: var(--ink-3); }

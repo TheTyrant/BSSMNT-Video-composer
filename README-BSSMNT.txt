@@ -79,5 +79,11 @@ GOOD TO KNOW (alpha)
   Fullscreen (F) instead.
 - Closing with unsaved changes asks before closing.
 
-Third-party software and licences: see the "licenses" notes that come with
-the app (p5.js, Mediabunny, fflate, fonts, FFmpeg).
+LICENCE AND CREDITS
+-------------------
+BSS MNT is MIT-licensed — see LICENSE.txt next to the app.
+Original JS DJ Audio Visualizer: Waskar Paulino (traksaw), 2025.
+BSS MNT fork (v2 and later): Omar (TheTyrant), 2026.
+Third-party software keeps its own licence: p5.js, Mediabunny (+ AAC
+encoder), fflate, the fonts, and FFmpeg (GPL-3.0, desktop app only) —
+notes in resources/ffmpeg and in vendor/licenses in the source.
