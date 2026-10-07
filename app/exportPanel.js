@@ -72,7 +72,9 @@ class ExportPanel {
         }
       });
       el.result.hidden = false;
-      const msg = `Saved ${res.name} · ${res.width}×${res.height} · ${fmtTime(res.duration, false)} in ${fmtTime(res.seconds, false)} (${res.speed.toFixed(1)}× real time)`;
+      let msg = `Saved ${res.name} · ${res.width}×${res.height} · ${fmtTime(res.duration, false)} in ${fmtTime(res.seconds, false)} (${res.speed.toFixed(1)}× real time)`;
+      // Clips the decoder struggled with: export finished, those frames held still (D-78).
+      if (res.decodeIssues && res.decodeIssues.length) msg += ` · Some frames of ${res.decodeIssues.join(', ')} couldn't be decoded and were held still.`;
       if (res.blob) {
         const a = document.createElement('a');
         a.href = URL.createObjectURL(res.blob);

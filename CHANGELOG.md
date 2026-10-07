@@ -13,6 +13,8 @@ Same version (alpha V1); fixes and one import addition.
 - **Voice recording's REC timer** drove the live-input REC badge in the header (two controls shared an id); each badge is now separate.
 - **Pack / Link** radio clicks were undone by the unsaved-changes tracker; fixed. A reopened project now takes its file's name.
 - **Dark skin lines** were heavy: thinner (0.5 px / 1 px) and a softer tone.
+- **Export stopped with "Decoder error."** when any frame of any clip couldn't be decoded. It now retries, holds that clip's last good picture where it can't, finishes the export, and names the clip.
+- **A long clip locked as CTA (or Hook / Result) took over the whole project** — e.g. a screen recording longer than the song made the CTA start at 0:00 and squeezed out Result. A locked clip now plays at most a quarter of the song (30 s live); the clip's options say when it's cut short.
 
 ### Added
 - **File menu** (01 File, now the first tab): New project, Open…, Open recent, Save with Pack / Link and the file size, Save as…, Export video (options in dropdowns), Output window — a list like traditional software, with the project name on top. Tabs are now 01 File, 02 Input, 03 Sound, 04 Effects (was Overlays); Ctrl / Alt + 1–4 follow that order.

@@ -526,9 +526,18 @@ class ClipEngine {
     return out;
   }
 
-  // A video block plays its full length once; an image holds storyHold (Q9).
-  storyLength(a) {
-    return a.kind === 'image' ? a.storyHold : (a.duration || 0);
+  // A video block plays its own length once; an image holds storyHold (Q9).
+  // Each block is capped at a quarter of the song (30 s live), so a long
+  // clip (e.g. a screen recording) can't take over the whole edit: Hook +
+  // Result + CTA together never exceed three quarters (D-78).
+  static STORY_LIVE_MAX = 30;
+  storyCap(songDur = this.songDuration ? this.songDuration() : 0) {
+    return songDur > 0 ? songDur / 4 : ClipEngine.STORY_LIVE_MAX;
+  }
+
+  storyLength(a, songDur) {
+    const own = a.kind === 'image' ? a.storyHold : (a.duration || (a.el && isFinite(a.el.duration) ? a.el.duration : 0));
+    return Math.min(own, this.storyCap(songDur));
   }
 
   // Track mode: blocks sit on the song's own timeline (D-34), so the
@@ -540,15 +549,15 @@ class ClipEngine {
     const blocks = [];
     let hookEnd = 0, tail = songDur;
     if (s.hook) {
-      hookEnd = Math.min(this.storyLength(s.hook), songDur);
+      hookEnd = Math.min(this.storyLength(s.hook, songDur), songDur);
       if (hookEnd > 0) blocks.push({ role: 'hook', clip: s.hook, start: 0, end: hookEnd });
     }
     if (s.cta) {
-      const start = Math.max(hookEnd, songDur - this.storyLength(s.cta));
+      const start = Math.max(hookEnd, songDur - this.storyLength(s.cta, songDur));
       if (songDur - start > 0) { blocks.push({ role: 'cta', clip: s.cta, start, end: songDur }); tail = start; }
     }
     if (s.result) {
-      const start = Math.max(hookEnd, tail - this.storyLength(s.result));
+      const start = Math.max(hookEnd, tail - this.storyLength(s.result, songDur));
       if (tail - start > 0) blocks.push({ role: 'result', clip: s.result, start, end: tail });
     }
     return blocks.sort((a, b) => a.start - b.start);

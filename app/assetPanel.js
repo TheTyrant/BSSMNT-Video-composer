@@ -184,7 +184,10 @@ class AssetPanel {
       } else if (isStory) {
         const note = document.createElement('p');
         note.className = 'hint';
-        note.textContent = 'Plays its full length once, with its own sound.';
+        const cap = this.engine.storyCap(), own = a.duration || 0;
+        note.textContent = own > cap + 0.05
+          ? `Plays once with its own sound — the first ${fmtTime(cap, false)} of it (a locked clip is capped at a quarter of the song).`
+          : 'Plays its full length once, with its own sound.';
         sg.appendChild(note);
       }
       if (isStory) sg.appendChild(this.fadeControls(a));

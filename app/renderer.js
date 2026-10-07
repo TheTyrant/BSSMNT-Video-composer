@@ -234,7 +234,7 @@ class OfflineRenderer {
       await output.finalize();
       this.disposeScene(scene);
       const secs = (performance.now() - t0) / 1000;
-      const result = { name: handle ? handle.name : `${name}.mp4`, width: W, height: H, fps, frames: total, duration, start, seconds: secs, speed: duration / secs, vcodec, acodec };
+      const result = { name: handle ? handle.name : `${name}.mp4`, width: W, height: H, fps, frames: total, duration, start, seconds: secs, speed: duration / secs, vcodec, acodec, decodeIssues: [...(scene.decodeIssues || [])] };
       if (tmp) result.blob = await tmp.handle.getFile();
       else if (!writable) result.blob = new Blob([output.target.buffer], { type: 'video/mp4' });
       return result;
@@ -280,7 +280,12 @@ class OfflineRenderer {
     });
     for (const [slot, { file, type }] of Object.entries(scene.layerFiles || {})) {
       if (type === 'image') viz.layers[slot].media = await this.imageGraphics(scene, file, `layer:${slot}`);
-      else viz.layers[slot].source = await this.videoSource(scene, file, `layer:${slot}`);
+      else {
+        try { viz.layers[slot].source = await this.videoSource(scene, file, `layer:${slot}`); } catch (e) {
+          console.warn(`Export: couldn't open ${file.name}:`, e);
+          (scene.decodeIssues = scene.decodeIssues || new Set()).add(file.name);
+        }
+      }
     }
 
     this.textCanvas = this.textCanvas || document.createElement('canvas');
@@ -411,7 +416,13 @@ class OfflineRenderer {
       const a = engine.clipById(seg.clipId);
       if (!a || !a.file) return null;
       if (a.kind === 'image') return { g: await this.imageGraphics(scene, a.file, `img:${a.id}`) };
-      const src = await this.videoSource(scene, a.file, `clip:${a.id}:${role}`);
+      let src;
+      try { src = await this.videoSource(scene, a.file, `clip:${a.id}:${role}`); } catch (e) {
+        // A clip that can't be opened at all: leave it out (black), say so at the end.
+        console.warn(`Export: couldn't open ${a.file.name}:`, e);
+        (scene.decodeIssues = scene.decodeIssues || new Set()).add(a.file.name);
+        return null;
+      }
       return { g: await src.frameAt(this.clipTime(seg, a, t, src.duration)) };
     };
     scene.clipFrame = {
@@ -490,7 +501,25 @@ class OfflineRenderer {
         const r = await this.iter.next();
         this.next = r.done ? null : r.value;
       },
+      // A decoder error on one frame doesn't stop the export (D-78): retry
+      // once from a fresh decoder; if it still fails, keep this clip's last
+      // good picture, note the clip, and try again a little later.
       async frameAt(t) {
+        if (this.failedUntil && t < this.failedUntil) return g;
+        try {
+          return await this.read(t);
+        } catch (e1) {
+          this.iter = null;
+          try { return await this.read(t); } catch (e2) {
+            console.warn(`Export: couldn't decode ${file.name} at ${t.toFixed(2)} s:`, e2);
+            (scene.decodeIssues = scene.decodeIssues || new Set()).add(file.name);
+            this.iter = null;
+            this.failedUntil = t + 1;
+            return g;
+          }
+        }
+      },
+      async read(t) {
         const ahead = this.next ? this.next.timestamp : (this.cur ? this.cur.timestamp + this.cur.duration : -1);
         if (!this.iter || (this.cur && t < this.cur.timestamp - 1e-4) || (!this.cur && this.next && t < this.next.timestamp - 0.05) || t > ahead + 1.5) {
           await this.restart(t);
