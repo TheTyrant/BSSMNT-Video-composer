@@ -19,9 +19,8 @@ Built on the open-source *JS DJ Audio Visualizer* (credited below). Performed li
 ## Get the app (Windows)
 The ready-to-run desktop app (installer or portable zip) is available to supporters:
 
-- **Monthly — Patreon ($7–15/month):** the prebuilt app, every update, plus early and in-progress builds as BSS MNT develops.
-- **Lifetime — one-time purchase:** the prebuilt app with all future updates included.
-- **Free — build it yourself:** the full source is right here. See [Run from source](#run-from-source-developers) below.
+
+- **Free — build it yourself:** the full source is right here. See [Run from source](#run-from-source-developers) below.//
 
 The app isn't code-signed yet, so Windows SmartScreen may say *"Windows protected your PC"* — click **More info → Run anyway**. **macOS:** not built yet (on request, and it will be marked untested).
 
